@@ -1,0 +1,22 @@
+# render.yaml — Deploy to Render.com (free tier available)
+# 1. Push this repo to GitHub
+# 2. Go to render.com → New → Web Service → Connect repo
+# 3. Render auto-detects this file
+
+services:
+  - type: web
+    name: scholarbot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn web_app:app --host 0.0.0.0 --port $PORT --workers 2
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false   # set in Render dashboard
+      - key: OLLAMA_BASE_URL
+        value: ""     # leave empty if using Anthropic API
+      - key: SECRET_KEY
+        generateValue: true
+    disk:
+      name: data
+      mountPath: /app/data
+      sizeGB: 1

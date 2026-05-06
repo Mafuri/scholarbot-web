@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScholarBot — AI Scholarship Assistant</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+:root{--bg:#f9f9f7;--bg2:#fff;--bg3:#f5f5f0;--border:#e8e8e0;--text:#1a1a1a;--text2:#555;--text3:#888;--navy:#1a1a2e;--green:#059669;--yellow:#d97706;--red:#dc2626;--blue:#2563eb;--radius:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:var(--radius);border:none;cursor:pointer;font-size:14px;font-weight:500;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-primary{background:var(--navy);color:#fff}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text)}
+.btn-green{background:#16a34a;color:#fff}
+.btn-sm{padding:5px 12px;font-size:12px}
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+.tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500}
+.tag-blue{background:#dbeafe;color:#1d4ed8}
+.tag-green{background:#dcfce7;color:#15803d}
+.tag-yellow{background:#fef3c7;color:#92400e}
+.tag-red{background:#fee2e2;color:#991b1b}
+input,select,textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:#fff;color:var(--text);outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:#6366f1}
+label{font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:4px}
+.form-group{margin-bottom:1rem}
+.error{color:var(--red);font-size:13px;margin-top:4px}
+.nav{background:var(--navy);color:#fff;padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-brand{font-size:18px;font-weight:600;cursor:pointer}
+.nav-links{display:flex;gap:4px}
+.nav-link{padding:6px 14px;border-radius:var(--radius);cursor:pointer;font-size:14px;color:rgba(255,255,255,.75);transition:all .15s}
+.nav-link:hover,.nav-link.active{background:rgba(255,255,255,.15);color:#fff}
+.page{max-width:1100px;margin:0 auto;padding:2rem}
+.page-narrow{max-width:700px;margin:0 auto;padding:2rem}
+.hero{text-align:center;padding:5rem 2rem 4rem;max-width:800px;margin:0 auto}
+.hero h1{font-size:42px;font-weight:700;line-height:1.2;margin-bottom:1rem}
+.hero p{font-size:18px;color:var(--text2);margin-bottom:2rem}
+.stat-row{display:flex;justify-content:center;gap:3rem;padding:2rem;background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.stat{text-align:center}
+.stat-val{font-size:28px;font-weight:700;color:var(--navy)}
+.stat-label{font-size:13px;color:var(--text3);margin-top:2px}
+.pricing{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.25rem;max-width:900px;margin:0 auto;padding:2rem}
+.plan{text-align:center;position:relative}
+.plan.featured{border-color:var(--navy);border-width:2px}
+.plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:3px 14px;border-radius:20px;font-size:11px;white-space:nowrap}
+.plan h3{font-size:18px;font-weight:600;margin-bottom:.5rem}
+.plan-price{font-size:36px;font-weight:700;margin:1rem 0;color:var(--navy)}
+.plan-price span{font-size:16px;color:var(--text3);font-weight:400}
+.plan ul{text-align:left;list-style:none;margin:1rem 0}
+.plan ul li{font-size:13px;color:var(--text2);padding:4px 0;display:flex;gap:8px}
+.plan ul li::before{content:"✓";color:var(--green);font-weight:700;flex-shrink:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.sch-card{border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg2);padding:1rem;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.sch-card:hover{border-color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.sch-name{font-size:14px;font-weight:500;margin-bottom:4px}
+.sch-amount{font-size:20px;font-weight:700;color:var(--navy)}
+.sch-meta{font-size:12px;color:var(--text3);margin-top:4px}
+.badge-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.progress{background:#e5e7eb;border-radius:10px;height:6px;overflow:hidden}
+.progress-fill{height:100%;border-radius:10px;background:var(--navy);transition:width .5s}
+.section-title{font-size:22px;font-weight:600;margin-bottom:1.5rem}
+.section-sub{font-size:15px;color:var(--text2);margin-bottom:2rem;margin-top:-1rem}
+.tab-bar{display:flex;border-bottom:1.5px solid var(--border);margin-bottom:1.5rem;gap:0}
+.tab{padding:10px 20px;cursor:pointer;font-size:14px;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1.5px;transition:all .15s}
+.tab.active{color:var(--navy);border-bottom-color:var(--navy);font-weight:500}
+.filter-bar{display:flex;gap:10px;margin-bottom:1.5rem;flex-wrap:wrap}
+.filter-bar select{width:auto;flex:1;min-width:130px}
+.interview-q{background:var(--bg3);border-radius:var(--radius);padding:1rem;margin-bottom:1rem}
+.score-bar{height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin:8px 0}
+.score-fill{height:100%;border-radius:4px}
+.toast-container{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999}
+.toast{background:var(--navy);color:#fff;padding:10px 18px;border-radius:var(--radius);font-size:13px;animation:slideIn .3s ease}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:4rem 2rem;color:var(--text3)}
+.empty-icon{font-size:40px;margin-bottom:1rem}
+footer{background:var(--navy);color:rgba(255,255,255,.6);text-align:center;padding:2rem;font-size:13px;margin-top:4rem}
+@media(max-width:640px){.hero h1{font-size:28px}.stat-row{flex-wrap:wrap;gap:1.5rem}.grid2,.grid3{grid-template-columns:1fr}.pricing{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState, useEffect, useCallback, useRef} = React;
+
+// ── API ──────────────────────────────────────────────────────
+const API_BASE = window.location.origin;
+let _token = localStorage.getItem('sb_token') || '';
+
+async function api(method, path, body, isForm=false) {
+  const headers = {'Authorization': `Bearer ${_token}`};
+  if (!isForm) headers['Content-Type'] = 'application/json';
+  const r = await fetch(`${API_BASE}/api${path}`, {
+    method, headers,
+    body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
+  });
+  if (r.status === 401) { _token=''; localStorage.removeItem('sb_token'); window.location.reload(); }
+  const data = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(data.detail || 'Request failed');
+  return data;
+}
+
+// ── Toast ────────────────────────────────────────────────────
+let _addToast = ()=>{};
+function useToast() {
+  const [toasts, setToasts] = useState([]);
+  _addToast = (msg, type='info') => {
+    const id = Date.now();
+    setToasts(t=>[...t,{id,msg,type}]);
+    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3500);
+  };
+  return toasts;
+}
+function toast(msg, type) { _addToast(msg, type); }
+
+// ── Auth Context ─────────────────────────────────────────────
+function useAuth() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{
+    if (_token) {
+      api('GET','/auth/me').then(u=>{setUser(u);setLoading(false)})
+        .catch(()=>{_token='';localStorage.removeItem('sb_token');setLoading(false)});
+    } else setLoading(false);
+  },[]);
+
+  const login = async(email,password)=>{
+    const r = await api('POST','/auth/login',{email,password});
+    _token = r.token; localStorage.setItem('sb_token',r.token);
+    setUser(r.user);
+  };
+  const register = async(data)=>{
+    const r = await api('POST','/auth/register',data);
+    _token = r.token; localStorage.setItem('sb_token',r.token);
+    setUser(r.user);
+  };
+  const logout = ()=>{
+    _token=''; localStorage.removeItem('sb_token'); setUser(null);
+  };
+  return {user, loading, login, register, logout, setUser};
+}
+
+// ── Nav ──────────────────────────────────────────────────────
+function Nav({user, page, setPage, logout}) {
+  return (
+    <nav className="nav">
+      <div className="nav-brand" onClick={()=>setPage('home')}>🎓 ScholarBot</div>
+      <div className="nav-links">
+        {user ? (<>
+          <div className={`nav-link ${page==='dashboard'?'active':''}`} onClick={()=>setPage('dashboard')}>Dashboard</div>
+          <div className={`nav-link ${page==='scholarships'?'active':''}`} onClick={()=>setPage('scholarships')}>Scholarships</div>
+          <div className={`nav-link ${page==='packages'?'active':''}`} onClick={()=>setPage('packages')}>My Packages</div>
+          <div className={`nav-link ${page==='interview'?'active':''}`} onClick={()=>setPage('interview')}>Interview</div>
+          <div className={`nav-link ${page==='profile'?'active':''}`} onClick={()=>setPage('profile')}>Profile</div>
+          <div className="nav-link" onClick={logout}>Sign out</div>
+        </>) : (<>
+          <div className={`nav-link ${page==='home'?'active':''}`} onClick={()=>setPage('home')}>Home</div>
+          <div className="nav-link" onClick={()=>setPage('login')}>Log in</div>
+          <div className="btn btn-primary btn-sm" onClick={()=>setPage('register')} style={{marginLeft:8}}>Get started</div>
+        </>)}
+      </div>
+    </nav>
+  );
+}
+
+// ── Home ─────────────────────────────────────────────────────
+function HomePage({setPage}) {
+  const [stats, setStats] = useState(null);
+  useEffect(()=>{ api('GET','/stats').then(setStats).catch(()=>{}); },[]);
+
+  return (
+    <div>
+      <div className="hero">
+        <h1>Win scholarships with AI</h1>
+        <p>ScholarBot finds, matches, and builds complete application packages for Undergraduate, Graduate, and Postgraduate students worldwide. You click Submit.</p>
+        <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
+          <button className="btn btn-primary" style={{fontSize:16,padding:'12px 28px'}} onClick={()=>setPage('register')}>Start for free &rarr;</button>
+          <button className="btn btn-outline" style={{fontSize:16,padding:'12px 28px'}} onClick={()=>setPage('scholarships')}>Browse scholarships</button>
+        </div>
+      </div>
+
+      <div className="stat-row">
+        {[
+          ['80+', 'Direct-portal scholarships'],
+          ['$2.2M+', 'Total potential funding'],
+          ['3', 'Degree levels covered'],
+          ['50+', 'Countries covered'],
+        ].map(([v,l])=>(
+          <div key={l} className="stat">
+            <div className="stat-val">{v}</div>
+            <div className="stat-label">{l}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{padding:'3rem 2rem',maxWidth:900,margin:'0 auto'}}>
+        <h2 className="section-title" style={{textAlign:'center'}}>How it works</h2>
+        <div className="grid3" style={{marginTop:'2rem'}}>
+          {[
+            ['1','Create your profile','Upload your CV and transcript. ScholarBot extracts your GPA, major, and experience automatically.'],
+            ['2','Get matched','AI scores and ranks scholarships against your profile from Undergraduate to PhD level.'],
+            ['3','Prepare & submit','ScholarBot writes tailored essays and builds a briefing doc. Open the form, paste, and click Submit.'],
+          ].map(([n,t,d])=>(
+            <div key={n} className="card" style={{textAlign:'center'}}>
+              <div style={{width:40,height:40,borderRadius:'50%',background:'var(--navy)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem',fontWeight:600}}>{n}</div>
+              <h3 style={{fontSize:16,marginBottom:8}}>{t}</h3>
+              <p style={{fontSize:14,color:'var(--text2)'}}>{d}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{padding:'2rem',background:'var(--bg2)',borderTop:'1px solid var(--border)'}}>
+        <h2 className="section-title" style={{textAlign:'center'}}>Pricing</h2>
+        <div className="pricing">
+          {[
+            {name:'Free',price:0,features:['3 application packages/month','Scholarship matching','Essay generation','Email alerts'],featured:false},
+            {name:'Pro',price:9,features:['Unlimited packages','Interview coach','WhatsApp alerts','Portfolio builder','Win predictor','Priority support'],featured:true,badge:'Most popular'},
+            {name:'Agency',price:99,features:['Up to 50 students','Admin dashboard','Bulk processing','White-label option','API access'],featured:false},
+          ].map(plan=>(
+            <div key={plan.name} className={`card plan ${plan.featured?'featured':''}`}>
+              {plan.badge && <div className="plan-badge">{plan.badge}</div>}
+              <h3>{plan.name}</h3>
+              <div className="plan-price">${plan.price}<span>/mo</span></div>
+              <ul>{plan.features.map(f=><li key={f}>{f}</li>)}</ul>
+              <button className={`btn ${plan.featured?'btn-primary':'btn-outline'}`} style={{width:'100%',marginTop:'1rem',justifyContent:'center'}} onClick={()=>setPage('register')}>
+                {plan.price===0?'Start free':'Get started'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <footer>ScholarBot &copy; {new Date().getFullYear()} &nbsp;|&nbsp; AI-powered scholarship applications &nbsp;|&nbsp; Built for students worldwide</footer>
+    </div>
+  );
+}
+
+// ── Auth ─────────────────────────────────────────────────────
+function LoginPage({login, setPage}) {
+  const [form, setForm] = useState({email:'',password:''});
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const submit = async(e)=>{
+    e.preventDefault(); setLoading(true); setErr('');
+    try { await login(form.email, form.password); setPage('dashboard'); toast('Welcome back!','success'); }
+    catch(e) { setErr(e.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="page-narrow">
+      <div className="card" style={{marginTop:'3rem',padding:'2rem'}}>
+        <h2 style={{marginBottom:'1.5rem'}}>Sign in to ScholarBot</h2>
+        <form onSubmit={submit}>
+          <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required /></div>
+          <div className="form-group"><label>Password</label><input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required /></div>
+          {err && <p className="error">{err}</p>}
+          <button className="btn btn-primary" style={{width:'100%',justifyContent:'center',marginTop:8}} disabled={loading}>
+            {loading?<><span className="spinner"></span> Signing in...</>:'Sign in'}
+          </button>
+        </form>
+        <p style={{marginTop:'1rem',textAlign:'center',fontSize:14,color:'var(--text2)'}}>No account? <span style={{color:'var(--blue)',cursor:'pointer'}} onClick={()=>setPage('register')}>Create one free</span></p>
+      </div>
+    </div>
+  );
+}
+
+function RegisterPage({register, setPage}) {
+  const [form, setForm] = useState({name:'',email:'',password:'',degree_level:'Graduate',major:'',school:'',nationality:'Kenya',gpa:'',financial_need:false});
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const submit = async(e)=>{
+    e.preventDefault(); setLoading(true); setErr('');
+    try {
+      await register({...form, gpa:parseFloat(form.gpa)||0});
+      setPage('dashboard'); toast('Account created! Welcome to ScholarBot.','success');
+    } catch(e) { setErr(e.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="page-narrow">
+      <div className="card" style={{marginTop:'2rem',padding:'2rem'}}>
+        <h2 style={{marginBottom:'1.5rem'}}>Create your account</h2>
+        <form onSubmit={submit}>
+          <div className="grid2">
+            <div className="form-group"><label>Full name</label><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required /></div>
+            <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required /></div>
+          </div>
+          <div className="form-group"><label>Password</label><input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required /></div>
+          <div className="grid2">
+            <div className="form-group"><label>Degree level</label>
+              <select value={form.degree_level} onChange={e=>setForm({...form,degree_level:e.target.value})}>
+                <option>Undergraduate</option><option>Graduate</option><option>Postgraduate</option>
+              </select>
+            </div>
+            <div className="form-group"><label>GPA (0–4.0)</label><input type="number" step="0.1" min="0" max="4" value={form.gpa} onChange={e=>setForm({...form,gpa:e.target.value})} /></div>
+          </div>
+          <div className="grid2">
+            <div className="form-group"><label>Major / Field of study</label><input value={form.major} onChange={e=>setForm({...form,major:e.target.value})} required /></div>
+            <div className="form-group"><label>University / School</label><input value={form.school} onChange={e=>setForm({...form,school:e.target.value})} required /></div>
+          </div>
+          <div className="grid2">
+            <div className="form-group"><label>Country</label><input value={form.nationality} onChange={e=>setForm({...form,nationality:e.target.value})} /></div>
+            <div className="form-group" style={{display:'flex',alignItems:'center',gap:8,paddingTop:24}}>
+              <input type="checkbox" id="fn" checked={form.financial_need} onChange={e=>setForm({...form,financial_need:e.target.checked})} style={{width:'auto'}} />
+              <label htmlFor="fn" style={{marginBottom:0}}>I have financial need</label>
+            </div>
+          </div>
+          {err && <p className="error">{err}</p>}
+          <button className="btn btn-primary" style={{width:'100%',justifyContent:'center',marginTop:8}} disabled={loading}>
+            {loading?<><span className="spinner"></span> Creating...</>:'Create free account'}
+          </button>
+        </form>
+        <p style={{marginTop:'1rem',textAlign:'center',fontSize:14,color:'var(--text2)'}}>Already have an account? <span style={{color:'var(--blue)',cursor:'pointer'}} onClick={()=>setPage('login')}>Sign in</span></p>
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard ────────────────────────────────────────────────
+function DashboardPage({user, setPage}) {
+  const [data, setData] = useState(null);
+  useEffect(()=>{ api('GET','/dashboard').then(setData).catch(()=>{}); },[]);
+
+  if (!data) return <div className="page"><div className="empty"><div className="empty-icon">⏳</div>Loading dashboard...</div></div>;
+
+  return (
+    <div className="page">
+      <h2 className="section-title">Welcome back, {user.name.split(' ')[0]} 👋</h2>
+      <div className="grid3" style={{marginBottom:'2rem'}}>
+        {[
+          {label:'Scholarships matched',value:data.scholarships_matched,sub:'for your profile',color:'var(--blue)'},
+          {label:'Total potential',value:`$${(data.total_potential_usd/1000).toFixed(0)}k`,sub:'in funding',color:'var(--green)'},
+          {label:'Applications submitted',value:data.applications_submitted,sub:'this cycle',color:'var(--navy)'},
+          {label:'Won',value:`$${data.total_won_usd.toLocaleString()}`,sub:'in awards',color:'#9333ea'},
+          {label:'Degree level',value:user.degree_level,sub:'',color:'var(--text)'},
+          {label:'GPA',value:user.gpa||'—',sub:'out of 4.0',color:'var(--text)'},
+        ].map(s=>(
+          <div key={s.label} className="card">
+            <div style={{fontSize:13,color:'var(--text2)',marginBottom:4}}>{s.label}</div>
+            <div style={{fontSize:26,fontWeight:700,color:s.color}}>{s.value}</div>
+            {s.sub && <div style={{fontSize:12,color:'var(--text3)'}}>{s.sub}</div>}
+          </div>
+        ))}
+      </div>
+
+      {data.upcoming_deadlines.length > 0 && (
+        <div className="card" style={{marginBottom:'1.5rem'}}>
+          <h3 style={{fontSize:16,marginBottom:'1rem'}}>⏰ Upcoming deadlines</h3>
+          {data.upcoming_deadlines.map(d=>(
+            <div key={d.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'0.5px solid var(--border)'}}>
+              <div>
+                <div style={{fontWeight:500,fontSize:14}}>{d.name}</div>
+                <div style={{fontSize:12,color:'var(--text3)'}}>{d.deadline} &nbsp;|&nbsp; ${d.amount_usd?.toLocaleString()}</div>
+              </div>
+              <span className={`tag ${d.days_left<=7?'tag-red':d.days_left<=30?'tag-yellow':'tag-green'}`}>{d.days_left} days</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+        <button className="btn btn-primary" onClick={()=>setPage('scholarships')}>Browse scholarships &rarr;</button>
+        <button className="btn btn-outline" onClick={()=>setPage('packages')}>My application packages</button>
+        <button className="btn btn-outline" onClick={()=>setPage('interview')}>Practice interview</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Scholarships ─────────────────────────────────────────────
+function ScholarshipsPage({user, setPage}) {
+  const [scholarships, setScholarships] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('all');
+  const [filters, setFilters] = useState({degree:'',field:'',region:'',min_amount:''});
+  const [selected, setSelected] = useState(null);
+  const [generating, setGenerating] = useState(null);
+
+  const load = useCallback(async()=>{
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (tab!=='all') params.set('degree_level', tab);
+      if (filters.field) params.set('field', filters.field);
+      if (filters.region) params.set('region', filters.region);
+      if (filters.min_amount) params.set('min_amount', filters.min_amount);
+      const endpoint = user ? '/scholarships/matched' : '/scholarships';
+      const r = await api('GET', `${endpoint}?${params}`);
+      setScholarships(r.scholarships || []);
+    } finally { setLoading(false); }
+  },[tab, filters, user]);
+
+  useEffect(()=>{ load(); },[load]);
+
+  const generateEssay = async(sch)=>{
+    if (!user) { setPage('register'); return; }
+    setGenerating(sch.id);
+    try {
+      const job = await api('POST','/essays/generate',{scholarship_id:sch.id,tone:'personal-narrative'});
+      toast('Essay generation started — check My Packages in ~30 seconds','success');
+    } catch(e) { toast(e.message,'error'); }
+    finally { setGenerating(null); }
+  };
+
+  const preparePackage = async(sch)=>{
+    if (!user) { setPage('register'); return; }
+    setGenerating(sch.id+'_pkg');
+    try {
+      await api('POST','/packages/prepare',{scholarship_ids:[sch.id],top_n:1});
+      toast('Package being prepared — check My Packages shortly','success');
+    } catch(e) { toast(e.message,'error'); }
+    finally { setGenerating(null); }
+  };
+
+  const filtered = tab==='all' ? scholarships :
+    scholarships.filter(s=>s.degree_levels?.some(d=>d.toLowerCase().includes(tab.toLowerCase())));
+
+  return (
+    <div className="page">
+      <h2 className="section-title">Scholarships</h2>
+      {user && <p className="section-sub">Showing scholarships matched to your profile — {user.degree_level}, {user.nationality}</p>}
+
+      <div className="tab-bar">
+        {['all','Undergraduate','Graduate','Postgraduate'].map(t=>(
+          <div key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>{t==='all'?'All levels':t}</div>
+        ))}
+      </div>
+
+      <div className="filter-bar">
+        <select value={filters.field} onChange={e=>setFilters({...filters,field:e.target.value})}>
+          <option value="">All fields</option>
+          {['Computer Science','Information Technology','Cybersecurity','AI/ML','Data Science','Software Engineering','Cloud Computing'].map(f=><option key={f}>{f}</option>)}
+        </select>
+        <select value={filters.region} onChange={e=>setFilters({...filters,region:e.target.value})}>
+          <option value="">All regions</option>
+          {['Africa','Kenya','Global','UK','USA','Europe','Asia','Canada'].map(r=><option key={r}>{r}</option>)}
+        </select>
+        <select value={filters.min_amount} onChange={e=>setFilters({...filters,min_amount:e.target.value})}>
+          <option value="">Any amount</option>
+          <option value="1000">$1,000+</option>
+          <option value="5000">$5,000+</option>
+          <option value="10000">$10,000+</option>
+          <option value="25000">$25,000+</option>
+        </select>
+        <button className="btn btn-outline btn-sm" onClick={load}>🔄 Refresh</button>
+      </div>
+
+      {loading ? (
+        <div className="empty"><div className="spinner" style={{width:32,height:32,borderColor:'var(--navy)',borderTopColor:'transparent'}}></div><p style={{marginTop:12}}>Loading scholarships...</p></div>
+      ) : filtered.length===0 ? (
+        <div className="empty"><div className="empty-icon">🔍</div><p>No scholarships found for these filters</p></div>
+      ) : (
+        <>
+          <p style={{fontSize:13,color:'var(--text3)',marginBottom:'1rem'}}>{filtered.length} scholarships found</p>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:'1rem'}}>
+            {filtered.map(s=>(
+              <div key={s.id} className="sch-card" onClick={()=>setSelected(s===selected?null:s)}>
+                <div className="sch-name">{s.name}</div>
+                <div className="sch-amount">${s.amount_usd?.toLocaleString()}</div>
+                <div className="sch-meta">{s.provider} &nbsp;|&nbsp; {s.deadline || 'Rolling'}</div>
+                {s.days_left !== undefined && <div className="sch-meta">{s.days_left} days left &nbsp;|&nbsp; {s.degree_levels?.join(', ')}</div>}
+                {user && s.match_score !== undefined && (
+                  <div style={{marginTop:8}}>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--text3)',marginBottom:3}}>
+                      <span>Match</span><span>{(s.match_score*100).toFixed(0)}%</span>
+                    </div>
+                    <div className="progress"><div className="progress-fill" style={{width:`${s.match_score*100}%`}}></div></div>
+                  </div>
+                )}
+                <div className="badge-row">
+                  {s.tags?.filter(t=>['cybersecurity','ai','africa','uk','usa','prestigious','financial_need','fully-funded'].includes(t)).slice(0,3).map(t=>(
+                    <span key={t} className="tag tag-blue">{t}</span>
+                  ))}
+                </div>
+                {selected===s && (
+                  <div style={{marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid var(--border)'}} onClick={e=>e.stopPropagation()}>
+                    <p style={{fontSize:13,color:'var(--text2)',marginBottom:'0.75rem'}}>{s.essay_prompt}</p>
+                    <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                      <button className="btn btn-primary btn-sm" disabled={generating===s.id+'_pkg'}
+                        onClick={()=>preparePackage(s)}>
+                        {generating===s.id+'_pkg'?<><span className="spinner"></span> Preparing...</>:'📦 Prepare package'}
+                      </button>
+                      <a href={s.url} target="_blank" className="btn btn-outline btn-sm">Apply →</a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Packages ─────────────────────────────────────────────────
+function PackagesPage({user}) {
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [preparing, setPreparing] = useState(false);
+
+  const load = async()=>{
+    setLoading(true);
+    try { const r = await api('GET','/packages'); setPackages(r.packages||[]); }
+    finally { setLoading(false); }
+  };
+
+  const prepareTop = async()=>{
+    setPreparing(true);
+    try {
+      const job = await api('POST','/packages/prepare',{top_n:5});
+      toast('Preparing top 5 packages — this takes ~2 minutes. Refresh after.','success');
+    } catch(e) { toast(e.message,'error'); }
+    finally { setPreparing(false); }
+  };
+
+  const recordSubmission = async(pkg)=>{
+    try {
+      await api('POST','/applications/record',{
+        scholarship_name: pkg.scholarship,
+        amount_usd: pkg.amount_usd,
+        deadline: pkg.deadline,
+      });
+      toast(`Recorded submission for ${pkg.scholarship.slice(0,40)}...`,'success');
+    } catch(e) { toast(e.message,'error'); }
+  };
+
+  useEffect(()=>{ load(); },[]);
+
+  return (
+    <div className="page">
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.5rem',flexWrap:'wrap',gap:12}}>
+        <div>
+          <h2 className="section-title" style={{marginBottom:4}}>Application Packages</h2>
+          <p style={{color:'var(--text2)',fontSize:14}}>Complete packages with essays, briefing docs, and application links</p>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <button className="btn btn-outline btn-sm" onClick={load}>🔄 Refresh</button>
+          <button className="btn btn-primary" disabled={preparing} onClick={prepareTop}>
+            {preparing?<><span className="spinner"></span> Preparing...</>:'✨ Prepare top 5'}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="empty"><div className="spinner" style={{width:32,height:32,borderColor:'var(--navy)',borderTopColor:'transparent'}}></div></div>
+      ) : packages.length===0 ? (
+        <div className="empty">
+          <div className="empty-icon">📦</div>
+          <p style={{marginBottom:'1rem'}}>No packages yet</p>
+          <p style={{fontSize:14,color:'var(--text3)',marginBottom:'1.5rem'}}>Click "Prepare top 5" to generate complete application packages with tailored essays</p>
+          <button className="btn btn-primary" onClick={prepareTop} disabled={preparing}>
+            {preparing?<><span className="spinner"></span> Preparing...</>:'✨ Prepare top 5 now'}
+          </button>
+        </div>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+          {packages.map(pkg=>(
+            <div key={pkg.id} className="card">
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:8}}>
+                <div>
+                  <div style={{fontWeight:600,fontSize:16,marginBottom:4}}>{pkg.scholarship}</div>
+                  <div style={{fontSize:13,color:'var(--text2)'}}>
+                    ${pkg.amount_usd?.toLocaleString()} &nbsp;|&nbsp; Deadline: {pkg.deadline}
+                    {pkg.days_left!==undefined && ` | ${pkg.days_left} days left`}
+                  </div>
+                  {pkg.essay_preview && <p style={{fontSize:13,color:'var(--text3)',marginTop:8,fontStyle:'italic'}}>{pkg.essay_preview}</p>}
+                </div>
+                <span className={`tag ${(pkg.days_left||999)<=7?'tag-red':(pkg.days_left||999)<=30?'tag-yellow':'tag-green'}`}>
+                  {pkg.days_left||'?'} days
+                </span>
+              </div>
+              <div style={{display:'flex',gap:8,marginTop:'1rem',flexWrap:'wrap'}}>
+                <a href={pkg.briefing_url} target="_blank" className="btn btn-primary btn-sm">Open briefing →</a>
+                <a href={pkg.essay_url} target="_blank" className="btn btn-outline btn-sm">View essay</a>
+                <a href={pkg.url} target="_blank" className="btn btn-outline btn-sm">Apply →</a>
+                <button className="btn btn-green btn-sm" onClick={()=>recordSubmission(pkg)}>✓ Mark submitted</button>
+                <a href={`/api/packages/${user.id}/${pkg.id}/download`} className="btn btn-outline btn-sm">⬇ Download</a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Interview Coach ───────────────────────────────────────────
+function InterviewPage({user}) {
+  const [scholarship, setScholarship] = useState('general');
+  const [questions, setQuestions] = useState([]);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [answer, setAnswer] = useState('');
+  const [score, setScore] = useState(null);
+  const [scoring, setScoring] = useState(false);
+  const [allScores, setAllScores] = useState([]);
+
+  useEffect(()=>{
+    api('GET',`/interview/questions/${scholarship}`)
+      .then(r=>{ setQuestions(r.questions||[]); setCurrentQ(0); setAnswer(''); setScore(null); setAllScores([]); })
+      .catch(()=>{});
+  },[scholarship]);
+
+  const submitAnswer = async()=>{
+    if (!answer.trim()) { toast('Please enter an answer first','error'); return; }
+    setScoring(true);
+    try {
+      const q = questions[currentQ];
+      const r = await api('POST','/interview/score',{
+        question: q.q, answer, scholarship, profile: user
+      });
+      setScore(r);
+      setAllScores(prev=>[...prev,{question:q.q,score:r.overall_score,grade:r.grade}]);
+    } catch(e) { toast(e.message,'error'); }
+    finally { setScoring(false); }
+  };
+
+  const next = ()=>{
+    if (currentQ < questions.length-1) { setCurrentQ(q=>q+1); setAnswer(''); setScore(null); }
+  };
+
+  const avgScore = allScores.length ? allScores.reduce((a,s)=>a+s.score,0)/allScores.length : 0;
+
+  return (
+    <div className="page" style={{maxWidth:760}}>
+      <h2 className="section-title">Interview Coach</h2>
+      <p className="section-sub">Practice scholarship panel interviews with AI scoring</p>
+
+      <div className="form-group" style={{maxWidth:320,marginBottom:'1.5rem'}}>
+        <label>Scholarship type</label>
+        <select value={scholarship} onChange={e=>setScholarship(e.target.value)}>
+          {[['general','General (all scholarships)'],['chevening','Chevening'],['commonwealth','Commonwealth'],['fulbright','Fulbright'],['gates_cambridge','Gates Cambridge']].map(([v,l])=>(
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
+      </div>
+
+      {allScores.length > 0 && (
+        <div className="card" style={{marginBottom:'1.5rem',background:'#f0f9ff',border:'1px solid #bae6fd'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontWeight:500}}>Session score: {(avgScore*100).toFixed(0)}%</span>
+            <span style={{fontSize:13,color:'var(--text2)'}}>{allScores.length}/{questions.length} answered</span>
+          </div>
+          <div className="progress" style={{marginTop:8}}>
+            <div className="progress-fill" style={{width:`${avgScore*100}%`,background:avgScore>=0.7?'var(--green)':avgScore>=0.5?'var(--yellow)':'var(--red)'}}></div>
+          </div>
+        </div>
+      )}
+
+      {questions.length > 0 && (
+        <>
+          <div className="interview-q">
+            <div style={{fontSize:12,color:'var(--text3)',marginBottom:4}}>Question {currentQ+1} of {questions.length} &nbsp;|&nbsp; {questions[currentQ]?.focus?.toUpperCase()}</div>
+            <div style={{fontSize:17,fontWeight:500,marginBottom:8}}>{questions[currentQ]?.q}</div>
+            <div style={{fontSize:13,color:'var(--text2)',background:'rgba(99,102,241,.08)',padding:'6px 10px',borderRadius:6}}>
+              💡 Tip: {questions[currentQ]?.tips}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Your answer (aim for 150–250 words)</label>
+            <textarea rows={8} value={answer} onChange={e=>setAnswer(e.target.value)}
+              placeholder="Type your answer here as if you were in a real panel interview..." />
+            <div style={{fontSize:12,color:'var(--text3)',textAlign:'right',marginTop:3}}>{answer.split(/\s+/).filter(Boolean).length} words</div>
+          </div>
+
+          <div style={{display:'flex',gap:10,marginBottom:'1.5rem'}}>
+            <button className="btn btn-primary" disabled={scoring||!answer.trim()} onClick={submitAnswer}>
+              {scoring?<><span className="spinner"></span> Scoring...</>:'Score my answer'}
+            </button>
+            {score && currentQ < questions.length-1 && (
+              <button className="btn btn-outline" onClick={next}>Next question →</button>
+            )}
+          </div>
+
+          {score && (
+            <div className="card" style={{borderColor: score.overall_score>=0.7?'var(--green)':score.overall_score>=0.5?'var(--yellow)':'var(--red)'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+                <span style={{fontWeight:600,fontSize:18}}>Score: {(score.overall_score*100).toFixed(0)}%</span>
+                <span style={{fontSize:24,fontWeight:700,color:score.grade==='A'?'var(--green)':score.grade==='B'?'var(--blue)':score.grade==='C'?'var(--yellow)':'var(--red)'}}>{score.grade}</span>
+              </div>
+              {[['Specificity',score.scores?.specificity],['Fluency',score.scores?.fluency],['Length',score.scores?.length]].map(([l,v])=>(
+                <div key={l} style={{marginBottom:8}}>
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:3}}>
+                    <span>{l}</span><span>{((v||0)*100).toFixed(0)}%</span>
+                  </div>
+                  <div className="score-bar">
+                    <div className="score-fill" style={{width:`${(v||0)*100}%`,background:'var(--navy)'}}></div>
+                  </div>
+                </div>
+              ))}
+              <div style={{marginTop:'1rem',padding:'10px',background:'var(--bg3)',borderRadius:8,fontSize:14}}>
+                💡 {score.feedback}
+              </div>
+              {score.filler_count > 0 && (
+                <div style={{fontSize:13,color:'var(--yellow)',marginTop:8}}>⚠ {score.filler_count} filler word(s) detected</div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Profile ───────────────────────────────────────────────────
+function ProfilePage({user, setUser}) {
+  const [form, setForm] = useState({...user});
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef();
+
+  const save = async(e)=>{
+    e.preventDefault(); setSaving(true);
+    try {
+      const updated = await api('PATCH','/profile',{
+        name:form.name, major:form.major, school:form.school,
+        gpa:parseFloat(form.gpa)||0, nationality:form.nationality,
+        financial_need:form.financial_need,
+        personal_statement:form.personal_statement,
+        skills: typeof form.skills==='string' ? form.skills.split(',').map(s=>s.trim()) : form.skills,
+        extracurriculars: typeof form.extracurriculars==='string' ? form.extracurriculars.split(',').map(s=>s.trim()) : form.extracurriculars,
+      });
+      setUser({...user,...updated});
+      toast('Profile saved','success');
+    } catch(e) { toast(e.message,'error'); }
+    finally { setSaving(false); }
+  };
+
+  const uploadDoc = async(e)=>{
+    const file = e.target.files[0]; if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData(); fd.append('file',file);
+      const r = await api('POST','/profile/upload-doc',fd,true);
+      if (r.extracted) {
+        setForm(f=>({...f,...r.extracted}));
+        setUser(u=>({...u,...r.extracted}));
+        toast(`Profile updated from ${file.name}`,'success');
+      } else toast('Document uploaded','success');
+    } catch(e) { toast(e.message,'error'); }
+    finally { setUploading(false); }
+  };
+
+  return (
+    <div className="page" style={{maxWidth:760}}>
+      <h2 className="section-title">Your Profile</h2>
+      <p className="section-sub">Complete your profile for better scholarship matching</p>
+
+      <div className="card" style={{marginBottom:'1.5rem',padding:'1rem',background:'#f0f9ff',border:'1px solid #bae6fd',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}}>
+        <div>
+          <div style={{fontWeight:500}}>Upload your CV or transcript</div>
+          <div style={{fontSize:13,color:'var(--text2)'}}>We'll auto-extract your GPA, major, and experience</div>
+        </div>
+        <div>
+          <input ref={fileRef} type="file" accept=".pdf,.docx,.doc" style={{display:'none'}} onChange={uploadDoc} />
+          <button className="btn btn-primary btn-sm" disabled={uploading} onClick={()=>fileRef.current.click()}>
+            {uploading?<><span className="spinner"></span> Uploading...</>:'📄 Upload document'}
+          </button>
+        </div>
+      </div>
+
+      <form onSubmit={save}>
+        <div className="card" style={{marginBottom:'1.5rem'}}>
+          <h3 style={{fontSize:15,fontWeight:600,marginBottom:'1rem'}}>Personal details</h3>
+          <div className="grid2">
+            <div className="form-group"><label>Full name</label><input value={form.name||''} onChange={e=>setForm({...form,name:e.target.value})} /></div>
+            <div className="form-group"><label>Email</label><input value={form.email||''} disabled style={{background:'var(--bg3)'}} /></div>
+          </div>
+          <div className="grid2">
+            <div className="form-group"><label>Country / Nationality</label><input value={form.nationality||''} onChange={e=>setForm({...form,nationality:e.target.value})} /></div>
+            <div className="form-group" style={{display:'flex',alignItems:'center',gap:8,paddingTop:24}}>
+              <input type="checkbox" id="fn2" checked={form.financial_need||false} onChange={e=>setForm({...form,financial_need:e.target.checked})} style={{width:'auto'}} />
+              <label htmlFor="fn2" style={{marginBottom:0}}>I have financial need</label>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{marginBottom:'1.5rem'}}>
+          <h3 style={{fontSize:15,fontWeight:600,marginBottom:'1rem'}}>Academic background</h3>
+          <div className="grid2">
+            <div className="form-group"><label>Degree level</label>
+              <select value={form.degree_level||'Graduate'} onChange={e=>setForm({...form,degree_level:e.target.value})}>
+                <option>Undergraduate</option><option>Graduate</option><option>Postgraduate</option>
+              </select>
+            </div>
+            <div className="form-group"><label>GPA (0–4.0)</label><input type="number" step="0.1" min="0" max="4" value={form.gpa||''} onChange={e=>setForm({...form,gpa:e.target.value})} /></div>
+          </div>
+          <div className="grid2">
+            <div className="form-group"><label>Major / Field of study</label><input value={form.major||''} onChange={e=>setForm({...form,major:e.target.value})} /></div>
+            <div className="form-group"><label>University / School</label><input value={form.school||''} onChange={e=>setForm({...form,school:e.target.value})} /></div>
+          </div>
+        </div>
+
+        <div className="card" style={{marginBottom:'1.5rem'}}>
+          <h3 style={{fontSize:15,fontWeight:600,marginBottom:'1rem'}}>Skills & activities</h3>
+          <div className="form-group"><label>Skills (comma-separated)</label>
+            <input value={Array.isArray(form.skills)?form.skills.join(', '):(form.skills||'')} onChange={e=>setForm({...form,skills:e.target.value})} placeholder="Python, Cloud Computing, Data Analysis..." />
+          </div>
+          <div className="form-group"><label>Extracurricular activities (comma-separated)</label>
+            <input value={Array.isArray(form.extracurriculars)?form.extracurriculars.join(', '):(form.extracurriculars||'')} onChange={e=>setForm({...form,extracurriculars:e.target.value})} placeholder="Community teaching, Tech club president..." />
+          </div>
+          <div className="form-group"><label>Personal statement (optional — used in essays)</label>
+            <textarea rows={4} value={form.personal_statement||''} onChange={e=>setForm({...form,personal_statement:e.target.value})} placeholder="Brief description of your goals and background..." />
+          </div>
+        </div>
+
+        <button className="btn btn-primary" type="submit" disabled={saving}>
+          {saving?<><span className="spinner"></span> Saving...</>:'Save profile'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────
+function App() {
+  const {user, loading, login, register, logout, setUser} = useAuth();
+  const [page, setPage] = useState('home');
+  const toasts = useToast();
+
+  useEffect(()=>{
+    if (user && page==='home') setPage('dashboard');
+    if (!user && ['dashboard','packages','profile'].includes(page)) setPage('home');
+  },[user]);
+
+  if (loading) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh'}}>
+      <div style={{textAlign:'center'}}>
+        <div className="spinner" style={{width:40,height:40,borderColor:'var(--navy)',borderTopColor:'transparent',margin:'0 auto 1rem'}}></div>
+        <p style={{color:'var(--text3)'}}>Loading ScholarBot...</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <Nav user={user} page={page} setPage={setPage} logout={logout} />
+      {page==='home' && <HomePage setPage={setPage} />}
+      {page==='login' && <LoginPage login={login} setPage={setPage} />}
+      {page==='register' && <RegisterPage register={register} setPage={setPage} />}
+      {page==='dashboard' && user && <DashboardPage user={user} setPage={setPage} />}
+      {page==='scholarships' && <ScholarshipsPage user={user} setPage={setPage} />}
+      {page==='packages' && user && <PackagesPage user={user} />}
+      {page==='interview' && <InterviewPage user={user} />}
+      {page==='profile' && user && <ProfilePage user={user} setUser={setUser} />}
+
+      <div className="toast-container">
+        {toasts.map(t=>(
+          <div key={t.id} className="toast" style={{background:t.type==='error'?'var(--red)':t.type==='success'?'var(--green)':'var(--navy)'}}>
+            {t.msg}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
