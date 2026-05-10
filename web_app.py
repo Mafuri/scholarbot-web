@@ -404,13 +404,46 @@ async def update_profile(upd: ProfileUpdate,
     db.refresh(user)
     return user.to_dict()
 
+def _ocr_with_claude(images_b64: list, api_key: str) -> str:
+    """Use Claude vision to extract text from scanned images/PDFs."""
+    if not api_key or not images_b64:
+        return ""
+    try:
+        import requests as req, json as _json
+        content_parts = []
+        for img_b64 in images_b64[:4]:  # Max 4 pages
+            content_parts.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": "image/png", "data": img_b64}
+            })
+        content_parts.append({
+            "type": "text",
+            "text": ("Extract ALL text from this document image. "
+                    "This may be a degree certificate, transcript, CV, or academic document. "
+                    "Include all text exactly as shown: names, grades, GPA, courses, dates, institutions. "
+                    "Return only the extracted text, nothing else.")
+        })
+        r = req.post("https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key,
+                     "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"},
+            json={"model": "claude-haiku-4-5-20251001",
+                  "max_tokens": 2000,
+                  "messages": [{"role": "user", "content": content_parts}]},
+            timeout=60)
+        return r.json()["content"][0]["text"]
+    except Exception as e:
+        logger.warning("OCR failed: %s", e)
+        return ""
+
+
 @app.post("/api/profile/upload-doc")
 async def upload_doc(file: UploadFile = File(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)):
     ext = Path(file.filename).suffix.lower()
-    if ext not in {".pdf",".docx",".doc"}:
-        raise HTTPException(400, "Supported formats: PDF, DOCX, DOC")
+    if ext not in {".pdf",".docx",".doc",".jpg",".jpeg",".png",".tiff",".tif",".bmp",".webp"}:
+        raise HTTPException(400, "Supported: PDF, DOCX, DOC, JPG, PNG, TIFF (scanned docs OK)")
     d = Path("data/uploads/"+user.id)
     d.mkdir(parents=True, exist_ok=True)
     content_bytes = await file.read()
@@ -422,12 +455,29 @@ async def upload_doc(file: UploadFile = File(...),
         if ext == ".pdf":
             import fitz
             doc = fitz.open(str(p))
-            text = " ".join(page.get_text() for page in doc)
+            # Try text extraction first
+            raw_text = " ".join(page.get_text() for page in doc)
+            if len(raw_text.strip()) > 50:
+                text = raw_text
+            else:
+                # Scanned PDF - render each page as image and use Claude vision
+                images_b64 = []
+                for page in doc:
+                    mat = fitz.Matrix(2, 2)  # 2x zoom for clarity
+                    pix = page.get_pixmap(matrix=mat)
+                    import base64
+                    images_b64.append(base64.b64encode(pix.tobytes("png")).decode())
+                text = _ocr_with_claude(images_b64, os.environ.get("ANTHROPIC_API_KEY",""))
             doc.close()
         elif ext in (".docx",".doc"):
             import docx as _docx
-            doc = _docx.Document(str(p))
-            text = " ".join(para.text for para in doc.paragraphs)
+            d = _docx.Document(str(p))
+            text = " ".join(para.text for para in d.paragraphs)
+        elif ext in (".jpg",".jpeg",".png",".tiff",".tif",".bmp",".webp"):
+            # Image of certificate, degree, or transcript
+            import base64
+            img_b64 = base64.b64encode(content_bytes).decode()
+            text = _ocr_with_claude([img_b64], os.environ.get("ANTHROPIC_API_KEY",""))
     except Exception as e:
         logger.warning("Text extraction failed: %s", e)
     extracted = {}
@@ -469,15 +519,17 @@ async def upload_doc(file: UploadFile = File(...),
                             extracted[key] = ai_data[key]
             except Exception as e:
                 logger.warning("AI extraction failed: %s", e)
-        # Update user profile with extracted data
+        # Update user profile with all extracted data
+        updatable = ["name","major","school","nationality","gpa",
+                     "degree_level","skills","extracurriculars","personal_statement"]
         updated_fields = []
-        for field, value in extracted.items():
-            if value and field != "degree_level" or (field == "degree_level" and value):
+        for field in updatable:
+            value = extracted.get(field)
+            if value is not None and value != "" and value != [] and value != 0.0:
                 setattr(user, field, value)
                 updated_fields.append(field)
-        if extracted.get("degree_level"):
-            user.degree_level = extracted["degree_level"]
         if updated_fields:
+            user.updated_at = datetime.utcnow()
             db.commit(); db.refresh(user)
         # Get matched scholarships with updated profile
         from engine.opportunity_db import match_opportunities
