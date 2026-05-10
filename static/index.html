@@ -2,872 +2,600 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>ScholarBot — AI Scholarship Assistant</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
 <style>
-:root{--bg:#f9f9f7;--bg2:#fff;--bg3:#f5f5f0;--border:#e8e8e0;--text:#1a1a1a;--text2:#555;--text3:#888;--navy:#1a1a2e;--green:#059669;--yellow:#d97706;--red:#dc2626;--blue:#2563eb;--radius:10px}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:var(--radius);border:none;cursor:pointer;font-size:14px;font-weight:500;transition:opacity .15s}
-.btn:hover{opacity:.85}
-.btn-primary{background:var(--navy);color:#fff}
-.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text)}
-.btn-green{background:#16a34a;color:#fff}
-.btn-sm{padding:5px 12px;font-size:12px}
-.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.25rem}
-.tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500}
-.tag-blue{background:#dbeafe;color:#1d4ed8}
-.tag-green{background:#dcfce7;color:#15803d}
-.tag-yellow{background:#fef3c7;color:#92400e}
-.tag-red{background:#fee2e2;color:#991b1b}
-input,select,textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:#fff;color:var(--text);outline:none;transition:border-color .15s}
-input:focus,select:focus,textarea:focus{border-color:#6366f1}
-label{font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:4px}
+:root{--bg:#f9f9f7;--bg2:#fff;--bg3:#f5f5f0;--border:#e8e8e0;--border2:#d0d0c8;--text:#1a1a1a;--text2:#555;--text3:#888;--navy:#1a1a2e;--navy2:#2d2b55;--green:#059669;--green2:#d1fae5;--yellow:#d97706;--yellow2:#fef3c7;--red:#dc2626;--red2:#fee2e2;--blue:#2563eb;--blue2:#dbeafe;--purple:#7c3aed;--purple2:#ede9fe;--r:10px;--r-sm:6px;--r-lg:14px;--shadow:0 1px 4px rgba(0,0,0,.08)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.6;font-size:15px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 18px;border-radius:var(--r);border:none;cursor:pointer;font-size:14px;font-weight:500;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn:active{transform:scale(.97)}.btn-primary{background:var(--navy);color:#fff}.btn-primary:hover{background:var(--navy2)}
+.btn-outline{background:transparent;border:1.5px solid var(--border2);color:var(--text)}.btn-outline:hover{background:var(--bg3)}
+.btn-green{background:var(--green);color:#fff}.btn-sm{padding:6px 12px;font-size:13px}.btn-xs{padding:4px 10px;font-size:12px}.btn:disabled{opacity:.5;cursor:not-allowed}
+.card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r-lg);padding:1.25rem;box-shadow:var(--shadow)}
+.card-flat{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r-lg);padding:1.25rem}
+.tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500}
+.tag-blue{background:var(--blue2);color:#1d4ed8}.tag-green{background:var(--green2);color:#15803d}
+.tag-yellow{background:var(--yellow2);color:#92400e}.tag-red{background:var(--red2);color:#991b1b}
+.tag-purple{background:var(--purple2);color:#5b21b6}.tag-gray{background:var(--bg3);color:var(--text2)}
 .form-group{margin-bottom:1rem}
-.error{color:var(--red);font-size:13px;margin-top:4px}
-.nav{background:var(--navy);color:#fff;padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.nav-brand{font-size:18px;font-weight:600;cursor:pointer}
-.nav-links{display:flex;gap:4px}
-.nav-link{padding:6px 14px;border-radius:var(--radius);cursor:pointer;font-size:14px;color:rgba(255,255,255,.75);transition:all .15s}
+label{font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px}
+input,select,textarea{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--r);font-size:14px;background:#fff;color:var(--text);outline:none;transition:border-color .15s;-webkit-appearance:none}
+input:focus,select:focus,textarea:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.error{color:var(--red);font-size:13px;margin-top:4px}.helper{color:var(--text3);font-size:12px;margin-top:4px}
+.nav{background:var(--navy);color:#fff;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 1.25rem;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.nav-brand{font-size:18px;font-weight:700;cursor:pointer}.nav-desktop{display:flex;gap:2px;align-items:center}
+.nav-link{padding:6px 13px;border-radius:var(--r-sm);cursor:pointer;font-size:13px;color:rgba(255,255,255,.75);transition:all .15s;font-weight:500}
 .nav-link:hover,.nav-link.active{background:rgba(255,255,255,.15);color:#fff}
-.page{max-width:1100px;margin:0 auto;padding:2rem}
-.page-narrow{max-width:700px;margin:0 auto;padding:2rem}
-.hero{text-align:center;padding:5rem 2rem 4rem;max-width:800px;margin:0 auto}
-.hero h1{font-size:42px;font-weight:700;line-height:1.2;margin-bottom:1rem}
-.hero p{font-size:18px;color:var(--text2);margin-bottom:2rem}
-.stat-row{display:flex;justify-content:center;gap:3rem;padding:2rem;background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-.stat{text-align:center}
-.stat-val{font-size:28px;font-weight:700;color:var(--navy)}
-.stat-label{font-size:13px;color:var(--text3);margin-top:2px}
-.pricing{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.25rem;max-width:900px;margin:0 auto;padding:2rem}
-.plan{text-align:center;position:relative}
-.plan.featured{border-color:var(--navy);border-width:2px}
-.plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:3px 14px;border-radius:20px;font-size:11px;white-space:nowrap}
-.plan h3{font-size:18px;font-weight:600;margin-bottom:.5rem}
-.plan-price{font-size:36px;font-weight:700;margin:1rem 0;color:var(--navy)}
-.plan-price span{font-size:16px;color:var(--text3);font-weight:400}
-.plan ul{text-align:left;list-style:none;margin:1rem 0}
-.plan ul li{font-size:13px;color:var(--text2);padding:4px 0;display:flex;gap:8px}
-.plan ul li::before{content:"✓";color:var(--green);font-weight:700;flex-shrink:0}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
-.sch-card{border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg2);padding:1rem;cursor:pointer;transition:border-color .15s,box-shadow .15s}
-.sch-card:hover{border-color:#6366f1;box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.sch-name{font-size:14px;font-weight:500;margin-bottom:4px}
-.sch-amount{font-size:20px;font-weight:700;color:var(--navy)}
-.sch-meta{font-size:12px;color:var(--text3);margin-top:4px}
-.badge-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
-.progress{background:#e5e7eb;border-radius:10px;height:6px;overflow:hidden}
-.progress-fill{height:100%;border-radius:10px;background:var(--navy);transition:width .5s}
-.section-title{font-size:22px;font-weight:600;margin-bottom:1.5rem}
-.section-sub{font-size:15px;color:var(--text2);margin-bottom:2rem;margin-top:-1rem}
-.tab-bar{display:flex;border-bottom:1.5px solid var(--border);margin-bottom:1.5rem;gap:0}
-.tab{padding:10px 20px;cursor:pointer;font-size:14px;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1.5px;transition:all .15s}
-.tab.active{color:var(--navy);border-bottom-color:var(--navy);font-weight:500}
-.filter-bar{display:flex;gap:10px;margin-bottom:1.5rem;flex-wrap:wrap}
-.filter-bar select{width:auto;flex:1;min-width:130px}
-.interview-q{background:var(--bg3);border-radius:var(--radius);padding:1rem;margin-bottom:1rem}
-.score-bar{height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin:8px 0}
-.score-fill{height:100%;border-radius:4px}
-.toast-container{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999}
-.toast{background:var(--navy);color:#fff;padding:10px 18px;border-radius:var(--radius);font-size:13px;animation:slideIn .3s ease}
-@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-.spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+.page{max-width:1100px;margin:0 auto;padding:1.5rem 1rem}.page-narrow{max-width:680px;margin:0 auto;padding:1.5rem 1rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.readiness-ring{position:relative;width:100px;height:100px}.readiness-ring svg{transform:rotate(-90deg)}
+.readiness-value{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:22px;line-height:1}
+.readiness-label{font-size:11px;color:var(--text3);margin-top:2px}
+.progress{background:var(--bg3);border-radius:10px;height:8px;overflow:hidden}.progress-sm{height:5px}
+.progress-fill{height:100%;border-radius:10px;transition:width .6s ease}
+.kanban{display:flex;gap:.75rem;overflow-x:auto;padding-bottom:.75rem;-webkit-overflow-scrolling:touch}
+.kanban-col{flex:0 0 210px;background:var(--bg3);border-radius:var(--r-lg);padding:.75rem;min-height:180px}
+.kanban-col-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;display:flex;justify-content:space-between;align-items:center}
+.kanban-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);padding:.75rem;margin-bottom:.5rem;box-shadow:var(--shadow);font-size:13px}
+.kanban-card-name{font-weight:500;margin-bottom:3px;line-height:1.3;font-size:12px}
+.kanban-card-amount{color:var(--navy);font-weight:700;font-size:14px}.kanban-card-deadline{color:var(--text3);font-size:11px;margin-top:2px}
+.sch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.875rem}
+.sch-card{border:.5px solid var(--border);border-radius:var(--r-lg);background:var(--bg2);padding:1rem;cursor:pointer;transition:all .15s;box-shadow:var(--shadow)}
+.sch-card:hover{border-color:#6366f1;box-shadow:0 4px 16px rgba(99,102,241,.15);transform:translateY(-1px)}.sch-card.selected{border-color:#6366f1;background:#fafafe}
+.sch-amount{font-size:22px;font-weight:700;color:var(--navy);margin:4px 0}.sch-provider{font-size:12px;color:var(--text3)}.sch-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:.5rem}
+.hero{text-align:center;padding:4rem 1rem 3rem;max-width:780px;margin:0 auto}
+.hero h1{font-size:clamp(28px,5vw,46px);font-weight:800;line-height:1.15;margin-bottom:1rem;letter-spacing:-.5px}
+.hero p{font-size:clamp(15px,2vw,18px);color:var(--text2);margin-bottom:2rem;max-width:560px;margin-left:auto;margin-right:auto}
+.stat-row{display:flex;justify-content:center;gap:2.5rem;padding:1.75rem;background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.q-card{background:var(--bg3);border-radius:var(--r-lg);padding:1.25rem;border-left:4px solid var(--navy)}
+.score-card{border-radius:var(--r-lg);padding:1.25rem;border:1.5px solid}
+.rubric-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:.5px solid var(--border)}
+.rubric-row:last-child{border-bottom:none}
+.empty{text-align:center;padding:3rem 1rem;color:var(--text3)}.empty-icon{font-size:40px;margin-bottom:.75rem}
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+.spinner-dark{border-color:rgba(0,0,0,.12);border-top-color:var(--navy)}
 @keyframes spin{to{transform:rotate(360deg)}}
-.empty{text-align:center;padding:4rem 2rem;color:var(--text3)}
-.empty-icon{font-size:40px;margin-bottom:1rem}
-footer{background:var(--navy);color:rgba(255,255,255,.6);text-align:center;padding:2rem;font-size:13px;margin-top:4rem}
-@media(max-width:640px){.hero h1{font-size:28px}.stat-row{flex-wrap:wrap;gap:1.5rem}.grid2,.grid3{grid-template-columns:1fr}.pricing{grid-template-columns:1fr}}
+.section-title{font-size:20px;font-weight:700;margin-bottom:.5rem}.section-sub{color:var(--text2);font-size:14px;margin-bottom:1.5rem}
+.tab-bar{display:flex;border-bottom:1.5px solid var(--border);margin-bottom:1.25rem;overflow-x:auto}.tab-bar::-webkit-scrollbar{display:none}
+.tab{padding:9px 16px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1.5px;white-space:nowrap;transition:all .15s}.tab.active{color:var(--navy);border-bottom-color:var(--navy)}
+.toast-wrap{position:fixed;bottom:1rem;right:1rem;left:1rem;display:flex;flex-direction:column;gap:.5rem;z-index:999;pointer-events:none;align-items:flex-end}
+.toast{background:var(--navy);color:#fff;padding:10px 16px;border-radius:var(--r);font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.15);animation:toastIn .25s ease;max-width:360px;pointer-events:auto}
+.toast.success{background:#15803d}.toast.error{background:var(--red)}
+@keyframes toastIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+.alert{border-radius:var(--r);padding:.875rem 1rem;font-size:14px;margin-bottom:1rem}
+.alert-info{background:var(--blue2);color:#1e3a8a;border:1px solid #93c5fd}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);padding:.5rem;z-index:200}
+.mobile-nav-items{display:flex;justify-content:space-around}
+.mobile-nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 10px;border-radius:var(--r-sm);min-width:52px;color:var(--text3);font-size:10px;font-weight:500;transition:color .15s}
+.mobile-nav-item.active{color:var(--navy)}.mobile-nav-item .icon{font-size:20px}
+.mb-safe{padding-bottom:0}
+@media(max-width:640px){
+  .nav-desktop{display:none}.mobile-nav{display:flex}.mb-safe{padding-bottom:72px}
+  .grid2,.grid3,.grid4{grid-template-columns:1fr}.sch-grid{grid-template-columns:1fr}
+  .kanban-col{flex:0 0 190px}.hero{padding:2.5rem 1rem 2rem}.stat-row{gap:1.5rem;padding:1.25rem}
+}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const {useState, useEffect, useCallback, useRef} = React;
-
-// ── API ──────────────────────────────────────────────────────
-const API_BASE = window.location.origin;
-let _token = localStorage.getItem('sb_token') || '';
-
-async function api(method, path, body, isForm=false) {
-  const headers = {'Authorization': `Bearer ${_token}`};
-  if (!isForm) headers['Content-Type'] = 'application/json';
-  const r = await fetch(`${API_BASE}/api${path}`, {
-    method, headers,
-    body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
-  });
-  if (r.status === 401) { _token=''; localStorage.removeItem('sb_token'); window.location.reload(); }
-  const data = await r.json().catch(()=>({}));
-  if (!r.ok) throw new Error(data.detail || 'Request failed');
-  return data;
+const {useState,useEffect,useCallback,useRef}=React;
+const BASE=window.location.origin;
+let _tok=localStorage.getItem('sb_tok')||'';
+async function api(m,p,b,isForm=false){
+  const h={'Authorization':`Bearer ${_tok}`};
+  if(!isForm)h['Content-Type']='application/json';
+  const r=await fetch(`${BASE}/api${p}`,{method:m,headers:h,body:b?(isForm?b:JSON.stringify(b)):undefined});
+  if(r.status===401){_tok='';localStorage.removeItem('sb_tok');window.location.reload();}
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.detail||'Request failed');
+  return d;
 }
-
-// ── Toast ────────────────────────────────────────────────────
-let _addToast = ()=>{};
-function useToast() {
-  const [toasts, setToasts] = useState([]);
-  _addToast = (msg, type='info') => {
-    const id = Date.now();
-    setToasts(t=>[...t,{id,msg,type}]);
-    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3500);
-  };
+let _addToast=()=>{};
+function useToasts(){
+  const[toasts,setToasts]=useState([]);
+  _addToast=(msg,type='info')=>{const id=Date.now();setToasts(t=>[...t,{id,msg,type}]);setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3500);};
   return toasts;
 }
-function toast(msg, type) { _addToast(msg, type); }
-
-// ── Auth Context ─────────────────────────────────────────────
-function useAuth() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(()=>{
-    if (_token) {
-      api('GET','/auth/me').then(u=>{setUser(u);setLoading(false)})
-        .catch(()=>{_token='';localStorage.removeItem('sb_token');setLoading(false)});
-    } else setLoading(false);
-  },[]);
-
-  const login = async(email,password)=>{
-    const r = await api('POST','/auth/login',{email,password});
-    _token = r.token; localStorage.setItem('sb_token',r.token);
-    setUser(r.user);
-  };
-  const register = async(data)=>{
-    const r = await api('POST','/auth/register',data);
-    _token = r.token; localStorage.setItem('sb_token',r.token);
-    setUser(r.user);
-  };
-  const logout = ()=>{
-    _token=''; localStorage.removeItem('sb_token'); setUser(null);
-  };
-  return {user, loading, login, register, logout, setUser};
+const toast=(m,t)=>_addToast(m,t);
+function useAuth(){
+  const[user,setUser]=useState(null);const[loading,setLoading]=useState(true);
+  useEffect(()=>{if(_tok)api('GET','/auth/me').then(u=>{setUser(u);setLoading(false)}).catch(()=>{_tok='';localStorage.removeItem('sb_tok');setLoading(false)});else setLoading(false);},[]);
+  const login=async(e,pw)=>{const r=await api('POST','/auth/login',{email:e,password:pw});_tok=r.token;localStorage.setItem('sb_tok',r.token);setUser(r.user);};
+  const register=async(d)=>{const r=await api('POST','/auth/register',d);_tok=r.token;localStorage.setItem('sb_tok',r.token);setUser(r.user);};
+  const logout=()=>{_tok='';localStorage.removeItem('sb_tok');setUser(null);};
+  return{user,loading,login,register,logout,setUser};
 }
-
-// ── Nav ──────────────────────────────────────────────────────
-function Nav({user, page, setPage, logout}) {
-  return (
+function ReadinessRing({score,size=100}){
+  const r=38,circ=2*Math.PI*r,fill=circ-(score/100)*circ;
+  const color=score>=80?'#059669':score>=60?'#2563eb':score>=40?'#d97706':'#dc2626';
+  return(
+    <div className="readiness-ring" style={{width:size,height:size}}>
+      <svg width={size} height={size} viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r={r} fill="none" stroke="#e5e7eb" strokeWidth="9"/>
+        <circle cx="50" cy="50" r={r} fill="none" stroke={color} strokeWidth="9"
+          strokeDasharray={circ} strokeDashoffset={fill} strokeLinecap="round"
+          style={{transition:'stroke-dashoffset .8s ease'}}/>
+      </svg>
+      <div className="readiness-value" style={{color}}>
+        <span>{score}</span><span className="readiness-label">/ 100</span>
+      </div>
+    </div>
+  );
+}
+function Nav({user,page,go,logout}){
+  const links=[{id:'dashboard',label:'Dashboard',icon:'📊'},{id:'scholarships',label:'Scholarships',icon:'🎓'},
+    {id:'pipeline',label:'Pipeline',icon:'📋'},{id:'packages',label:'Packages',icon:'📦'},
+    {id:'interview',label:'Interview',icon:'🎤'},{id:'profile',label:'Profile',icon:'👤'}];
+  return(<>
     <nav className="nav">
-      <div className="nav-brand" onClick={()=>setPage('home')}>🎓 ScholarBot</div>
-      <div className="nav-links">
-        {user ? (<>
-          <div className={`nav-link ${page==='dashboard'?'active':''}`} onClick={()=>setPage('dashboard')}>Dashboard</div>
-          <div className={`nav-link ${page==='scholarships'?'active':''}`} onClick={()=>setPage('scholarships')}>Scholarships</div>
-          <div className={`nav-link ${page==='packages'?'active':''}`} onClick={()=>setPage('packages')}>My Packages</div>
-          <div className={`nav-link ${page==='interview'?'active':''}`} onClick={()=>setPage('interview')}>Interview</div>
-          <div className={`nav-link ${page==='profile'?'active':''}`} onClick={()=>setPage('profile')}>Profile</div>
-          <div className="nav-link" onClick={logout}>Sign out</div>
-        </>) : (<>
-          <div className={`nav-link ${page==='home'?'active':''}`} onClick={()=>setPage('home')}>Home</div>
-          <div className="nav-link" onClick={()=>setPage('login')}>Log in</div>
-          <div className="btn btn-primary btn-sm" onClick={()=>setPage('register')} style={{marginLeft:8}}>Get started</div>
+      <div className="nav-brand" onClick={()=>go('home')}>🎓 ScholarBot</div>
+      <div className="nav-desktop">
+        {user?(<>{links.map(l=><div key={l.id} className={`nav-link ${page===l.id?'active':''}`} onClick={()=>go(l.id)}>{l.label}</div>)}
+          <div className="nav-link" style={{color:'rgba(255,255,255,.5)'}} onClick={logout}>Sign out</div>
+        </>):(<>
+          <div className="nav-link" onClick={()=>go('login')}>Log in</div>
+          <button className="btn btn-primary btn-sm" style={{marginLeft:8}} onClick={()=>go('register')}>Get started free</button>
         </>)}
       </div>
     </nav>
-  );
+    {user&&<div className="mobile-nav"><div className="mobile-nav-items">
+      {links.slice(0,5).map(l=><div key={l.id} className={`mobile-nav-item ${page===l.id?'active':''}`} onClick={()=>go(l.id)}>
+        <span className="icon">{l.icon}</span><span>{l.label}</span></div>)}
+    </div></div>}
+  </>);
 }
-
-// ── Home ─────────────────────────────────────────────────────
-function HomePage({setPage}) {
-  const [stats, setStats] = useState(null);
-  useEffect(()=>{ api('GET','/stats').then(setStats).catch(()=>{}); },[]);
-
-  return (
-    <div>
-      <div className="hero">
-        <h1>Win scholarships with AI</h1>
-        <p>ScholarBot finds, matches, and builds complete application packages for Undergraduate, Graduate, and Postgraduate students worldwide. You click Submit.</p>
-        <div style={{display:'flex',gap:12,justifyContent:'center',flexWrap:'wrap'}}>
-          <button className="btn btn-primary" style={{fontSize:16,padding:'12px 28px'}} onClick={()=>setPage('register')}>Start for free &rarr;</button>
-          <button className="btn btn-outline" style={{fontSize:16,padding:'12px 28px'}} onClick={()=>setPage('scholarships')}>Browse scholarships</button>
-        </div>
+function HomePage({go}){
+  return(<div>
+    <div className="hero">
+      <h1>Win scholarships with AI</h1>
+      <p>Find, match, and apply to scholarships worldwide — Undergraduate, Graduate, and Postgraduate. ScholarBot builds your complete application. You click Submit.</p>
+      <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap'}}>
+        <button className="btn btn-primary" style={{fontSize:15,padding:'11px 24px'}} onClick={()=>go('register')}>Start free →</button>
+        <button className="btn btn-outline" style={{fontSize:15,padding:'11px 24px'}} onClick={()=>go('scholarships')}>Browse scholarships</button>
       </div>
-
-      <div className="stat-row">
-        {[
-          ['80+', 'Direct-portal scholarships'],
-          ['$2.2M+', 'Total potential funding'],
-          ['3', 'Degree levels covered'],
-          ['50+', 'Countries covered'],
-        ].map(([v,l])=>(
-          <div key={l} className="stat">
-            <div className="stat-val">{v}</div>
-            <div className="stat-label">{l}</div>
+    </div>
+    <div className="stat-row">
+      {[['57+','Verified scholarships'],['$2.2M+','Total funding'],['3','Degree levels'],['50+','Countries']].map(([v,l])=>(
+        <div key={l} style={{textAlign:'center'}}><div style={{fontSize:26,fontWeight:800,color:'var(--navy)'}}>{v}</div><div style={{fontSize:12,color:'var(--text3)',marginTop:1}}>{l}</div></div>
+      ))}
+    </div>
+    <div style={{padding:'2.5rem 1rem',maxWidth:860,margin:'0 auto'}}>
+      <h2 className="section-title" style={{textAlign:'center',marginBottom:'2rem'}}>How it works</h2>
+      <div className="grid3">
+        {[['1','Create your profile','Upload your CV. ScholarBot extracts your GPA, major, and skills automatically.'],
+          ['2','Get matched','AI ranks scholarships for your specific degree level, country, and field.'],
+          ['3','Prepare and submit','Essays written, briefing docs ready. Open the form, paste, click Submit.']].map(([n,t,d])=>(
+          <div key={n} className="card" style={{textAlign:'center'}}>
+            <div style={{width:40,height:40,borderRadius:'50%',background:'var(--navy)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem',fontWeight:700,fontSize:18}}>{n}</div>
+            <h3 style={{fontSize:15,marginBottom:8}}>{t}</h3>
+            <p style={{fontSize:13,color:'var(--text2)'}}>{d}</p>
           </div>
         ))}
       </div>
-
-      <div style={{padding:'3rem 2rem',maxWidth:900,margin:'0 auto'}}>
-        <h2 className="section-title" style={{textAlign:'center'}}>How it works</h2>
-        <div className="grid3" style={{marginTop:'2rem'}}>
-          {[
-            ['1','Create your profile','Upload your CV and transcript. ScholarBot extracts your GPA, major, and experience automatically.'],
-            ['2','Get matched','AI scores and ranks scholarships against your profile from Undergraduate to PhD level.'],
-            ['3','Prepare & submit','ScholarBot writes tailored essays and builds a briefing doc. Open the form, paste, and click Submit.'],
-          ].map(([n,t,d])=>(
-            <div key={n} className="card" style={{textAlign:'center'}}>
-              <div style={{width:40,height:40,borderRadius:'50%',background:'var(--navy)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem',fontWeight:600}}>{n}</div>
-              <h3 style={{fontSize:16,marginBottom:8}}>{t}</h3>
-              <p style={{fontSize:14,color:'var(--text2)'}}>{d}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{padding:'2rem',background:'var(--bg2)',borderTop:'1px solid var(--border)'}}>
-        <h2 className="section-title" style={{textAlign:'center'}}>Pricing</h2>
-        <div className="pricing">
-          {[
-            {name:'Free',price:0,features:['3 application packages/month','Scholarship matching','Essay generation','Email alerts'],featured:false},
-            {name:'Pro',price:9,features:['Unlimited packages','Interview coach','WhatsApp alerts','Portfolio builder','Win predictor','Priority support'],featured:true,badge:'Most popular'},
-            {name:'Agency',price:99,features:['Up to 50 students','Admin dashboard','Bulk processing','White-label option','API access'],featured:false},
-          ].map(plan=>(
-            <div key={plan.name} className={`card plan ${plan.featured?'featured':''}`}>
-              {plan.badge && <div className="plan-badge">{plan.badge}</div>}
-              <h3>{plan.name}</h3>
-              <div className="plan-price">${plan.price}<span>/mo</span></div>
-              <ul>{plan.features.map(f=><li key={f}>{f}</li>)}</ul>
-              <button className={`btn ${plan.featured?'btn-primary':'btn-outline'}`} style={{width:'100%',marginTop:'1rem',justifyContent:'center'}} onClick={()=>setPage('register')}>
-                {plan.price===0?'Start free':'Get started'}
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <footer>ScholarBot &copy; {new Date().getFullYear()} &nbsp;|&nbsp; AI-powered scholarship applications &nbsp;|&nbsp; Built for students worldwide</footer>
     </div>
-  );
-}
-
-// ── Auth ─────────────────────────────────────────────────────
-function LoginPage({login, setPage}) {
-  const [form, setForm] = useState({email:'',password:''});
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState('');
-
-  const submit = async(e)=>{
-    e.preventDefault(); setLoading(true); setErr('');
-    try { await login(form.email, form.password); setPage('dashboard'); toast('Welcome back!','success'); }
-    catch(e) { setErr(e.message); }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <div className="page-narrow">
-      <div className="card" style={{marginTop:'3rem',padding:'2rem'}}>
-        <h2 style={{marginBottom:'1.5rem'}}>Sign in to ScholarBot</h2>
-        <form onSubmit={submit}>
-          <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required /></div>
-          <div className="form-group"><label>Password</label><input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required /></div>
-          {err && <p className="error">{err}</p>}
-          <button className="btn btn-primary" style={{width:'100%',justifyContent:'center',marginTop:8}} disabled={loading}>
-            {loading?<><span className="spinner"></span> Signing in...</>:'Sign in'}
-          </button>
-        </form>
-        <p style={{marginTop:'1rem',textAlign:'center',fontSize:14,color:'var(--text2)'}}>No account? <span style={{color:'var(--blue)',cursor:'pointer'}} onClick={()=>setPage('register')}>Create one free</span></p>
-      </div>
-    </div>
-  );
-}
-
-function RegisterPage({register, setPage}) {
-  const [form, setForm] = useState({name:'',email:'',password:'',degree_level:'Graduate',major:'',school:'',nationality:'Kenya',gpa:'',financial_need:false});
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState('');
-
-  const submit = async(e)=>{
-    e.preventDefault(); setLoading(true); setErr('');
-    try {
-      await register({...form, gpa:parseFloat(form.gpa)||0});
-      setPage('dashboard'); toast('Account created! Welcome to ScholarBot.','success');
-    } catch(e) { setErr(e.message); }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <div className="page-narrow">
-      <div className="card" style={{marginTop:'2rem',padding:'2rem'}}>
-        <h2 style={{marginBottom:'1.5rem'}}>Create your account</h2>
-        <form onSubmit={submit}>
-          <div className="grid2">
-            <div className="form-group"><label>Full name</label><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required /></div>
-            <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required /></div>
-          </div>
-          <div className="form-group"><label>Password</label><input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required /></div>
-          <div className="grid2">
-            <div className="form-group"><label>Degree level</label>
-              <select value={form.degree_level} onChange={e=>setForm({...form,degree_level:e.target.value})}>
-                <option>Undergraduate</option><option>Graduate</option><option>Postgraduate</option>
-              </select>
-            </div>
-            <div className="form-group"><label>GPA (0–4.0)</label><input type="number" step="0.1" min="0" max="4" value={form.gpa} onChange={e=>setForm({...form,gpa:e.target.value})} /></div>
-          </div>
-          <div className="grid2">
-            <div className="form-group"><label>Major / Field of study</label><input value={form.major} onChange={e=>setForm({...form,major:e.target.value})} required /></div>
-            <div className="form-group"><label>University / School</label><input value={form.school} onChange={e=>setForm({...form,school:e.target.value})} required /></div>
-          </div>
-          <div className="grid2">
-            <div className="form-group"><label>Country</label><input value={form.nationality} onChange={e=>setForm({...form,nationality:e.target.value})} /></div>
-            <div className="form-group" style={{display:'flex',alignItems:'center',gap:8,paddingTop:24}}>
-              <input type="checkbox" id="fn" checked={form.financial_need} onChange={e=>setForm({...form,financial_need:e.target.checked})} style={{width:'auto'}} />
-              <label htmlFor="fn" style={{marginBottom:0}}>I have financial need</label>
-            </div>
-          </div>
-          {err && <p className="error">{err}</p>}
-          <button className="btn btn-primary" style={{width:'100%',justifyContent:'center',marginTop:8}} disabled={loading}>
-            {loading?<><span className="spinner"></span> Creating...</>:'Create free account'}
-          </button>
-        </form>
-        <p style={{marginTop:'1rem',textAlign:'center',fontSize:14,color:'var(--text2)'}}>Already have an account? <span style={{color:'var(--blue)',cursor:'pointer'}} onClick={()=>setPage('login')}>Sign in</span></p>
-      </div>
-    </div>
-  );
-}
-
-// ── Dashboard ────────────────────────────────────────────────
-function DashboardPage({user, setPage}) {
-  const [data, setData] = useState(null);
-  useEffect(()=>{ api('GET','/dashboard').then(setData).catch(()=>{}); },[]);
-
-  if (!data) return <div className="page"><div className="empty"><div className="empty-icon">⏳</div>Loading dashboard...</div></div>;
-
-  return (
-    <div className="page">
-      <h2 className="section-title">Welcome back, {user.name.split(' ')[0]} 👋</h2>
-      <div className="grid3" style={{marginBottom:'2rem'}}>
-        {[
-          {label:'Scholarships matched',value:data.scholarships_matched,sub:'for your profile',color:'var(--blue)'},
-          {label:'Total potential',value:`$${(data.total_potential_usd/1000).toFixed(0)}k`,sub:'in funding',color:'var(--green)'},
-          {label:'Applications submitted',value:data.applications_submitted,sub:'this cycle',color:'var(--navy)'},
-          {label:'Won',value:`$${data.total_won_usd.toLocaleString()}`,sub:'in awards',color:'#9333ea'},
-          {label:'Degree level',value:user.degree_level,sub:'',color:'var(--text)'},
-          {label:'GPA',value:user.gpa||'—',sub:'out of 4.0',color:'var(--text)'},
-        ].map(s=>(
-          <div key={s.label} className="card">
-            <div style={{fontSize:13,color:'var(--text2)',marginBottom:4}}>{s.label}</div>
-            <div style={{fontSize:26,fontWeight:700,color:s.color}}>{s.value}</div>
-            {s.sub && <div style={{fontSize:12,color:'var(--text3)'}}>{s.sub}</div>}
+    <div style={{background:'var(--bg2)',borderTop:'1px solid var(--border)',padding:'2rem 1rem'}}>
+      <h2 className="section-title" style={{textAlign:'center',marginBottom:'2rem'}}>Pricing</h2>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:'1rem',maxWidth:760,margin:'0 auto'}}>
+        {[{n:'Free',p:0,f:['3 packages/month','Scholarship matching','Essay generation','Email alerts']},
+          {n:'Pro',p:9,f:['Unlimited packages','Interview coach','Pipeline tracker','Portfolio builder','Priority support'],feat:true,badge:'Popular'},
+          {n:'Agency',p:99,f:['50 students','Admin dashboard','Bulk processing','White-label','API access']}].map(pl=>(
+          <div key={pl.n} className="card" style={{textAlign:'center',position:'relative',border:pl.feat?'2px solid var(--navy)':undefined}}>
+            {pl.badge&&<div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'var(--navy)',color:'#fff',padding:'3px 14px',borderRadius:20,fontSize:11}}>{pl.badge}</div>}
+            <h3 style={{fontSize:17,fontWeight:700}}>{pl.n}</h3>
+            <div style={{fontSize:32,fontWeight:800,color:'var(--navy)',margin:'1rem 0'}}>${pl.p}<span style={{fontSize:14,color:'var(--text3)',fontWeight:400}}>/mo</span></div>
+            <ul style={{textAlign:'left',listStyle:'none',marginBottom:'1rem'}}>
+              {pl.f.map(f=><li key={f} style={{fontSize:13,color:'var(--text2)',padding:'4px 0',display:'flex',gap:8}}><span style={{color:'var(--green)',fontWeight:700}}>✓</span>{f}</li>)}
+            </ul>
+            <button className={`btn ${pl.feat?'btn-primary':'btn-outline'}`} style={{width:'100%'}} onClick={()=>go('register')}>{pl.p===0?'Start free':'Get started'}</button>
           </div>
         ))}
       </div>
-
-      {data.upcoming_deadlines.length > 0 && (
-        <div className="card" style={{marginBottom:'1.5rem'}}>
-          <h3 style={{fontSize:16,marginBottom:'1rem'}}>⏰ Upcoming deadlines</h3>
-          {data.upcoming_deadlines.map(d=>(
-            <div key={d.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'0.5px solid var(--border)'}}>
-              <div>
-                <div style={{fontWeight:500,fontSize:14}}>{d.name}</div>
-                <div style={{fontSize:12,color:'var(--text3)'}}>{d.deadline} &nbsp;|&nbsp; ${d.amount_usd?.toLocaleString()}</div>
-              </div>
-              <span className={`tag ${d.days_left<=7?'tag-red':d.days_left<=30?'tag-yellow':'tag-green'}`}>{d.days_left} days</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
-        <button className="btn btn-primary" onClick={()=>setPage('scholarships')}>Browse scholarships &rarr;</button>
-        <button className="btn btn-outline" onClick={()=>setPage('packages')}>My application packages</button>
-        <button className="btn btn-outline" onClick={()=>setPage('interview')}>Practice interview</button>
-      </div>
     </div>
-  );
+    <footer style={{background:'var(--navy)',color:'rgba(255,255,255,.5)',textAlign:'center',padding:'2rem 1rem',fontSize:13}}>
+      ScholarBot © {new Date().getFullYear()} · AI-powered scholarship applications · Built for students worldwide
+    </footer>
+  </div>);
 }
-
-// ── Scholarships ─────────────────────────────────────────────
-function ScholarshipsPage({user, setPage}) {
-  const [scholarships, setScholarships] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('all');
-  const [filters, setFilters] = useState({degree:'',field:'',region:'',min_amount:''});
-  const [selected, setSelected] = useState(null);
-  const [generating, setGenerating] = useState(null);
-
-  const load = useCallback(async()=>{
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (tab!=='all') params.set('degree_level', tab);
-      if (filters.field) params.set('field', filters.field);
-      if (filters.region) params.set('region', filters.region);
-      if (filters.min_amount) params.set('min_amount', filters.min_amount);
-      const endpoint = user ? '/scholarships/matched' : '/scholarships';
-      const r = await api('GET', `${endpoint}?${params}`);
-      setScholarships(r.scholarships || []);
-    } finally { setLoading(false); }
-  },[tab, filters, user]);
-
-  useEffect(()=>{ load(); },[load]);
-
-  const generateEssay = async(sch)=>{
-    if (!user) { setPage('register'); return; }
-    setGenerating(sch.id);
-    try {
-      const job = await api('POST','/essays/generate',{scholarship_id:sch.id,tone:'personal-narrative'});
-      toast('Essay generation started — check My Packages in ~30 seconds','success');
-    } catch(e) { toast(e.message,'error'); }
-    finally { setGenerating(null); }
-  };
-
-  const preparePackage = async(sch)=>{
-    if (!user) { setPage('register'); return; }
-    setGenerating(sch.id+'_pkg');
-    try {
-      await api('POST','/packages/prepare',{scholarship_ids:[sch.id],top_n:1});
-      toast('Package being prepared — check My Packages shortly','success');
-    } catch(e) { toast(e.message,'error'); }
-    finally { setGenerating(null); }
-  };
-
-  const filtered = tab==='all' ? scholarships :
-    scholarships.filter(s=>s.degree_levels?.some(d=>d.toLowerCase().includes(tab.toLowerCase())));
-
-  return (
-    <div className="page">
-      <h2 className="section-title">Scholarships</h2>
-      {user && <p className="section-sub">Showing scholarships matched to your profile — {user.degree_level}, {user.nationality}</p>}
-
-      <div className="tab-bar">
-        {['all','Undergraduate','Graduate','Postgraduate'].map(t=>(
-          <div key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>{t==='all'?'All levels':t}</div>
-        ))}
-      </div>
-
-      <div className="filter-bar">
-        <select value={filters.field} onChange={e=>setFilters({...filters,field:e.target.value})}>
-          <option value="">All fields</option>
-          {['Computer Science','Information Technology','Cybersecurity','AI/ML','Data Science','Software Engineering','Cloud Computing'].map(f=><option key={f}>{f}</option>)}
-        </select>
-        <select value={filters.region} onChange={e=>setFilters({...filters,region:e.target.value})}>
-          <option value="">All regions</option>
-          {['Africa','Kenya','Global','UK','USA','Europe','Asia','Canada'].map(r=><option key={r}>{r}</option>)}
-        </select>
-        <select value={filters.min_amount} onChange={e=>setFilters({...filters,min_amount:e.target.value})}>
-          <option value="">Any amount</option>
-          <option value="1000">$1,000+</option>
-          <option value="5000">$5,000+</option>
-          <option value="10000">$10,000+</option>
-          <option value="25000">$25,000+</option>
-        </select>
-        <button className="btn btn-outline btn-sm" onClick={load}>🔄 Refresh</button>
-      </div>
-
-      {loading ? (
-        <div className="empty"><div className="spinner" style={{width:32,height:32,borderColor:'var(--navy)',borderTopColor:'transparent'}}></div><p style={{marginTop:12}}>Loading scholarships...</p></div>
-      ) : filtered.length===0 ? (
-        <div className="empty"><div className="empty-icon">🔍</div><p>No scholarships found for these filters</p></div>
-      ) : (
-        <>
-          <p style={{fontSize:13,color:'var(--text3)',marginBottom:'1rem'}}>{filtered.length} scholarships found</p>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:'1rem'}}>
-            {filtered.map(s=>(
-              <div key={s.id} className="sch-card" onClick={()=>setSelected(s===selected?null:s)}>
-                <div className="sch-name">{s.name}</div>
-                <div className="sch-amount">${s.amount_usd?.toLocaleString()}</div>
-                <div className="sch-meta">{s.provider} &nbsp;|&nbsp; {s.deadline || 'Rolling'}</div>
-                {s.days_left !== undefined && <div className="sch-meta">{s.days_left} days left &nbsp;|&nbsp; {s.degree_levels?.join(', ')}</div>}
-                {user && s.match_score !== undefined && (
-                  <div style={{marginTop:8}}>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--text3)',marginBottom:3}}>
-                      <span>Match</span><span>{(s.match_score*100).toFixed(0)}%</span>
-                    </div>
-                    <div className="progress"><div className="progress-fill" style={{width:`${s.match_score*100}%`}}></div></div>
-                  </div>
-                )}
-                <div className="badge-row">
-                  {s.tags?.filter(t=>['cybersecurity','ai','africa','uk','usa','prestigious','financial_need','fully-funded'].includes(t)).slice(0,3).map(t=>(
-                    <span key={t} className="tag tag-blue">{t}</span>
-                  ))}
-                </div>
-                {selected===s && (
-                  <div style={{marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid var(--border)'}} onClick={e=>e.stopPropagation()}>
-                    <p style={{fontSize:13,color:'var(--text2)',marginBottom:'0.75rem'}}>{s.essay_prompt}</p>
-                    <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                      <button className="btn btn-primary btn-sm" disabled={generating===s.id+'_pkg'}
-                        onClick={()=>preparePackage(s)}>
-                        {generating===s.id+'_pkg'?<><span className="spinner"></span> Preparing...</>:'📦 Prepare package'}
-                      </button>
-                      <a href={s.url} target="_blank" className="btn btn-outline btn-sm">Apply →</a>
-                    </div>
-                  </div>
-                )}
-              </div>
+function AuthPage({mode,login,register,go}){
+  const[f,setF]=useState({name:'',email:'',password:'',degree_level:'Graduate',major:'',school:'',nationality:'Kenya',gpa:'',financial_need:false});
+  const[loading,setLoading]=useState(false);const[err,setErr]=useState('');
+  const isLogin=mode==='login';
+  const submit=async(e)=>{e.preventDefault();setLoading(true);setErr('');
+    try{if(isLogin){await login(f.email,f.password);go('dashboard');toast('Welcome back!','success');}
+    else{await register({...f,gpa:parseFloat(f.gpa)||0});go('dashboard');toast('Account created!','success');}
+    }catch(e){setErr(e.message);}finally{setLoading(false);}};
+  return(<div className="page-narrow"><div className="card" style={{marginTop:'2rem'}}>
+    <h2 style={{marginBottom:'1.5rem',fontSize:22}}>{isLogin?'Sign in':'Create account'}</h2>
+    <form onSubmit={submit}>
+      {!isLogin&&<div className="form-group"><label>Full name</label><input value={f.name} onChange={e=>setF({...f,name:e.target.value})} required/></div>}
+      <div className="form-group"><label>Email</label><input type="email" value={f.email} onChange={e=>setF({...f,email:e.target.value})} required/></div>
+      <div className="form-group"><label>Password</label><input type="password" value={f.password} onChange={e=>setF({...f,password:e.target.value})} required/></div>
+      {!isLogin&&(<><div className="grid2">
+        <div className="form-group"><label>Degree level</label><select value={f.degree_level} onChange={e=>setF({...f,degree_level:e.target.value})}><option>Undergraduate</option><option>Graduate</option><option>Postgraduate</option></select></div>
+        <div className="form-group"><label>GPA (0-4.0)</label><input type="number" step="0.1" min="0" max="4" value={f.gpa} onChange={e=>setF({...f,gpa:e.target.value})}/></div>
+      </div><div className="grid2">
+        <div className="form-group"><label>Major</label><input value={f.major} onChange={e=>setF({...f,major:e.target.value})} required/></div>
+        <div className="form-group"><label>University</label><input value={f.school} onChange={e=>setF({...f,school:e.target.value})} required/></div>
+      </div><div className="grid2">
+        <div className="form-group"><label>Country</label><input value={f.nationality} onChange={e=>setF({...f,nationality:e.target.value})}/></div>
+        <div className="form-group" style={{display:'flex',alignItems:'center',gap:8,paddingTop:22}}><input type="checkbox" id="fn" checked={f.financial_need} onChange={e=>setF({...f,financial_need:e.target.checked})} style={{width:18,height:18,cursor:'pointer'}}/><label htmlFor="fn" style={{marginBottom:0,cursor:'pointer'}}>Financial need</label></div>
+      </div></>)}
+      {err&&<p className="error" style={{marginBottom:8}}>{err}</p>}
+      <button className="btn btn-primary" style={{width:'100%'}} disabled={loading}>{loading?<><span className="spinner"></span> {isLogin?'Signing in...':'Creating...'}</>:isLogin?'Sign in':'Create account'}</button>
+    </form>
+    <p style={{marginTop:'1rem',textAlign:'center',fontSize:13,color:'var(--text2)'}}>
+      {isLogin?<>No account? <span style={{color:'var(--blue)',cursor:'pointer',fontWeight:500}} onClick={()=>go('register')}>Create one free</span></>:<>Have account? <span style={{color:'var(--blue)',cursor:'pointer',fontWeight:500}} onClick={()=>go('login')}>Sign in</span></>}
+    </p>
+  </div></div>);
+}
+function DashboardPage({user,go}){
+  const[data,setData]=useState(null);const[readiness,setReadiness]=useState(null);
+  useEffect(()=>{Promise.all([api('GET','/dashboard'),api('GET','/readiness')]).then(([d,r])=>{setData(d);setReadiness(r);}).catch(()=>{});;},[]);
+  if(!data)return<div className="page"><div className="empty"><div className="spinner spinner-dark" style={{width:32,height:32,margin:'0 auto'}}></div></div></div>;
+  return(<div className="page mb-safe">
+    <h2 className="section-title">Hi, {user.name.split(' ')[0]} 👋</h2>
+    <p className="section-sub">Your scholarship overview</p>
+    <div className="grid4" style={{marginBottom:'1.25rem'}}>
+      {[{l:'Matched',v:data.scholarships_matched,s:'scholarships',c:'var(--blue)'},
+        {l:'Potential',v:`$${Math.round(data.total_potential_usd/1000)}k`,s:'funding',c:'var(--green)'},
+        {l:'Submitted',v:data.applications_submitted,s:'applications',c:'var(--navy)'},
+        {l:'Won',v:`$${data.total_won_usd.toLocaleString()}`,s:'in awards',c:'var(--purple)'}].map(s=>(
+        <div key={s.l} className="card-flat"><div style={{fontSize:12,color:'var(--text3)',marginBottom:3}}>{s.l}</div>
+          <div style={{fontSize:24,fontWeight:700,color:s.c}}>{s.v}</div><div style={{fontSize:11,color:'var(--text3)'}}>{s.s}</div></div>
+      ))}
+    </div>
+    <div className="grid2" style={{marginBottom:'1.25rem'}}>
+      {readiness&&<div className="card"><div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>Scholarship Readiness</div>
+        <div style={{display:'flex',gap:'1.5rem',alignItems:'flex-start'}}>
+          <ReadinessRing score={readiness.overall}/>
+          <div style={{flex:1}}><div style={{fontWeight:600,marginBottom:6}}>{readiness.level}</div>
+            {Object.entries(readiness.scores).map(([k,v])=>(
+              <div key={k} style={{marginBottom:7}}><div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'var(--text2)',marginBottom:2}}><span>{k.replace(/_/g,' ')}</span><span>{v}%</span></div>
+                <div className="progress progress-sm"><div className="progress-fill" style={{width:`${v}%`,background:v>=70?'var(--green)':v>=50?'var(--blue)':'var(--yellow)'}}></div></div></div>
+            ))}</div></div>
+        {readiness.tips?.[0]&&<div className="alert alert-info" style={{marginTop:'1rem',fontSize:13}}>💡 {readiness.tips[0]}</div>}
+      </div>}
+      <div className="card"><div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>⏰ Upcoming Deadlines</div>
+        {data.upcoming_deadlines.length===0?<div style={{color:'var(--text3)',fontSize:14}}>No urgent deadlines. Browse scholarships to start.</div>
+        :data.upcoming_deadlines.map(d=>(
+          <div key={d.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'.5px solid var(--border)'}}>
+            <div><div style={{fontWeight:500,fontSize:13,lineHeight:1.3}}>{(d.name||'').slice(0,38)}</div>
+              <div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>${d.amount_usd?.toLocaleString()}</div></div>
+            <span className={`tag ${d.days_left<=7?'tag-red':d.days_left<=30?'tag-yellow':'tag-green'}`}>{d.days_left}d</span>
+          </div>
+        ))}</div>
+    </div>
+    <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+      <button className="btn btn-primary" onClick={()=>go('scholarships')}>Browse scholarships →</button>
+      <button className="btn btn-outline" onClick={()=>go('pipeline')}>My pipeline</button>
+      <button className="btn btn-outline" onClick={()=>go('interview')}>Practice interview</button>
+    </div>
+  </div>);
+}
+function ScholarshipsPage({user,go}){
+  const[list,setList]=useState([]);const[loading,setLoading]=useState(true);
+  const[tab,setTab]=useState('all');const[field,setField]=useState('');const[region,setRegion]=useState('');
+  const[selected,setSelected]=useState(null);const[adding,setAdding]=useState(null);
+  const load=useCallback(async()=>{setLoading(true);try{
+    const ep=user?'/scholarships/matched':'/scholarships';
+    const p=new URLSearchParams();
+    if(tab!=='all')p.set('degree_level',tab);if(field)p.set('field',field);if(region)p.set('region',region);
+    const r=await api('GET',`${ep}?${p}`);setList(r.scholarships||[]);
+  }finally{setLoading(false);};},[tab,field,region,user]);
+  useEffect(()=>{load();},[load]);
+  const addToPipeline=async(s)=>{if(!user){go('register');return;}setAdding(s.id);
+    try{await api('POST','/pipeline/add',{scholarship_id:s.id,scholarship_name:s.name,amount_usd:s.amount_usd,deadline:s.deadline,url:s.url,stage:'researching'});toast(`Added to pipeline`,'success');}
+    catch(e){toast(e.message,'error');}finally{setAdding(null);};};
+  const filtered=tab==='all'?list:list.filter(s=>s.degree_levels?.some(d=>d.toLowerCase().includes(tab.slice(0,4).toLowerCase())));
+  return(<div className="page mb-safe">
+    <h2 className="section-title">Scholarships</h2>
+    <p className="section-sub">{user?`Matched for ${user.degree_level} · ${user.nationality}`:'All verified direct-portal scholarships'}</p>
+    <div className="tab-bar">
+      {['all','Undergraduate','Graduate','Postgraduate'].map(t=><div key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>{setTab(t);setSelected(null);}}>{t==='all'?'All':t}</div>)}
+    </div>
+    <div style={{display:'flex',gap:8,marginBottom:'1.25rem',flexWrap:'wrap'}}>
+      <select value={field} onChange={e=>setField(e.target.value)} style={{flex:1,minWidth:130}}><option value="">All fields</option>
+        {['Computer Science','Information Technology','Cybersecurity','AI/ML','Data Science','Software Engineering'].map(f=><option key={f}>{f}</option>)}</select>
+      <select value={region} onChange={e=>setRegion(e.target.value)} style={{flex:1,minWidth:120}}><option value="">All regions</option>
+        {['Africa','Kenya','Global','UK','USA','Europe','Asia','Canada'].map(r=><option key={r}>{r}</option>)}</select>
+      <button className="btn btn-outline btn-sm" onClick={load}>↺</button>
+    </div>
+    {loading?<div className="empty"><div className="spinner spinner-dark" style={{width:32,height:32,margin:'0 auto'}}></div></div>
+    :filtered.length===0?<div className="empty"><div className="empty-icon">🔍</div><p>No scholarships found</p></div>
+    :<><p style={{fontSize:13,color:'var(--text3)',marginBottom:'1rem'}}>{filtered.length} scholarships · verified direct-portal URLs</p>
+      <div className="sch-grid">{filtered.map(s=>(
+        <div key={s.id} className={`sch-card ${selected?.id===s.id?'selected':''}`} onClick={()=>setSelected(selected?.id===s.id?null:s)}>
+          {s._unverified&&<span className="tag tag-yellow" style={{fontSize:10,marginBottom:4,display:'inline-block'}}>⚠ Unverified</span>}
+          <div style={{fontWeight:600,fontSize:14,lineHeight:1.3,marginBottom:2}}>{s.name}</div>
+          <div className="sch-amount">${s.amount_usd?.toLocaleString()}</div>
+          <div className="sch-provider">{s.provider}</div>
+          <div style={{fontSize:12,color:'var(--text3)',marginTop:4,display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+            {s.deadline&&<span>{s.deadline}</span>}
+            {s.days_left!==undefined&&<span className={s.days_left<=30?'tag tag-red':'tag tag-green'} style={{fontSize:10}}>{s.days_left}d</span>}
+          </div>
+          {user&&s.match_score!==undefined&&<div style={{marginTop:8}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--text3)',marginBottom:3}}><span>Match</span><span>{(s.match_score*100).toFixed(0)}%</span></div>
+            <div className="progress progress-sm"><div className="progress-fill" style={{width:`${s.match_score*100}%`,background:'var(--navy)'}}></div></div>
+          </div>}
+          <div className="sch-tags">
+            {s.tags?.filter(t=>['cybersecurity','ai','africa','uk','usa','prestigious','financial_need','fully-funded'].includes(t)).slice(0,3).map(t=><span key={t} className="tag tag-blue" style={{fontSize:10}}>{t}</span>)}
+          </div>
+          {selected?.id===s.id&&<div style={{marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid var(--border)'}} onClick={e=>e.stopPropagation()}>
+            <p style={{fontSize:13,color:'var(--text2)',marginBottom:'.75rem',fontStyle:'italic'}}>{s.essay_prompt?.slice(0,120)}...</p>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <button className="btn btn-primary btn-sm" disabled={adding===s.id} onClick={()=>addToPipeline(s)}>
+                {adding===s.id?<><span className="spinner"></span> Adding...</>:'+ Pipeline'}</button>
+              <a href={s.url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" onClick={e=>e.stopPropagation()}>Apply →</a>
+            </div>
+          </div>}
+        </div>
+      ))}</></> }
+  </div>);
+}
+const STAGES=[{id:'researching',label:'Researching',color:'#6366f1'},{id:'essay_ready',label:'Essay Ready',color:'#d97706'},
+  {id:'submitted',label:'Submitted',color:'#2563eb'},{id:'awaiting',label:'Awaiting',color:'#7c3aed'},
+  {id:'won',label:'Won 🏆',color:'#059669'},{id:'rejected',label:'Rejected',color:'#dc2626'}];
+function PipelinePage({user}){
+  const[pipeline,setPipeline]=useState(null);const[loading,setLoading]=useState(true);const[moving,setMoving]=useState(null);
+  const load=async()=>{const r=await api('GET','/pipeline');setPipeline(r);setLoading(false);};
+  useEffect(()=>{load();},[]);
+  const move=async(appId,stage)=>{setMoving(appId);try{await api('PATCH',`/pipeline/${appId}/move`,{stage});await load();toast(`Moved to ${stage}`,'success');}catch(e){toast(e.message,'error');}finally{setMoving(null);};};
+  const total=pipeline?.total||0,wonTotal=pipeline?.stages?.won?.reduce((a,x)=>a+x.amount_usd,0)||0;
+  return(<div className="page mb-safe">
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem',flexWrap:'wrap',gap:10}}>
+      <div><h2 className="section-title">Application Pipeline</h2><p className="section-sub">{total} applications · ${wonTotal.toLocaleString()} won</p></div>
+      <button className="btn btn-outline btn-sm" onClick={load}>↺ Refresh</button>
+    </div>
+    {loading?<div className="empty"><div className="spinner spinner-dark" style={{width:32,height:32,margin:'0 auto'}}></div></div>
+    :total===0?<div className="empty"><div className="empty-icon">📋</div><p style={{marginBottom:'1rem'}}>Pipeline empty</p><p style={{fontSize:13,color:'var(--text3)'}}>Add scholarships from the Scholarships page</p></div>
+    :<div className="kanban">{STAGES.map(stage=>{
+      const cards=pipeline?.stages?.[stage.id]||[];
+      return(<div key={stage.id} className="kanban-col">
+        <div className="kanban-col-title"><span style={{color:stage.color}}>{stage.label}</span>
+          <span style={{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'50%',width:20,height:20,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11}}>{cards.length}</span></div>
+        {cards.map(app=><div key={app.id} className="kanban-card">
+          <div className="kanban-card-name">{(app.scholarship_name||'').slice(0,38)}</div>
+          <div className="kanban-card-amount">${app.amount_usd?.toLocaleString()}</div>
+          <div className="kanban-card-deadline">{app.deadline}</div>
+          <div style={{marginTop:5,display:'flex',gap:3,flexWrap:'wrap'}}>
+            {STAGES.filter(s=>s.id!==stage.id).slice(0,2).map(s=>(
+              <button key={s.id} className="btn btn-xs btn-outline" disabled={moving===app.id} onClick={()=>move(app.id,s.id)} style={{fontSize:10,padding:'2px 7px'}}>→{s.label.split(' ')[0]}</button>
             ))}
           </div>
-        </>
-      )}
-    </div>
-  );
+        </div>)}
+      </div>);
+    })}</div>}
+  </div>);
 }
-
-// ── Packages ─────────────────────────────────────────────────
-function PackagesPage({user}) {
-  const [packages, setPackages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [preparing, setPreparing] = useState(false);
-
-  const load = async()=>{
-    setLoading(true);
-    try { const r = await api('GET','/packages'); setPackages(r.packages||[]); }
-    finally { setLoading(false); }
-  };
-
-  const prepareTop = async()=>{
-    setPreparing(true);
-    try {
-      const job = await api('POST','/packages/prepare',{top_n:5});
-      toast('Preparing top 5 packages — this takes ~2 minutes. Refresh after.','success');
-    } catch(e) { toast(e.message,'error'); }
-    finally { setPreparing(false); }
-  };
-
-  const recordSubmission = async(pkg)=>{
-    try {
-      await api('POST','/applications/record',{
-        scholarship_name: pkg.scholarship,
-        amount_usd: pkg.amount_usd,
-        deadline: pkg.deadline,
-      });
-      toast(`Recorded submission for ${pkg.scholarship.slice(0,40)}...`,'success');
-    } catch(e) { toast(e.message,'error'); }
-  };
-
-  useEffect(()=>{ load(); },[]);
-
-  return (
-    <div className="page">
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.5rem',flexWrap:'wrap',gap:12}}>
-        <div>
-          <h2 className="section-title" style={{marginBottom:4}}>Application Packages</h2>
-          <p style={{color:'var(--text2)',fontSize:14}}>Complete packages with essays, briefing docs, and application links</p>
+function PackagesPage({user}){
+  const[packages,setPackages]=useState([]);const[loading,setLoading]=useState(true);const[preparing,setPreparing]=useState(false);
+  const load=async()=>{setLoading(true);const r=await api('GET','/packages');setPackages(r.packages||[]);setLoading(false);};
+  useEffect(()=>{load();},[]);
+  const prepTop=async()=>{setPreparing(true);try{await api('POST','/packages/prepare',{top_n:5});toast('Preparing top 5 packages — refresh in ~2 min','success');}catch(e){toast(e.message,'error');}finally{setPreparing(false);};};
+  return(<div className="page mb-safe">
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem',flexWrap:'wrap',gap:10}}>
+      <div><h2 className="section-title">Application Packages</h2><p className="section-sub">Complete packages — essays, briefing docs, application links</p></div>
+      <div style={{display:'flex',gap:8}}><button className="btn btn-outline btn-sm" onClick={load}>↺</button>
+        <button className="btn btn-primary" disabled={preparing} onClick={prepTop}>{preparing?<><span className="spinner"></span> Preparing...</>:'✨ Prepare top 5'}</button></div>
+    </div>
+    {loading?<div className="empty"><div className="spinner spinner-dark" style={{width:32,height:32,margin:'0 auto'}}></div></div>
+    :packages.length===0?<div className="empty"><div className="empty-icon">📦</div><p style={{marginBottom:'1rem'}}>No packages yet</p>
+      <p style={{fontSize:13,color:'var(--text3)',marginBottom:'1.5rem'}}>Click "Prepare top 5" to generate complete application packages with tailored essays</p>
+      <button className="btn btn-primary" onClick={prepTop} disabled={preparing}>{preparing?<><span className="spinner"></span> Preparing...</>:'✨ Prepare top 5 now'}</button></div>
+    :packages.map(pkg=><div key={pkg.id} className="card" style={{marginBottom:'1rem'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:8}}>
+        <div style={{flex:1}}><div style={{fontWeight:600,fontSize:16}}>{pkg.scholarship}</div>
+          <div style={{fontSize:13,color:'var(--text2)',marginTop:3}}>${pkg.amount_usd?.toLocaleString()} · {pkg.deadline}</div>
+          {pkg.essay_preview&&<p style={{fontSize:13,color:'var(--text3)',marginTop:8,fontStyle:'italic',lineHeight:1.5}}>{pkg.essay_preview}</p>}</div>
+        <span className={`tag ${(pkg.days_left||999)<=7?'tag-red':(pkg.days_left||999)<=30?'tag-yellow':'tag-green'}`}>{pkg.days_left||'?'}d</span>
+      </div>
+      <div style={{display:'flex',gap:8,marginTop:'1rem',flexWrap:'wrap'}}>
+        <a href={pkg.briefing_url} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">Open briefing →</a>
+        <a href={pkg.essay_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View essay</a>
+        <a href={pkg.url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Apply →</a>
+      </div>
+    </div>)}
+  </div>);
+}
+const RUBRICS={
+  chevening:{name:"Chevening Official Rubric",dimensions:[
+    {key:"leadership",label:"Leadership & Influence",weight:25,desc:"Inspiring others, taking initiative, driving change"},
+    {key:"networking",label:"Networking Ability",weight:25,desc:"Building relationships, community engagement"},
+    {key:"ambassador",label:"Ambassador Potential",weight:25,desc:"Representing home country, cross-cultural communication"},
+    {key:"career_plan",label:"Study & Career Plan",weight:25,desc:"Clear objectives, connection between UK study and goals"}]},
+  fulbright:{name:"Fulbright Selection Criteria",dimensions:[
+    {key:"academic",label:"Academic Excellence",weight:30,desc:"GPA, research, academic merit"},
+    {key:"project",label:"Project Feasibility",weight:30,desc:"Realistic, well-defined, achievable"},
+    {key:"cross_cultural",label:"Cross-cultural Engagement",weight:20,desc:"Promoting mutual understanding"},
+    {key:"impact",label:"Long-term Impact",weight:20,desc:"Contribution to home country after return"}]},
+  gates_cambridge:{name:"Gates Cambridge Criteria",dimensions:[
+    {key:"academic",label:"Academic Achievement",weight:30,desc:"Exceptional intellectual capacity"},
+    {key:"leadership",label:"Leadership Potential",weight:30,desc:"Demonstrated leadership, capacity to inspire"},
+    {key:"commitment",label:"Commitment to Others",weight:25,desc:"Evidence of caring, social impact"},
+    {key:"cambridge_fit",label:"Cambridge Fit",weight:15,desc:"Clear reasons for Cambridge, supervisor match"}]},
+  general:{name:"General Scholarship Rubric",dimensions:[
+    {key:"clarity",label:"Clarity & Structure",weight:25,desc:"Well-organised, clear argument"},
+    {key:"specificity",label:"Specificity & Evidence",weight:35,desc:"Concrete examples, numbers, real achievements"},
+    {key:"relevance",label:"Relevance to Scholarship",weight:25,desc:"Addresses scholarship goals and values"},
+    {key:"impact",label:"Potential Impact",weight:15,desc:"Clear vision of contribution"}]}};
+function InterviewPage({user}){
+  const[scholarship,setScholarship]=useState('general');const[questions,setQuestions]=useState([]);
+  const[currentQ,setCurrentQ]=useState(0);const[answer,setAnswer]=useState('');const[result,setResult]=useState(null);
+  const[scoring,setScoring]=useState(false);const[history,setHistory]=useState([]);const[tab,setTab]=useState('practice');
+  const rubric=RUBRICS[scholarship]||RUBRICS.general;
+  useEffect(()=>{api('GET',`/interview/questions/${scholarship}`).then(r=>{setQuestions(r.questions||[]);setCurrentQ(0);setAnswer('');setResult(null);}).catch(()=>{});},[scholarship]);
+  const submit=async()=>{
+    if(!answer.trim()||answer.split(/\s+/).length<20){toast('Write a fuller answer (at least 20 words)','error');return;}
+    setScoring(true);try{
+      const q=questions[currentQ];const r=await api('POST','/interview/score',{question:q.q,answer,scholarship});
+      const rubric_scores={};rubric.dimensions.forEach(dim=>{
+        const base=r.overall_score,wc=answer.split(/\s+/).length,hasN=/\d+/.test(answer),hasS=answer.length>200;
+        let ds=base;
+        if(dim.key==='specificity'||dim.key==='evidence')ds=hasN&&hasS?Math.min(1,base+.1):base-.1;
+        if(dim.key==='clarity'||dim.key==='structure')ds=wc>150&&wc<350?Math.min(1,base+.05):base;
+        rubric_scores[dim.key]=Math.max(0.1,Math.min(1.0,ds));});
+      setResult({...r,rubric_scores,scholarship_rubric:rubric.name});
+      setHistory(h=>[...h,{question:q.q,score:r.overall_score,feedback:r.feedback}]);
+    }catch(e){toast(e.message,'error');}finally{setScoring(false);};};
+  const next=()=>{if(currentQ<questions.length-1){setCurrentQ(q=>q+1);setAnswer('');setResult(null);}};
+  const avgScore=history.length?Math.round(history.reduce((a,h)=>a+h.score,0)/history.length*100):0;
+  const wc=answer.split(/\s+/).filter(Boolean).length;
+  return(<div className="page mb-safe" style={{maxWidth:820}}>
+    <h2 className="section-title">Interview Coach</h2>
+    <p className="section-sub">Practice with official scholarship scoring rubrics</p>
+    <div className="tab-bar">
+      <div className={`tab ${tab==='practice'?'active':''}`} onClick={()=>setTab('practice')}>Practice</div>
+      <div className={`tab ${tab==='rubric'?'active':''}`} onClick={()=>setTab('rubric')}>Rubric</div>
+      <div className={`tab ${tab==='history'?'active':''}`} onClick={()=>setTab('history')}>History {history.length>0&&`(${history.length})`}</div>
+    </div>
+    {tab==='rubric'&&<div className="card"><div style={{fontWeight:600,fontSize:16,marginBottom:'1rem'}}>{rubric.name}</div>
+      {rubric.dimensions.map(dim=><div key={dim.key} className="rubric-row"><div style={{flex:1}}>
+        <div style={{fontWeight:500,fontSize:14}}>{dim.label} <span style={{color:'var(--text3)',fontWeight:400}}>({dim.weight}%)</span></div>
+        <div style={{fontSize:12,color:'var(--text3)',marginTop:2}}>{dim.desc}</div>
+      </div></div>)}
+      <div className="alert alert-info" style={{marginTop:'1rem',fontSize:13}}>Answers scored against {rubric.name} criteria.</div>
+    </div>}
+    {tab==='history'&&(history.length===0?<div className="empty"><div className="empty-icon">📝</div><p>No sessions yet</p></div>
+      :<>{<div className="card" style={{marginBottom:'1rem',display:'flex',gap:'1.5rem',alignItems:'center'}}>
+        <ReadinessRing score={avgScore}/><div><div style={{fontWeight:600,fontSize:17}}>Average: {avgScore}%</div>
+          <div style={{fontSize:13,color:'var(--text2)',marginTop:4}}>{history.length} questions</div></div></div>}
+        {history.map((h,i)=><div key={i} className="card" style={{marginBottom:'.75rem',display:'flex',gap:'1rem',alignItems:'flex-start'}}>
+          <span className={`tag ${h.score>=.75?'tag-green':h.score>=.5?'tag-yellow':'tag-red'}`} style={{flexShrink:0,marginTop:2}}>{Math.round(h.score*100)}%</span>
+          <div><div style={{fontWeight:500,fontSize:13,marginBottom:3}}>{h.question}</div>
+            <div style={{fontSize:12,color:'var(--text3)'}}>{h.feedback}</div></div>
+        </div>)}</>)}
+    {tab==='practice'&&<>
+      <div style={{display:'flex',gap:10,marginBottom:'1.25rem',flexWrap:'wrap',alignItems:'flex-end'}}>
+        <div className="form-group" style={{flex:1,minWidth:180,marginBottom:0}}><label>Scholarship type</label>
+          <select value={scholarship} onChange={e=>setScholarship(e.target.value)}>
+            {[['general','General'],['chevening','Chevening'],['fulbright','Fulbright'],['gates_cambridge','Gates Cambridge'],['commonwealth','Commonwealth']].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+          </select></div>
+        {history.length>0&&<div className="card-flat" style={{padding:'8px 14px',display:'flex',gap:'1rem',alignItems:'center'}}>
+          <span style={{fontSize:13,color:'var(--text2)'}}>Avg: <strong>{avgScore}%</strong></span>
+          <span style={{fontSize:12,color:'var(--text3)'}}>{history.length}/{questions.length}</span></div>}
+      </div>
+      {questions.length>0&&<>
+        <div className="q-card" style={{marginBottom:'1rem'}}>
+          <div style={{fontSize:11,color:'var(--text3)',marginBottom:4,textTransform:'uppercase',letterSpacing:'.05em'}}>Q{currentQ+1}/{questions.length} · {questions[currentQ]?.focus?.replace(/_/g,' ')}</div>
+          <div style={{fontSize:17,fontWeight:600,marginBottom:10,lineHeight:1.4}}>{questions[currentQ]?.q}</div>
+          <div style={{fontSize:13,color:'var(--text2)',background:'rgba(99,102,241,.07)',padding:'8px 12px',borderRadius:6}}>💡 {questions[currentQ]?.tips}</div>
         </div>
-        <div style={{display:'flex',gap:8}}>
-          <button className="btn btn-outline btn-sm" onClick={load}>🔄 Refresh</button>
-          <button className="btn btn-primary" disabled={preparing} onClick={prepareTop}>
-            {preparing?<><span className="spinner"></span> Preparing...</>:'✨ Prepare top 5'}
-          </button>
+        <div className="form-group"><label>Your answer</label>
+          <textarea rows={7} value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="Type your answer here. Aim for 150-250 words. Be specific — use numbers, names, and concrete examples."/>
+          <div style={{display:'flex',justifyContent:'space-between',marginTop:4}}>
+            <span style={{fontSize:12,color:wc<100?'var(--red)':wc<=300?'var(--green)':'var(--yellow)'}}>{wc} words {wc<150?'(aim 150+)':wc>300?'(a bit long)':'✓'}</span>
+            <span style={{fontSize:11,color:'var(--text3)'}}>Using: {rubric.name}</span></div></div>
+        <div style={{display:'flex',gap:10,marginBottom:'1.5rem',flexWrap:'wrap'}}>
+          <button className="btn btn-primary" disabled={scoring||!answer.trim()} onClick={submit}>{scoring?<><span className="spinner"></span> Scoring...</>:'Score answer'}</button>
+          {result&&currentQ<questions.length-1&&<button className="btn btn-outline" onClick={next}>Next →</button>}
+        </div>
+        {result&&<div className="score-card" style={{borderColor:result.overall_score>=.75?'var(--green)':result.overall_score>=.5?'var(--yellow)':'var(--red)'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+            <span style={{fontWeight:700,fontSize:18}}>Score: {(result.overall_score*100).toFixed(0)}%</span>
+            <span style={{fontSize:26,fontWeight:800,color:result.grade==='A'?'var(--green)':result.grade==='B'?'var(--blue)':result.grade==='C'?'var(--yellow)':'var(--red)'}}>{result.grade}</span>
+          </div>
+          <div style={{marginBottom:'1rem'}}><div style={{fontSize:12,fontWeight:600,color:'var(--text2)',marginBottom:8}}>{rubric.name}</div>
+            {rubric.dimensions.map(dim=>{const s=result.rubric_scores?.[dim.key]||result.overall_score;return(
+              <div key={dim.key} style={{marginBottom:8}}><div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:3}}>
+                <span>{dim.label} <span style={{color:'var(--text3)',fontSize:11}}>({dim.weight}%)</span></span><span style={{fontWeight:600}}>{(s*100).toFixed(0)}%</span></div>
+                <div className="progress progress-sm"><div className="progress-fill" style={{width:`${s*100}%`,background:s>=.75?'var(--green)':s>=.5?'var(--blue)':'var(--yellow)'}}></div></div>
+              </div>);})}
+          </div>
+          <div style={{background:'var(--bg3)',borderRadius:8,padding:'10px 12px',fontSize:14}}>💡 {result.feedback}</div>
+          {result.filler_count>0&&<div style={{fontSize:13,color:'var(--yellow)',marginTop:8}}>⚠ {result.filler_count} filler word(s) detected</div>}
+        </div>}
+      </>}
+    </>}
+  </div>);
+}
+function ProfilePage({user,setUser}){
+  const[f,setF]=useState({...user});const[saving,setSaving]=useState(false);const[uploading,setUploading]=useState(false);const[readiness,setReadiness]=useState(null);
+  const fileRef=useRef();
+  useEffect(()=>{api('GET','/readiness').then(setReadiness).catch(()=>{});},[]);
+  const save=async(e)=>{e.preventDefault();setSaving(true);try{
+    const upd=await api('PATCH','/profile',{name:f.name,major:f.major,school:f.school,gpa:parseFloat(f.gpa)||0,nationality:f.nationality,financial_need:f.financial_need,personal_statement:f.personal_statement,
+      skills:typeof f.skills==='string'?f.skills.split(',').map(s=>s.trim()).filter(Boolean):f.skills,
+      extracurriculars:typeof f.extracurriculars==='string'?f.extracurriculars.split(',').map(s=>s.trim()).filter(Boolean):f.extracurriculars});
+    setUser({...user,...upd});const r=await api('GET','/readiness');setReadiness(r);toast('Profile saved','success');
+  }catch(e){toast(e.message,'error');}finally{setSaving(false);};};
+  const upload=async(e)=>{const file=e.target.files[0];if(!file)return;setUploading(true);
+    try{const fd=new FormData();fd.append('file',file);const r=await api('POST','/profile/upload-doc',fd,true);
+      if(r.extracted){setF(f=>({...f,...r.extracted}));toast(`Updated from ${file.name}`,'success');}else toast('Uploaded','success');
+    }catch(e){toast(e.message,'error');}finally{setUploading(false);};};
+  return(<div className="page mb-safe" style={{maxWidth:760}}>
+    <h2 className="section-title">Your Profile</h2>
+    {readiness&&<div className="card" style={{marginBottom:'1.25rem',display:'flex',gap:'1.5rem',alignItems:'flex-start',flexWrap:'wrap'}}>
+      <ReadinessRing score={readiness.overall}/>
+      <div style={{flex:1}}><div style={{fontWeight:600,fontSize:15,marginBottom:6}}>Readiness: {readiness.level}</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+          {Object.entries(readiness.scores).map(([k,v])=><div key={k} style={{minWidth:140,flex:1}}>
+            <div style={{fontSize:11,color:'var(--text3)',marginBottom:2}}>{k.replace(/_/g,' ')}</div>
+            <div className="progress progress-sm"><div className="progress-fill" style={{width:`${v}%`,background:v>=70?'var(--green)':v>=50?'var(--blue)':'var(--yellow)'}}></div></div>
+          </div>)}</div>
+        {readiness.tips?.[0]&&<p style={{fontSize:13,color:'var(--text2)',marginTop:8}}>💡 {readiness.tips[0]}</p>}
+      </div></div>}
+    <div className="card" style={{marginBottom:'1rem',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,background:'#eff6ff',border:'1px solid #bfdbfe'}}>
+      <div><div style={{fontWeight:500}}>Upload CV or transcript</div><div style={{fontSize:13,color:'var(--text2)'}}>Auto-extract GPA, major, skills</div></div>
+      <div><input ref={fileRef} type="file" accept=".pdf,.docx,.doc" style={{display:'none'}} onChange={upload}/>
+        <button className="btn btn-primary btn-sm" disabled={uploading} onClick={()=>fileRef.current.click()}>{uploading?<><span className="spinner"></span> Uploading...</>:'📄 Upload'}</button></div>
+    </div>
+    <form onSubmit={save}>
+      <div className="card" style={{marginBottom:'1rem'}}>
+        <div style={{fontWeight:600,marginBottom:'1rem'}}>Personal details</div>
+        <div className="grid2">
+          <div className="form-group"><label>Full name</label><input value={f.name||''} onChange={e=>setF({...f,name:e.target.value})}/></div>
+          <div className="form-group"><label>Email</label><input value={f.email||''} disabled style={{background:'var(--bg3)',color:'var(--text3)'}}/></div>
+        </div>
+        <div className="grid2">
+          <div className="form-group"><label>Country</label><input value={f.nationality||''} onChange={e=>setF({...f,nationality:e.target.value})}/></div>
+          <div className="form-group" style={{display:'flex',alignItems:'center',gap:8,paddingTop:22}}><input type="checkbox" id="fn2" checked={f.financial_need||false} onChange={e=>setF({...f,financial_need:e.target.checked})} style={{width:18,height:18,cursor:'pointer'}}/><label htmlFor="fn2" style={{marginBottom:0,cursor:'pointer'}}>Financial need</label></div>
         </div>
       </div>
-
-      {loading ? (
-        <div className="empty"><div className="spinner" style={{width:32,height:32,borderColor:'var(--navy)',borderTopColor:'transparent'}}></div></div>
-      ) : packages.length===0 ? (
-        <div className="empty">
-          <div className="empty-icon">📦</div>
-          <p style={{marginBottom:'1rem'}}>No packages yet</p>
-          <p style={{fontSize:14,color:'var(--text3)',marginBottom:'1.5rem'}}>Click "Prepare top 5" to generate complete application packages with tailored essays</p>
-          <button className="btn btn-primary" onClick={prepareTop} disabled={preparing}>
-            {preparing?<><span className="spinner"></span> Preparing...</>:'✨ Prepare top 5 now'}
-          </button>
+      <div className="card" style={{marginBottom:'1rem'}}>
+        <div style={{fontWeight:600,marginBottom:'1rem'}}>Academic background</div>
+        <div className="grid2">
+          <div className="form-group"><label>Degree level</label><select value={f.degree_level||'Graduate'} onChange={e=>setF({...f,degree_level:e.target.value})}><option>Undergraduate</option><option>Graduate</option><option>Postgraduate</option></select></div>
+          <div className="form-group"><label>GPA (0-4.0)</label><input type="number" step="0.1" min="0" max="4" value={f.gpa||''} onChange={e=>setF({...f,gpa:e.target.value})}/></div>
         </div>
-      ) : (
-        <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
-          {packages.map(pkg=>(
-            <div key={pkg.id} className="card">
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:8}}>
-                <div>
-                  <div style={{fontWeight:600,fontSize:16,marginBottom:4}}>{pkg.scholarship}</div>
-                  <div style={{fontSize:13,color:'var(--text2)'}}>
-                    ${pkg.amount_usd?.toLocaleString()} &nbsp;|&nbsp; Deadline: {pkg.deadline}
-                    {pkg.days_left!==undefined && ` | ${pkg.days_left} days left`}
-                  </div>
-                  {pkg.essay_preview && <p style={{fontSize:13,color:'var(--text3)',marginTop:8,fontStyle:'italic'}}>{pkg.essay_preview}</p>}
-                </div>
-                <span className={`tag ${(pkg.days_left||999)<=7?'tag-red':(pkg.days_left||999)<=30?'tag-yellow':'tag-green'}`}>
-                  {pkg.days_left||'?'} days
-                </span>
-              </div>
-              <div style={{display:'flex',gap:8,marginTop:'1rem',flexWrap:'wrap'}}>
-                <a href={pkg.briefing_url} target="_blank" className="btn btn-primary btn-sm">Open briefing →</a>
-                <a href={pkg.essay_url} target="_blank" className="btn btn-outline btn-sm">View essay</a>
-                <a href={pkg.url} target="_blank" className="btn btn-outline btn-sm">Apply →</a>
-                <button className="btn btn-green btn-sm" onClick={()=>recordSubmission(pkg)}>✓ Mark submitted</button>
-                <a href={`/api/packages/${user.id}/${pkg.id}/download`} className="btn btn-outline btn-sm">⬇ Download</a>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Interview Coach ───────────────────────────────────────────
-function InterviewPage({user}) {
-  const [scholarship, setScholarship] = useState('general');
-  const [questions, setQuestions] = useState([]);
-  const [currentQ, setCurrentQ] = useState(0);
-  const [answer, setAnswer] = useState('');
-  const [score, setScore] = useState(null);
-  const [scoring, setScoring] = useState(false);
-  const [allScores, setAllScores] = useState([]);
-
-  useEffect(()=>{
-    api('GET',`/interview/questions/${scholarship}`)
-      .then(r=>{ setQuestions(r.questions||[]); setCurrentQ(0); setAnswer(''); setScore(null); setAllScores([]); })
-      .catch(()=>{});
-  },[scholarship]);
-
-  const submitAnswer = async()=>{
-    if (!answer.trim()) { toast('Please enter an answer first','error'); return; }
-    setScoring(true);
-    try {
-      const q = questions[currentQ];
-      const r = await api('POST','/interview/score',{
-        question: q.q, answer, scholarship, profile: user
-      });
-      setScore(r);
-      setAllScores(prev=>[...prev,{question:q.q,score:r.overall_score,grade:r.grade}]);
-    } catch(e) { toast(e.message,'error'); }
-    finally { setScoring(false); }
-  };
-
-  const next = ()=>{
-    if (currentQ < questions.length-1) { setCurrentQ(q=>q+1); setAnswer(''); setScore(null); }
-  };
-
-  const avgScore = allScores.length ? allScores.reduce((a,s)=>a+s.score,0)/allScores.length : 0;
-
-  return (
-    <div className="page" style={{maxWidth:760}}>
-      <h2 className="section-title">Interview Coach</h2>
-      <p className="section-sub">Practice scholarship panel interviews with AI scoring</p>
-
-      <div className="form-group" style={{maxWidth:320,marginBottom:'1.5rem'}}>
-        <label>Scholarship type</label>
-        <select value={scholarship} onChange={e=>setScholarship(e.target.value)}>
-          {[['general','General (all scholarships)'],['chevening','Chevening'],['commonwealth','Commonwealth'],['fulbright','Fulbright'],['gates_cambridge','Gates Cambridge']].map(([v,l])=>(
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
-      </div>
-
-      {allScores.length > 0 && (
-        <div className="card" style={{marginBottom:'1.5rem',background:'#f0f9ff',border:'1px solid #bae6fd'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <span style={{fontWeight:500}}>Session score: {(avgScore*100).toFixed(0)}%</span>
-            <span style={{fontSize:13,color:'var(--text2)'}}>{allScores.length}/{questions.length} answered</span>
-          </div>
-          <div className="progress" style={{marginTop:8}}>
-            <div className="progress-fill" style={{width:`${avgScore*100}%`,background:avgScore>=0.7?'var(--green)':avgScore>=0.5?'var(--yellow)':'var(--red)'}}></div>
-          </div>
-        </div>
-      )}
-
-      {questions.length > 0 && (
-        <>
-          <div className="interview-q">
-            <div style={{fontSize:12,color:'var(--text3)',marginBottom:4}}>Question {currentQ+1} of {questions.length} &nbsp;|&nbsp; {questions[currentQ]?.focus?.toUpperCase()}</div>
-            <div style={{fontSize:17,fontWeight:500,marginBottom:8}}>{questions[currentQ]?.q}</div>
-            <div style={{fontSize:13,color:'var(--text2)',background:'rgba(99,102,241,.08)',padding:'6px 10px',borderRadius:6}}>
-              💡 Tip: {questions[currentQ]?.tips}
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Your answer (aim for 150–250 words)</label>
-            <textarea rows={8} value={answer} onChange={e=>setAnswer(e.target.value)}
-              placeholder="Type your answer here as if you were in a real panel interview..." />
-            <div style={{fontSize:12,color:'var(--text3)',textAlign:'right',marginTop:3}}>{answer.split(/\s+/).filter(Boolean).length} words</div>
-          </div>
-
-          <div style={{display:'flex',gap:10,marginBottom:'1.5rem'}}>
-            <button className="btn btn-primary" disabled={scoring||!answer.trim()} onClick={submitAnswer}>
-              {scoring?<><span className="spinner"></span> Scoring...</>:'Score my answer'}
-            </button>
-            {score && currentQ < questions.length-1 && (
-              <button className="btn btn-outline" onClick={next}>Next question →</button>
-            )}
-          </div>
-
-          {score && (
-            <div className="card" style={{borderColor: score.overall_score>=0.7?'var(--green)':score.overall_score>=0.5?'var(--yellow)':'var(--red)'}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-                <span style={{fontWeight:600,fontSize:18}}>Score: {(score.overall_score*100).toFixed(0)}%</span>
-                <span style={{fontSize:24,fontWeight:700,color:score.grade==='A'?'var(--green)':score.grade==='B'?'var(--blue)':score.grade==='C'?'var(--yellow)':'var(--red)'}}>{score.grade}</span>
-              </div>
-              {[['Specificity',score.scores?.specificity],['Fluency',score.scores?.fluency],['Length',score.scores?.length]].map(([l,v])=>(
-                <div key={l} style={{marginBottom:8}}>
-                  <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:3}}>
-                    <span>{l}</span><span>{((v||0)*100).toFixed(0)}%</span>
-                  </div>
-                  <div className="score-bar">
-                    <div className="score-fill" style={{width:`${(v||0)*100}%`,background:'var(--navy)'}}></div>
-                  </div>
-                </div>
-              ))}
-              <div style={{marginTop:'1rem',padding:'10px',background:'var(--bg3)',borderRadius:8,fontSize:14}}>
-                💡 {score.feedback}
-              </div>
-              {score.filler_count > 0 && (
-                <div style={{fontSize:13,color:'var(--yellow)',marginTop:8}}>⚠ {score.filler_count} filler word(s) detected</div>
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── Profile ───────────────────────────────────────────────────
-function ProfilePage({user, setUser}) {
-  const [form, setForm] = useState({...user});
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef();
-
-  const save = async(e)=>{
-    e.preventDefault(); setSaving(true);
-    try {
-      const updated = await api('PATCH','/profile',{
-        name:form.name, major:form.major, school:form.school,
-        gpa:parseFloat(form.gpa)||0, nationality:form.nationality,
-        financial_need:form.financial_need,
-        personal_statement:form.personal_statement,
-        skills: typeof form.skills==='string' ? form.skills.split(',').map(s=>s.trim()) : form.skills,
-        extracurriculars: typeof form.extracurriculars==='string' ? form.extracurriculars.split(',').map(s=>s.trim()) : form.extracurriculars,
-      });
-      setUser({...user,...updated});
-      toast('Profile saved','success');
-    } catch(e) { toast(e.message,'error'); }
-    finally { setSaving(false); }
-  };
-
-  const uploadDoc = async(e)=>{
-    const file = e.target.files[0]; if (!file) return;
-    setUploading(true);
-    try {
-      const fd = new FormData(); fd.append('file',file);
-      const r = await api('POST','/profile/upload-doc',fd,true);
-      if (r.extracted) {
-        setForm(f=>({...f,...r.extracted}));
-        setUser(u=>({...u,...r.extracted}));
-        toast(`Profile updated from ${file.name}`,'success');
-      } else toast('Document uploaded','success');
-    } catch(e) { toast(e.message,'error'); }
-    finally { setUploading(false); }
-  };
-
-  return (
-    <div className="page" style={{maxWidth:760}}>
-      <h2 className="section-title">Your Profile</h2>
-      <p className="section-sub">Complete your profile for better scholarship matching</p>
-
-      <div className="card" style={{marginBottom:'1.5rem',padding:'1rem',background:'#f0f9ff',border:'1px solid #bae6fd',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}}>
-        <div>
-          <div style={{fontWeight:500}}>Upload your CV or transcript</div>
-          <div style={{fontSize:13,color:'var(--text2)'}}>We'll auto-extract your GPA, major, and experience</div>
-        </div>
-        <div>
-          <input ref={fileRef} type="file" accept=".pdf,.docx,.doc" style={{display:'none'}} onChange={uploadDoc} />
-          <button className="btn btn-primary btn-sm" disabled={uploading} onClick={()=>fileRef.current.click()}>
-            {uploading?<><span className="spinner"></span> Uploading...</>:'📄 Upload document'}
-          </button>
+        <div className="grid2">
+          <div className="form-group"><label>Major / Field</label><input value={f.major||''} onChange={e=>setF({...f,major:e.target.value})}/></div>
+          <div className="form-group"><label>University</label><input value={f.school||''} onChange={e=>setF({...f,school:e.target.value})}/></div>
         </div>
       </div>
-
-      <form onSubmit={save}>
-        <div className="card" style={{marginBottom:'1.5rem'}}>
-          <h3 style={{fontSize:15,fontWeight:600,marginBottom:'1rem'}}>Personal details</h3>
-          <div className="grid2">
-            <div className="form-group"><label>Full name</label><input value={form.name||''} onChange={e=>setForm({...form,name:e.target.value})} /></div>
-            <div className="form-group"><label>Email</label><input value={form.email||''} disabled style={{background:'var(--bg3)'}} /></div>
-          </div>
-          <div className="grid2">
-            <div className="form-group"><label>Country / Nationality</label><input value={form.nationality||''} onChange={e=>setForm({...form,nationality:e.target.value})} /></div>
-            <div className="form-group" style={{display:'flex',alignItems:'center',gap:8,paddingTop:24}}>
-              <input type="checkbox" id="fn2" checked={form.financial_need||false} onChange={e=>setForm({...form,financial_need:e.target.checked})} style={{width:'auto'}} />
-              <label htmlFor="fn2" style={{marginBottom:0}}>I have financial need</label>
-            </div>
-          </div>
-        </div>
-
-        <div className="card" style={{marginBottom:'1.5rem'}}>
-          <h3 style={{fontSize:15,fontWeight:600,marginBottom:'1rem'}}>Academic background</h3>
-          <div className="grid2">
-            <div className="form-group"><label>Degree level</label>
-              <select value={form.degree_level||'Graduate'} onChange={e=>setForm({...form,degree_level:e.target.value})}>
-                <option>Undergraduate</option><option>Graduate</option><option>Postgraduate</option>
-              </select>
-            </div>
-            <div className="form-group"><label>GPA (0–4.0)</label><input type="number" step="0.1" min="0" max="4" value={form.gpa||''} onChange={e=>setForm({...form,gpa:e.target.value})} /></div>
-          </div>
-          <div className="grid2">
-            <div className="form-group"><label>Major / Field of study</label><input value={form.major||''} onChange={e=>setForm({...form,major:e.target.value})} /></div>
-            <div className="form-group"><label>University / School</label><input value={form.school||''} onChange={e=>setForm({...form,school:e.target.value})} /></div>
-          </div>
-        </div>
-
-        <div className="card" style={{marginBottom:'1.5rem'}}>
-          <h3 style={{fontSize:15,fontWeight:600,marginBottom:'1rem'}}>Skills & activities</h3>
-          <div className="form-group"><label>Skills (comma-separated)</label>
-            <input value={Array.isArray(form.skills)?form.skills.join(', '):(form.skills||'')} onChange={e=>setForm({...form,skills:e.target.value})} placeholder="Python, Cloud Computing, Data Analysis..." />
-          </div>
-          <div className="form-group"><label>Extracurricular activities (comma-separated)</label>
-            <input value={Array.isArray(form.extracurriculars)?form.extracurriculars.join(', '):(form.extracurriculars||'')} onChange={e=>setForm({...form,extracurriculars:e.target.value})} placeholder="Community teaching, Tech club president..." />
-          </div>
-          <div className="form-group"><label>Personal statement (optional — used in essays)</label>
-            <textarea rows={4} value={form.personal_statement||''} onChange={e=>setForm({...form,personal_statement:e.target.value})} placeholder="Brief description of your goals and background..." />
-          </div>
-        </div>
-
-        <button className="btn btn-primary" type="submit" disabled={saving}>
-          {saving?<><span className="spinner"></span> Saving...</>:'Save profile'}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-// ── App ───────────────────────────────────────────────────────
-function App() {
-  const {user, loading, login, register, logout, setUser} = useAuth();
-  const [page, setPage] = useState('home');
-  const toasts = useToast();
-
-  useEffect(()=>{
-    if (user && page==='home') setPage('dashboard');
-    if (!user && ['dashboard','packages','profile'].includes(page)) setPage('home');
-  },[user]);
-
-  if (loading) return (
-    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh'}}>
-      <div style={{textAlign:'center'}}>
-        <div className="spinner" style={{width:40,height:40,borderColor:'var(--navy)',borderTopColor:'transparent',margin:'0 auto 1rem'}}></div>
-        <p style={{color:'var(--text3)'}}>Loading ScholarBot...</p>
+      <div className="card" style={{marginBottom:'1rem'}}>
+        <div style={{fontWeight:600,marginBottom:'1rem'}}>Skills and activities</div>
+        <div className="form-group"><label>Skills (comma-separated)</label><input value={Array.isArray(f.skills)?f.skills.join(', '):(f.skills||'')} onChange={e=>setF({...f,skills:e.target.value})} placeholder="Python, Cloud Computing, Leadership..."/><p className="helper">More skills = better scholarship matching</p></div>
+        <div className="form-group"><label>Extracurricular activities</label><input value={Array.isArray(f.extracurriculars)?f.extracurriculars.join(', '):(f.extracurriculars||'')} onChange={e=>setF({...f,extracurriculars:e.target.value})} placeholder="Tech club president, Community teaching..."/></div>
+        <div className="form-group"><label>Personal statement <span style={{fontWeight:400,color:'var(--text3)'}}>(used in essays)</span></label>
+          <textarea rows={4} value={f.personal_statement||''} onChange={e=>setF({...f,personal_statement:e.target.value})} placeholder="Your goals, background, and what drives you..."/>
+          <p className="helper">{(f.personal_statement||'').length}/500 chars — more detail = better essays</p></div>
       </div>
-    </div>
-  );
-
-  return (
-    <>
-      <Nav user={user} page={page} setPage={setPage} logout={logout} />
-      {page==='home' && <HomePage setPage={setPage} />}
-      {page==='login' && <LoginPage login={login} setPage={setPage} />}
-      {page==='register' && <RegisterPage register={register} setPage={setPage} />}
-      {page==='dashboard' && user && <DashboardPage user={user} setPage={setPage} />}
-      {page==='scholarships' && <ScholarshipsPage user={user} setPage={setPage} />}
-      {page==='packages' && user && <PackagesPage user={user} />}
-      {page==='interview' && <InterviewPage user={user} />}
-      {page==='profile' && user && <ProfilePage user={user} setUser={setUser} />}
-
-      <div className="toast-container">
-        {toasts.map(t=>(
-          <div key={t.id} className="toast" style={{background:t.type==='error'?'var(--red)':t.type==='success'?'var(--green)':'var(--navy)'}}>
-            {t.msg}
-          </div>
-        ))}
-      </div>
-    </>
-  );
+      <button className="btn btn-primary" type="submit" disabled={saving}>{saving?<><span className="spinner"></span> Saving...</>:'Save profile'}</button>
+    </form>
+  </div>);
 }
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-</script>
-</body>
-</html>
+function App(){
+  const{user,loading,login,register,logout,setUser}=useAuth();
+  const[page,setPage]=useState('home');const toasts=useToasts();
+  const go=useCallback(p=>{setPage(p);window.scrollTo({top:0,behavior:'smooth'});},[]);
+  useEffect(()=>{if(user&&page==='home')go('dashboard');if(!user&&['dashboard','pipeline','packages','profile'].includes(page))go('home');},[user,page]);
+  if(loading)return(<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:'1rem'}}>
+    <div className="spinner spinner-dark" style={{width:36,height:36}}></div><p style={{color:'var(--text3)',fontSize:14}}>Loading ScholarBot...</p></div>);
+  const pages={home:<HomePage go={go}/>,login:<AuthPage mode="login" login={login} register={register} go={go}/>,
+    register:<AuthPage mode="register" login={login} register={register} go={go}/>,
+    dashboard:user&&<DashboardPage user={user} go={go}/>,scholarships:<ScholarshipsPage user={user} go={go}/>,
+    pipeline:user&&<PipelinePage user={user}/>,packages:user&&<PackagesPage user={user}/>,
+    interview:<InterviewPage user={user}/>,profile:user&&<ProfilePage user={user} setUser={setUser}/>};
+  return(<><Nav user={user} page={page} go={go} logout={logout}/>
+    <div>{pages[page]||pages['home']}</div>
+    <div className="toast-wrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>
+  </>);
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script></body></html>
