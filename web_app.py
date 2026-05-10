@@ -409,13 +409,91 @@ async def upload_doc(file: UploadFile = File(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)):
     ext = Path(file.filename).suffix.lower()
-    if ext not in {".pdf",".docx",".doc",".jpg",".jpeg",".png"}:
-        raise HTTPException(400, "Unsupported file type: "+ext)
+    if ext not in {".pdf",".docx",".doc"}:
+        raise HTTPException(400, "Supported formats: PDF, DOCX, DOC")
     d = Path("data/uploads/"+user.id)
     d.mkdir(parents=True, exist_ok=True)
+    content_bytes = await file.read()
     p = d / (uuid.uuid4().hex[:8]+"_"+file.filename)
-    p.write_bytes(await file.read())
-    return {"message": "Document uploaded"}
+    p.write_bytes(content_bytes)
+    # Extract text
+    text = ""
+    try:
+        if ext == ".pdf":
+            import fitz
+            doc = fitz.open(str(p))
+            text = " ".join(page.get_text() for page in doc)
+            doc.close()
+        elif ext in (".docx",".doc"):
+            import docx as _docx
+            doc = _docx.Document(str(p))
+            text = " ".join(para.text for para in doc.paragraphs)
+    except Exception as e:
+        logger.warning("Text extraction failed: %s", e)
+    extracted = {}
+    if text.strip():
+        import re
+        # Extract GPA
+        gpa_match = re.search(r"(?:gpa|cgpa|grade point)[:\s]+(\d+\.?\d*)", text.lower())
+        if gpa_match:
+            gpa = float(gpa_match.group(1))
+            if gpa > 4.0: gpa = round(gpa * 4.0 / 5.0, 2)
+            extracted["gpa"] = min(4.0, round(gpa, 2))
+        # Extract degree
+        text_lower = text.lower()
+        if any(w in text_lower for w in ["phd","ph.d","doctorate","doctoral"]):
+            extracted["degree_level"] = "Postgraduate"
+        elif any(w in text_lower for w in ["master","msc","mba","m.sc","postgrad"]):
+            extracted["degree_level"] = "Graduate"
+        elif any(w in text_lower for w in ["bachelor","bsc","undergraduate","b.sc","b.tech"]):
+            extracted["degree_level"] = "Undergraduate"
+        # Extract skills using AI
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            llm = _get_llm()
+            try:
+                import json as _json
+                sys_p = "Extract information from this CV/resume. Return ONLY a JSON object, no other text."
+                usr_p = (f"Extract from this CV text:\n{text[:3000]}\n\n"
+                        "Return JSON with these keys (use empty string/list if not found):\n"
+                        "name (string), major (string), school (string), "
+                        "nationality (string), skills (list of up to 10 strings), "
+                        "extracurriculars (list of up to 5 strings), "
+                        "personal_statement (2 sentence summary of their profile)")
+                raw = llm(sys_p, usr_p)
+                start = raw.find("{"); end = raw.rfind("}")+1
+                if start >= 0 and end > start:
+                    ai_data = _json.loads(raw[start:end])
+                    for key in ["name","major","school","nationality",
+                                "skills","extracurriculars","personal_statement"]:
+                        if ai_data.get(key):
+                            extracted[key] = ai_data[key]
+            except Exception as e:
+                logger.warning("AI extraction failed: %s", e)
+        # Update user profile with extracted data
+        updated_fields = []
+        for field, value in extracted.items():
+            if value and field != "degree_level" or (field == "degree_level" and value):
+                setattr(user, field, value)
+                updated_fields.append(field)
+        if extracted.get("degree_level"):
+            user.degree_level = extracted["degree_level"]
+        if updated_fields:
+            db.commit(); db.refresh(user)
+        # Get matched scholarships with updated profile
+        from engine.opportunity_db import match_opportunities
+        matched = match_opportunities(user.to_dict())[:10]
+        return {
+            "message": "Document uploaded and profile updated",
+            "extracted": extracted,
+            "updated_fields": updated_fields,
+            "matched_count": len(matched),
+            "top_matches": [{"name":o["name"],"amount_usd":o["amount_usd"],
+                            "match_score":o.get("match_score",0),
+                            "deadline":o.get("deadline","")} for o in matched[:5]],
+            "user": user.to_dict()
+        }
+    return {"message": "Document uploaded. Add text to your CV for auto-matching.",
+            "extracted": {}, "user": user.to_dict()}
 
 @app.get("/api/readiness")
 async def readiness(user: User = Depends(get_current_user)):
@@ -688,11 +766,71 @@ async def interview_qs(scholarship_slug: str,
 @app.post("/api/interview/score")
 async def interview_score(data: dict,
     user: User = Depends(get_current_user)):
-    from engine.scholarship_engine import score_answer
-    return score_answer(data.get("question",""),
-                        data.get("answer",""),
-                        user.to_dict(),
-                        data.get("scholarship","general"))
+    question = data.get("question","")
+    answer = data.get("answer","")
+    scholarship = data.get("scholarship","general")
+    wc = len(answer.split())
+    if wc < 20:
+        return {"overall_score":0.2,"grade":"D",
+                "feedback":"Answer too short. Aim for 150-250 words with specific examples.",
+                "word_count":wc,"filler_count":0}
+    llm = _get_llm()
+    rubric_map = {
+        "chevening": "Leadership (25%), Networking (25%), Ambassador Potential (25%), Career Plan (25%)",
+        "fulbright": "Academic Excellence (30%), Project Feasibility (30%), Cross-cultural (20%), Impact (20%)",
+        "gates_cambridge": "Academic Achievement (30%), Leadership (30%), Commitment to Others (25%), Cambridge Fit (15%)",
+        "general": "Clarity (25%), Specificity & Evidence (35%), Relevance (25%), Impact (15%)"
+    }
+    rubric = rubric_map.get(scholarship, rubric_map["general"])
+    system = (
+        "You are an expert scholarship interview coach who scores answers against official rubrics. "
+        "Respond ONLY with a JSON object, no other text."
+    )
+    prompt = (
+        f"Score this scholarship interview answer for {scholarship.replace('_',' ').title()} scholarship.\n\n"
+        f"RUBRIC: {rubric}\n\n"
+        f"QUESTION: {question}\n\n"
+        f"ANSWER ({wc} words): {answer}\n\n"
+        "Return JSON with exactly these keys:\n"
+        "score (0.0-1.0 float), grade (A/B/C/D), "
+        "feedback (2-3 specific sentences on what was good and what to improve), "
+        "strengths (list of 2 strings), improvements (list of 2 strings)"
+    )
+    try:
+        import json as _json
+        raw = llm(system, prompt)
+        # Extract JSON from response
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
+        if start >= 0 and end > start:
+            result = _json.loads(raw[start:end])
+            score = float(result.get("score", 0.6))
+            grade = result.get("grade", "B")
+            feedback = result.get("feedback","Good answer. Be more specific with examples.")
+            strengths = result.get("strengths", [])
+            improvements = result.get("improvements", [])
+        else:
+            raise ValueError("No JSON in response")
+    except Exception as e:
+        logger.warning("AI scoring fallback: %s", e)
+        # Fallback heuristic scoring
+        has_numbers = any(c.isdigit() for c in answer)
+        is_long = wc >= 150
+        is_specific = len([w for w in answer.split() if len(w)>6]) > 10
+        score = 0.5 + (0.15 if has_numbers else 0) + (0.1 if is_long else 0) + (0.1 if is_specific else 0)
+        grade = "A" if score>=0.85 else "B" if score>=0.7 else "C" if score>=0.55 else "D"
+        feedback = (f"{'Good length. ' if is_long else 'Too brief — aim for 150+ words. '}"
+                   f"{'Good use of specifics. ' if is_specific else 'Add specific numbers and examples. '}"
+                   f"{'Quantified impact well. ' if has_numbers else 'Include measurable outcomes.'}")
+        strengths = ["Clear communication" if is_long else "Concise response"]
+        improvements = ["Add specific numbers and dates", "Include measurable outcomes"]
+    # Count filler words
+    fillers = ["um","uh","like","basically","literally","honestly","actually","very","really","just"]
+    filler_count = sum(answer.lower().split().count(f) for f in fillers)
+    return {"overall_score": round(min(1.0,max(0.0,score)),2),
+            "grade": grade, "feedback": feedback,
+            "word_count": wc, "filler_count": filler_count,
+            "strengths": strengths, "improvements": improvements}
 
 @app.get("/api/jobs/{jid}")
 async def get_job(jid: str,
