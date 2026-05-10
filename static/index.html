@@ -243,9 +243,9 @@ function DashboardPage({user,go}){
     <p className="section-sub">Your scholarship overview</p>
     <div className="grid4" style={{marginBottom:'1.25rem'}}>
       {[{l:'Matched',v:data.scholarships_matched,s:'scholarships',c:'var(--blue)'},
-        {l:'Potential',v:`$${Math.round(data.total_potential_usd/1000)}k`,s:'funding',c:'var(--green)'},
+        {l:'Potential',v:'$'+Math.round(data.total_potential_usd/1000)+'k',s:'funding',c:'var(--green)'},
         {l:'Submitted',v:data.applications_submitted,s:'applications',c:'var(--navy)'},
-        {l:'Won',v:`$${data.total_won_usd.toLocaleString()}`,s:'in awards',c:'var(--purple)'}].map(s=>(
+        {l:'Won',v:'$'+data.total_won_usd.toLocaleString(),s:'in awards',c:'var(--purple)'}].map(s=>(
         <div key={s.l} className="card-flat"><div style={{fontSize:12,color:'var(--text3)',marginBottom:3}}>{s.l}</div>
           <div style={{fontSize:24,fontWeight:700,color:s.c}}>{s.v}</div><div style={{fontSize:11,color:'var(--text3)'}}>{s.s}</div></div>
       ))}
