@@ -87,7 +87,7 @@ class Application(Base):
     amount_usd       = Column(Float, default=0.0)
     deadline         = Column(String(20), default="")
     url              = Column(Text, default="")
-    stage            = Column(Enum(ApplicationStage), default=ApplicationStage.researching)
+    stage            = Column(Enum(ApplicationStage, native_enum=False), default=ApplicationStage.researching)
     notes            = Column(Text, default="")
     submitted_at     = Column(DateTime, nullable=True)
     outcome_date     = Column(DateTime, nullable=True)
@@ -155,7 +155,7 @@ class RecRequest(Base):
     submission_link         = Column(Text, default="")
     drafted_letter          = Column(Text, default="")
     briefing_text           = Column(Text, default="")
-    status                  = Column(Enum(RecStatus), default=RecStatus.requested)
+    status                  = Column(Enum(RecStatus, native_enum=False), default=RecStatus.requested)
     requested_at            = Column(DateTime, default=datetime.utcnow)
     reminded_at             = Column(DateTime, nullable=True)
     received_at             = Column(DateTime, nullable=True)
@@ -209,5 +209,14 @@ def get_db():
 
 def init_db():
     os.makedirs("data", exist_ok=True)
-    Base.metadata.create_all(bind=engine)
-    print(f"[DB] Initialised ({DATABASE_URL.split('://')[0]})")
+    try:
+        Base.metadata.create_all(bind=engine, checkfirst=True)
+        print(f"[DB] Initialised ({DATABASE_URL.split('://')[0]})")
+    except Exception as e:
+        print(f"[DB] Warning during init: {e}")
+        # Try individual tables
+        for table in Base.metadata.sorted_tables:
+            try:
+                table.create(engine, checkfirst=True)
+            except Exception as te:
+                print(f"[DB] Table {table.name}: {te}")
