@@ -215,13 +215,12 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 
 logging.basicConfig(level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 _JWT_SECRET = os.environ.get("SECRET_KEY", secrets.token_hex(32))
 _JWT_ALG = "HS256"
 _JWT_DAYS = 7
@@ -240,10 +239,8 @@ async def startup():
     logger.info("ScholarBot v4 started")
 
 def _hash_pw(pw):
-    # bcrypt hard limit is 72 bytes - encode then truncate
     pw_bytes = pw.encode('utf-8')[:72]
-    pw_truncated = pw_bytes.decode('utf-8', errors='ignore')
-    return _pwd.hash(pw_truncated)
+    return _bcrypt.hashpw(pw_bytes, _bcrypt.gensalt(12)).decode('utf-8')
 
 def _check_pw(pw, hashed):
     if ":" in hashed and len(hashed.split(":")[0]) == 32:
@@ -254,8 +251,7 @@ def _check_pw(pw, hashed):
         except: return False
     try:
         pw_bytes = pw.encode('utf-8')[:72]
-        pw_truncated = pw_bytes.decode('utf-8', errors='ignore')
-        return _pwd.verify(pw_truncated, hashed)
+        return _bcrypt.checkpw(pw_bytes, hashed.encode('utf-8'))
     except: return False
 
 def _make_token(uid):
