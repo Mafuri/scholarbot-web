@@ -922,7 +922,6 @@ function PipelinePage() {
                   </span>
                 </div>
                 {cards.map(function(app) {
-                  const otherStages = STAGES.filter(function(s) { return s.id !== stage.id; }).slice(0, 2);
                   return (
                     <div key={app.id} className="kanban-card">
                       <div style={{fontWeight:500,marginBottom:3,fontSize:12,lineHeight:1.3}}>
@@ -932,17 +931,16 @@ function PipelinePage() {
                         {'$' + (app.amount_usd || 0).toLocaleString()}
                       </div>
                       <div style={{color:'#888',fontSize:11,marginTop:2}}>{app.deadline}</div>
-                      <div style={{marginTop:6,display:'flex',gap:3,flexWrap:'wrap'}}>
-                        {otherStages.map(function(s) {
-                          return (
-                            <button key={s.id} className="btn btn-xs btn-outline"
-                              disabled={moving === app.id}
-                              onClick={function() { move(app.id, s.id); }}
-                              style={{fontSize:10,padding:'2px 7px'}}>
-                              → {s.label.split(' ')[0]}
-                            </button>
-                          );
-                        })}
+                        <div style={{marginTop:6}}>
+                        <select value={stage.id}
+                          disabled={moving === app.id}
+                          onChange={function(e) { move(app.id, e.target.value); }}
+                          style={{width:'100%',fontSize:11,padding:'3px 4px',borderRadius:6,
+                            border:'1px solid #d0d0c8',background:'#f9f9f7',cursor:'pointer'}}>
+                          {STAGES.map(function(s) {
+                            return <option key={s.id} value={s.id}>{s.label}</option>;
+                          })}
+                        </select>
                       </div>
                     </div>
                   );
@@ -1253,6 +1251,8 @@ function ProfilePage(props) {
   const [form, setFormState] = useState({});
   const [saving, setSaving] = useState(false);
   const [readiness, setReadiness] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null);
   const fileRef = useRef(null);
 
   useEffect(function() {
@@ -1279,6 +1279,36 @@ function ProfilePage(props) {
       next[key] = val;
       return next;
     });
+  }
+
+  function uploadDoc(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadResult(null);
+    const fd = new FormData();
+    fd.append('file', file);
+    api('POST', '/profile/upload-doc', fd, true)
+      .then(function(r) {
+        setUploadResult(r);
+        if (r.user) {
+          const u = r.user;
+          setUser(Object.assign({}, user, u));
+          setFormState({
+            name: u.name || '', email: u.email || '',
+            degree_level: u.degree_level || 'Graduate',
+            major: u.major || '', school: u.school || '',
+            nationality: u.nationality || 'Kenya',
+            gpa: u.gpa || '', financial_need: u.financial_need || false,
+            personal_statement: u.personal_statement || '',
+            skills: Array.isArray(u.skills) ? u.skills.join(', ') : (u.skills || ''),
+            extracurriculars: Array.isArray(u.extracurriculars) ? u.extracurriculars.join(', ') : (u.extracurriculars || ''),
+          });
+        }
+        toast('Document scanned — profile and matches updated!', 'success');
+        setUploading(false);
+      })
+      .catch(function(e) { toast(e.message, 'error'); setUploading(false); });
   }
 
   function save(e) {
@@ -1335,6 +1365,64 @@ function ProfilePage(props) {
           </div>
         </div>
       )}
+
+      <div className="card" style={{marginBottom:'1rem',background:'#eff6ff',border:'1px solid #bfdbfe'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:12}}>
+          <div>
+            <div style={{fontWeight:600,fontSize:15}}>📄 Upload CV or Transcript</div>
+            <div style={{fontSize:13,color:'#555',marginTop:3}}>
+              AI scans your document, fills your profile, and matches you to scholarships
+            </div>
+            <div style={{fontSize:12,color:'#888',marginTop:2}}>Supported: PDF, DOCX</div>
+          </div>
+          <div>
+            <input ref={fileRef} type="file" accept=".pdf,.docx,.doc"
+              style={{display:'none'}} onChange={uploadDoc}/>
+            <button className="btn btn-primary" disabled={uploading}
+              onClick={function() { fileRef.current.click(); }}>
+              {uploading ? (
+                <React.Fragment>
+                  <span className="spinner" style={{borderTopColor:'#fff'}}></span>
+                  &nbsp; Scanning document...
+                </React.Fragment>
+              ) : '📤 Upload and Auto-Match'}
+            </button>
+          </div>
+        </div>
+        {uploadResult && (
+          <div style={{marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid #bfdbfe'}}>
+            <div style={{fontWeight:600,color:'#15803d',marginBottom:8}}>
+              Profile updated from your document
+            </div>
+            {uploadResult.updated_fields && uploadResult.updated_fields.length > 0 && (
+              <div style={{fontSize:13,marginBottom:8}}>
+                Updated: <strong>{uploadResult.updated_fields.join(', ')}</strong>
+              </div>
+            )}
+            {uploadResult.top_matches && uploadResult.top_matches.length > 0 && (
+              <div>
+                <div style={{fontWeight:500,fontSize:13,marginBottom:6}}>
+                  Top matches for your profile:
+                </div>
+                {uploadResult.top_matches.map(function(m) {
+                  return (
+                    <div key={m.name} style={{display:'flex',justifyContent:'space-between',
+                      padding:'5px 0',borderBottom:'.5px solid #bfdbfe',fontSize:13}}>
+                      <span>{(m.name||'').slice(0,44)}</span>
+                      <span style={{fontWeight:600,color:'#1e3a8a',marginLeft:8}}>
+                        {'$'+(m.amount_usd||0).toLocaleString()}
+                      </span>
+                    </div>
+                  );
+                })}
+                <p style={{fontSize:12,color:'#555',marginTop:8}}>
+                  {uploadResult.matched_count} total matches — go to Scholarships to see all
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <form onSubmit={save}>
         <div className="card" style={{marginBottom:'1rem'}}>
