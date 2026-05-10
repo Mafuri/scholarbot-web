@@ -9,15 +9,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f9f9f7;color:#1a1a1a;line-height:1.6}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f9f9f7;color:#1a1a1a;line-height:1.6;font-size:15px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 18px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:500;transition:opacity .15s;text-decoration:none;white-space:nowrap}
 .btn:hover{opacity:.85}.btn:active{transform:scale(.97)}
 .btn-primary{background:#1a1a2e;color:#fff}
 .btn-outline{background:transparent;border:1.5px solid #d0d0c8;color:#1a1a1a}
+.btn-outline:hover{background:#f5f5f0}
 .btn-green{background:#059669;color:#fff}
 .btn-sm{padding:6px 12px;font-size:13px}
 .btn-xs{padding:4px 10px;font-size:12px}
-.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .card{background:#fff;border:.5px solid #e8e8e0;border-radius:12px;padding:1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 .tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500}
 .tag-blue{background:#dbeafe;color:#1d4ed8}
@@ -26,13 +27,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .tag-red{background:#fee2e2;color:#991b1b}
 .form-group{margin-bottom:1rem}
 label{font-size:13px;font-weight:500;color:#555;display:block;margin-bottom:5px}
-input,select,textarea{width:100%;padding:10px 13px;border:1.5px solid #e8e8e0;border-radius:10px;font-size:14px;background:#fff;color:#1a1a1a;outline:none;transition:border-color .15s;-webkit-appearance:none}
-input:focus,select:focus,textarea:focus{border-color:#6366f1}
-.error{color:#dc2626;font-size:13px;margin-top:4px}
-.nav{background:#1a1a2e;color:#fff;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;position:sticky;top:0;z-index:100}
-.nav-brand{font-size:18px;font-weight:700;cursor:pointer}
-.nav-links{display:flex;gap:4px;align-items:center}
-.nav-link{padding:6px 13px;border-radius:8px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.75);transition:all .15s}
+input,select,textarea{width:100%;padding:10px 13px;border:1.5px solid #e8e8e0;border-radius:10px;font-size:14px;background:#fff;color:#1a1a1a;outline:none;transition:border-color .15s;-webkit-appearance:none;appearance:none}
+input:focus,select:focus,textarea:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+input[type="checkbox"]{width:18px!important;height:18px!important;padding:0!important;border-radius:4px!important;cursor:pointer;flex-shrink:0;-webkit-appearance:checkbox!important;appearance:checkbox!important;border:1.5px solid #d0d0c8}
+input[type="number"]{-webkit-appearance:none;appearance:none}
+.error{color:#dc2626;font-size:13px;margin-top:6px;padding:8px 12px;background:#fee2e2;border-radius:8px}
+.helper{color:#888;font-size:12px;margin-top:4px}
+.nav{background:#1a1a2e;color:#fff;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 1.25rem;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.nav-brand{font-size:17px;font-weight:700;cursor:pointer;letter-spacing:-.3px;flex-shrink:0}
+.nav-links{display:flex;gap:2px;align-items:center;overflow-x:auto}
+.nav-link{padding:6px 11px;border-radius:8px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.75);transition:all .15s;white-space:nowrap;font-weight:500}
 .nav-link:hover,.nav-link.active{background:rgba(255,255,255,.15);color:#fff}
 .page{max-width:1100px;margin:0 auto;padding:1.5rem 1rem}
 .page-narrow{max-width:680px;margin:0 auto;padding:1.5rem 1rem}
@@ -40,49 +44,59 @@ input:focus,select:focus,textarea:focus{border-color:#6366f1}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
 .section-title{font-size:20px;font-weight:700;margin-bottom:.5rem}
-.section-sub{color:#555;font-size:14px;margin-bottom:1.5rem}
-.tab-bar{display:flex;border-bottom:1.5px solid #e8e8e0;margin-bottom:1.25rem;overflow-x:auto}
-.tab{padding:9px 16px;cursor:pointer;font-size:13px;font-weight:500;color:#555;border-bottom:2px solid transparent;margin-bottom:-1.5px;white-space:nowrap;transition:all .15s}
+.section-sub{color:#555;font-size:14px;margin-bottom:1.25rem}
+.tab-bar{display:flex;border-bottom:1.5px solid #e8e8e0;margin-bottom:1.25rem;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab-bar::-webkit-scrollbar{display:none}
+.tab{padding:9px 16px;cursor:pointer;font-size:13px;font-weight:500;color:#888;border-bottom:2px solid transparent;margin-bottom:-1.5px;white-space:nowrap;transition:all .15s}
 .tab.active{color:#1a1a2e;border-bottom-color:#1a1a2e}
 .progress{background:#e5e7eb;border-radius:10px;height:8px;overflow:hidden}
-.progress-fill{height:100%;border-radius:10px;transition:width .5s}
-.kanban{display:flex;gap:.75rem;overflow-x:auto;padding-bottom:.75rem}
-.kanban-col{flex:0 0 210px;background:#f5f5f0;border-radius:12px;padding:.75rem;min-height:180px}
+.progress-sm{height:5px}
+.progress-fill{height:100%;border-radius:10px;transition:width .5s ease}
+.kanban{display:flex;gap:.75rem;overflow-x:auto;padding-bottom:.75rem;-webkit-overflow-scrolling:touch}
+.kanban::-webkit-scrollbar{height:4px}
+.kanban::-webkit-scrollbar-thumb{background:#d0d0c8;border-radius:4px}
+.kanban-col{flex:0 0 200px;background:#f5f5f0;border-radius:12px;padding:.75rem;min-height:200px}
 .kanban-col-title{font-size:11px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;display:flex;justify-content:space-between;align-items:center}
-.kanban-card{background:#fff;border:.5px solid #e8e8e0;border-radius:8px;padding:.75rem;margin-bottom:.5rem;font-size:13px}
+.kanban-card{background:#fff;border:.5px solid #e8e8e0;border-radius:8px;padding:.75rem;margin-bottom:.5rem;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .sch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.875rem}
-.sch-card{border:.5px solid #e8e8e0;border-radius:12px;background:#fff;padding:1rem;cursor:pointer;transition:all .15s}
-.sch-card:hover,.sch-card.selected{border-color:#6366f1;box-shadow:0 4px 16px rgba(99,102,241,.15)}
+.sch-card{border:.5px solid #e8e8e0;border-radius:12px;background:#fff;padding:1rem;cursor:pointer;transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.sch-card:hover,.sch-card.selected{border-color:#6366f1;box-shadow:0 4px 16px rgba(99,102,241,.12);transform:translateY(-1px)}
 .hero{text-align:center;padding:4rem 1rem 3rem;max-width:780px;margin:0 auto}
-.hero h1{font-size:clamp(28px,5vw,44px);font-weight:800;line-height:1.15;margin-bottom:1rem}
-.hero p{font-size:clamp(15px,2vw,18px);color:#555;margin-bottom:2rem}
-.stat-row{display:flex;justify-content:center;gap:2.5rem;padding:1.75rem;background:#fff;border-top:1px solid #e8e8e0;border-bottom:1px solid #e8e8e0;flex-wrap:wrap}
+.hero h1{font-size:clamp(26px,5vw,44px);font-weight:800;line-height:1.15;margin-bottom:1rem;letter-spacing:-.5px}
+.hero p{font-size:clamp(14px,2vw,18px);color:#555;margin-bottom:2rem;max-width:560px;margin-left:auto;margin-right:auto}
+.stat-row{display:flex;justify-content:center;gap:2rem;padding:1.75rem 1rem;background:#fff;border-top:1px solid #e8e8e0;border-bottom:1px solid #e8e8e0;flex-wrap:wrap}
 .empty{text-align:center;padding:3rem 1rem;color:#888}
-.spinner{width:20px;height:20px;border:2px solid rgba(0,0,0,.12);border-top-color:#1a1a2e;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+.empty-icon{font-size:40px;margin-bottom:.75rem}
+.spinner{width:20px;height:20px;border:2px solid rgba(0,0,0,.1);border-top-color:#1a1a2e;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
-.toast-wrap{position:fixed;bottom:1rem;right:1rem;display:flex;flex-direction:column;gap:.5rem;z-index:999}
-.toast{background:#1a1a2e;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;animation:slideIn .25s ease}
+.toast-wrap{position:fixed;bottom:1rem;right:1rem;left:1rem;display:flex;flex-direction:column;gap:.5rem;z-index:999;align-items:flex-end;pointer-events:none}
+.toast{background:#1a1a2e;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.15);animation:slideIn .25s ease;max-width:360px;pointer-events:auto}
 .toast.success{background:#15803d}
 .toast.error{background:#dc2626}
-@keyframes slideIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
-.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e8e8e0;padding:.5rem;z-index:100}
-.mobile-nav-items{display:flex;justify-content:space-around}
-.mobile-nav-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px;color:#888;font-size:10px;font-weight:500}
-.mobile-nav-item.active{color:#1a1a2e}
-.mobile-nav-item .icon{font-size:20px}
-.pb-mobile{padding-bottom:0}
+@keyframes slideIn{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e8e8e0;z-index:200;box-shadow:0 -2px 10px rgba(0,0,0,.06)}
+.mobile-nav-inner{display:flex;justify-content:space-around;padding:.4rem 0}
+.mob-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 8px;color:#888;font-size:10px;font-weight:500;transition:color .15s;min-width:52px}
+.mob-item.active{color:#1a1a2e}
+.mob-icon{font-size:19px}
+.pb-safe{padding-bottom:0}
+.readiness-wrap{position:relative;width:96px;height:96px;flex-shrink:0}
+.readiness-wrap svg{transform:rotate(-90deg)}
+.readiness-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:20px;line-height:1}
+.readiness-sub{font-size:10px;color:#888;margin-top:2px}
+.alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;border-radius:8px;padding:8px 12px;font-size:13px}
+.divider{height:.5px;background:#e8e8e0;margin:1rem 0}
 @media(max-width:640px){
   .nav-links .nav-link{display:none}
-  .mobile-nav{display:flex}
-  .pb-mobile{padding-bottom:72px}
+  .nav-links .btn{display:none}
+  .mobile-nav{display:block}
+  .pb-safe{padding-bottom:68px}
   .grid2,.grid3,.grid4{grid-template-columns:1fr}
   .sch-grid{grid-template-columns:1fr}
-  .kanban-col{flex:0 0 190px}
+  .kanban-col{flex:0 0 185px}
+  .hero{padding:2.5rem 1rem 2rem}
+  .stat-row{gap:1.5rem}
 }
-.readiness-wrap{position:relative;width:100px;height:100px;flex-shrink:0}
-.readiness-wrap svg{transform:rotate(-90deg)}
-.readiness-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:22px;line-height:1}
-.readiness-label{font-size:11px;color:#888;margin-top:2px}
 </style>
 </head>
 <body>
@@ -90,119 +104,170 @@ input:focus,select:focus,textarea:focus{border-color:#6366f1}
 <script type="text/babel">
 const {useState, useEffect, useCallback, useRef} = React;
 
+// ── API ───────────────────────────────────────────────────────
 const BASE = window.location.origin;
 let _tok = localStorage.getItem('sb_tok') || '';
 
 async function api(method, path, body, isForm) {
   const headers = {'Authorization': 'Bearer ' + _tok};
   if (!isForm) headers['Content-Type'] = 'application/json';
-  const r = await fetch(BASE + '/api' + path, {
-    method,
-    headers,
-    body: body ? (isForm ? body : JSON.stringify(body)) : undefined
-  });
-  if (r.status === 401) {
-    _tok = '';
-    localStorage.removeItem('sb_tok');
-    window.location.reload();
+  try {
+    const r = await fetch(BASE + '/api' + path, {
+      method: method,
+      headers: headers,
+      body: body ? (isForm ? body : JSON.stringify(body)) : undefined
+    });
+    if (r.status === 401) {
+      _tok = '';
+      localStorage.removeItem('sb_tok');
+      window.location.reload();
+    }
+    const data = await r.json().catch(function() { return {}; });
+    if (!r.ok) throw new Error(data.detail || 'Request failed (' + r.status + ')');
+    return data;
+  } catch(e) {
+    if (e.name === 'TypeError') throw new Error('Network error — check your connection');
+    throw e;
   }
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.detail || 'Request failed');
-  return data;
 }
 
-let _addToast = () => {};
+// ── Toast ─────────────────────────────────────────────────────
+let _addToast = function() {};
 function useToasts() {
   const [toasts, setToasts] = useState([]);
-  _addToast = (msg, type) => {
+  _addToast = function(msg, type) {
     const id = Date.now();
-    setToasts(t => [...t, {id, msg, type: type || 'info'}]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
+    setToasts(function(t) { return [...t, {id: id, msg: msg, type: type || 'info'}]; });
+    setTimeout(function() {
+      setToasts(function(t) { return t.filter(function(x) { return x.id !== id; }); });
+    }, 3500);
   };
   return toasts;
 }
-const toast = (m, t) => _addToast(m, t);
+function toast(msg, type) { _addToast(msg, type); }
 
+// ── Auth ──────────────────────────────────────────────────────
 function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
+
+  useEffect(function() {
     if (_tok) {
       api('GET', '/auth/me')
-        .then(u => { setUser(u); setLoading(false); })
-        .catch(() => { _tok = ''; localStorage.removeItem('sb_tok'); setLoading(false); });
+        .then(function(u) { setUser(u); setLoading(false); })
+        .catch(function() {
+          _tok = '';
+          localStorage.removeItem('sb_tok');
+          setLoading(false);
+        });
     } else {
       setLoading(false);
     }
   }, []);
-  const login = async (email, pw) => {
-    const r = await api('POST', '/auth/login', {email, password: pw});
-    _tok = r.token;
-    localStorage.setItem('sb_tok', r.token);
-    setUser(r.user);
-  };
-  const register = async (data) => {
-    const r = await api('POST', '/auth/register', data);
-    _tok = r.token;
-    localStorage.setItem('sb_tok', r.token);
-    setUser(r.user);
-  };
-  const logout = () => {
+
+  function login(email, pw) {
+    return api('POST', '/auth/login', {email: email, password: pw}).then(function(r) {
+      _tok = r.token;
+      localStorage.setItem('sb_tok', r.token);
+      setUser(r.user);
+    });
+  }
+
+  function register(data) {
+    return api('POST', '/auth/register', data).then(function(r) {
+      _tok = r.token;
+      localStorage.setItem('sb_tok', r.token);
+      setUser(r.user);
+    });
+  }
+
+  function logout() {
     _tok = '';
     localStorage.removeItem('sb_tok');
     setUser(null);
-  };
-  return {user, loading, login, register, logout, setUser};
+  }
+
+  return {user: user, loading: loading, login: login, register: register, logout: logout, setUser: setUser};
 }
 
-function ReadinessRing({score}) {
-  const r = 38;
+// ── ReadinessRing ─────────────────────────────────────────────
+function ReadinessRing(props) {
+  const score = props.score || 0;
+  const r = 36;
   const circ = 2 * Math.PI * r;
-  const fill = circ - (score / 100) * circ;
+  const offset = circ - (score / 100) * circ;
   const color = score >= 80 ? '#059669' : score >= 60 ? '#2563eb' : score >= 40 ? '#d97706' : '#dc2626';
   return (
     <div className="readiness-wrap">
-      <svg width="100" height="100" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r={r} fill="none" stroke="#e5e7eb" strokeWidth="9"/>
-        <circle cx="50" cy="50" r={r} fill="none" stroke={color} strokeWidth="9"
-          strokeDasharray={circ} strokeDashoffset={fill} strokeLinecap="round"
-          style={{transition: 'stroke-dashoffset .8s ease'}}/>
+      <svg width="96" height="96" viewBox="0 0 96 96">
+        <circle cx="48" cy="48" r={r} fill="none" stroke="#e5e7eb" strokeWidth="8"/>
+        <circle cx="48" cy="48" r={r} fill="none" stroke={color} strokeWidth="8"
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          style={{transition: 'stroke-dashoffset 1s ease'}}/>
       </svg>
-      <div className="readiness-val" style={{color}}>
+      <div className="readiness-val" style={{color: color}}>
         <span>{score}</span>
-        <span className="readiness-label">/ 100</span>
+        <span className="readiness-sub">/ 100</span>
       </div>
     </div>
   );
 }
 
-function Nav({user, page, go, logout}) {
-  const links = [
-    {id:'dashboard',label:'Dashboard',icon:'📊'},
-    {id:'scholarships',label:'Scholarships',icon:'🎓'},
-    {id:'pipeline',label:'Pipeline',icon:'📋'},
-    {id:'packages',label:'Packages',icon:'📦'},
-    {id:'interview',label:'Interview',icon:'🎤'},
-    {id:'profile',label:'Profile',icon:'👤'},
+// ── Nav ───────────────────────────────────────────────────────
+function Nav(props) {
+  const user = props.user;
+  const page = props.page;
+  const go = props.go;
+  const logout = props.logout;
+
+  const authedLinks = [
+    {id:'home', label:'Home', icon:'🏠'},
+    {id:'dashboard', label:'Dashboard', icon:'📊'},
+    {id:'scholarships', label:'Scholarships', icon:'🎓'},
+    {id:'pipeline', label:'Pipeline', icon:'📋'},
+    {id:'packages', label:'Packages', icon:'📦'},
+    {id:'interview', label:'Interview', icon:'🎤'},
+    {id:'profile', label:'Profile', icon:'👤'},
   ];
+
+  const mobileLinks = [
+    {id:'home', label:'Home', icon:'🏠'},
+    {id:'dashboard', label:'Dashboard', icon:'📊'},
+    {id:'scholarships', label:'Scholarships', icon:'🎓'},
+    {id:'pipeline', label:'Pipeline', icon:'📋'},
+    {id:'packages', label:'Packages', icon:'📦'},
+  ];
+
   return (
     <React.Fragment>
       <nav className="nav">
-        <div className="nav-brand" onClick={() => go('home')}>🎓 ScholarBot</div>
+        <div className="nav-brand" onClick={function() { go('home'); }}>🎓 ScholarBot</div>
         <div className="nav-links">
           {user ? (
             <React.Fragment>
-              {links.map(l => (
-                <div key={l.id} className={'nav-link' + (page === l.id ? ' active' : '')} onClick={() => go(l.id)}>
-                  {l.label}
-                </div>
-              ))}
-              <div className="nav-link" style={{color:'rgba(255,255,255,.5)'}} onClick={logout}>Sign out</div>
+              {authedLinks.map(function(l) {
+                return (
+                  <div key={l.id}
+                    className={'nav-link' + (page === l.id ? ' active' : '')}
+                    onClick={function() { go(l.id); }}>
+                    {l.label}
+                  </div>
+                );
+              })}
+              <div className="nav-link" style={{color:'rgba(255,255,255,.5)',marginLeft:4}}
+                onClick={logout}>
+                Sign out
+              </div>
             </React.Fragment>
           ) : (
             <React.Fragment>
-              <div className="nav-link" onClick={() => go('login')}>Log in</div>
-              <button className="btn btn-primary btn-sm" style={{marginLeft:8}} onClick={() => go('register')}>
+              <div className={'nav-link' + (page==='home' ? ' active' : '')}
+                onClick={function() { go('home'); }}>
+                Home
+              </div>
+              <div className="nav-link" onClick={function() { go('login'); }}>Log in</div>
+              <button className="btn btn-primary btn-sm" style={{marginLeft:6}}
+                onClick={function() { go('register'); }}>
                 Get started free
               </button>
             </React.Fragment>
@@ -211,13 +276,17 @@ function Nav({user, page, go, logout}) {
       </nav>
       {user && (
         <div className="mobile-nav">
-          <div className="mobile-nav-items">
-            {links.slice(0,5).map(l => (
-              <div key={l.id} className={'mobile-nav-item' + (page === l.id ? ' active' : '')} onClick={() => go(l.id)}>
-                <span className="icon">{l.icon}</span>
-                <span>{l.label}</span>
-              </div>
-            ))}
+          <div className="mobile-nav-inner">
+            {mobileLinks.map(function(l) {
+              return (
+                <div key={l.id}
+                  className={'mob-item' + (page === l.id ? ' active' : '')}
+                  onClick={function() { go(l.id); }}>
+                  <span className="mob-icon">{l.icon}</span>
+                  <span>{l.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -225,29 +294,42 @@ function Nav({user, page, go, logout}) {
   );
 }
 
-function HomePage({go}) {
+// ── Home Page ─────────────────────────────────────────────────
+function HomePage(props) {
+  const go = props.go;
+  const plans = [
+    {name:'Free', price:0, features:['3 packages/month','Scholarship matching','Essay generation','Deadline alerts']},
+    {name:'Pro', price:9, features:['Unlimited packages','Interview coach','Pipeline tracker','Portfolio builder','Priority support'], featured:true},
+    {name:'Agency', price:99, features:['50 students','Admin dashboard','Bulk processing','White-label','API access']}
+  ];
   return (
     <div>
       <div className="hero">
         <h1>Win scholarships with AI</h1>
         <p>Find, match, and apply to scholarships worldwide — Undergraduate, Graduate, and Postgraduate. ScholarBot builds your complete application. You click Submit.</p>
         <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap'}}>
-          <button className="btn btn-primary" style={{fontSize:15,padding:'11px 24px'}} onClick={() => go('register')}>
+          <button className="btn btn-primary" style={{fontSize:15,padding:'11px 26px'}}
+            onClick={function() { go('register'); }}>
             Start free →
           </button>
-          <button className="btn btn-outline" style={{fontSize:15,padding:'11px 24px'}} onClick={() => go('scholarships')}>
+          <button className="btn btn-outline" style={{fontSize:15,padding:'11px 26px'}}
+            onClick={function() { go('scholarships'); }}>
             Browse scholarships
           </button>
         </div>
       </div>
+
       <div className="stat-row">
-        {[['87+','Verified opportunities'],['$2.2M+','Total funding'],['3','Degree levels'],['8','Opportunity types']].map(([v,l]) => (
-          <div key={l} style={{textAlign:'center'}}>
-            <div style={{fontSize:26,fontWeight:800,color:'#1a1a2e'}}>{v}</div>
-            <div style={{fontSize:12,color:'#888',marginTop:1}}>{l}</div>
-          </div>
-        ))}
+        {[['87+','Verified opportunities'],['$2.2M+','Total funding'],['3','Degree levels'],['8','Opportunity types']].map(function(item) {
+          return (
+            <div key={item[1]} style={{textAlign:'center'}}>
+              <div style={{fontSize:26,fontWeight:800,color:'#1a1a2e'}}>{item[0]}</div>
+              <div style={{fontSize:12,color:'#888',marginTop:2}}>{item[1]}</div>
+            </div>
+          );
+        })}
       </div>
+
       <div style={{padding:'2.5rem 1rem',maxWidth:860,margin:'0 auto'}}>
         <h2 style={{textAlign:'center',fontSize:22,fontWeight:700,marginBottom:'2rem'}}>How it works</h2>
         <div className="grid3">
@@ -255,43 +337,55 @@ function HomePage({go}) {
             ['1','Create your profile','Upload your CV. ScholarBot extracts your GPA, major, and skills automatically.'],
             ['2','Get matched','AI ranks scholarships for your specific degree level, country, and field.'],
             ['3','Prepare and submit','Essays written, briefing docs ready. Open the form, paste, click Submit.']
-          ].map(([n,t,d]) => (
-            <div key={n} className="card" style={{textAlign:'center'}}>
-              <div style={{width:40,height:40,borderRadius:'50%',background:'#1a1a2e',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem',fontWeight:700,fontSize:18}}>{n}</div>
-              <h3 style={{fontSize:15,marginBottom:8}}>{t}</h3>
-              <p style={{fontSize:13,color:'#555'}}>{d}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{background:'#fff',borderTop:'1px solid #e8e8e0',padding:'2rem 1rem'}}>
-        <h2 style={{textAlign:'center',fontSize:22,fontWeight:700,marginBottom:'2rem'}}>Pricing</h2>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:'1rem',maxWidth:760,margin:'0 auto'}}>
-          {[
-            {name:'Free',price:0,features:['3 packages/month','Scholarship matching','Essay generation','Email alerts']},
-            {name:'Pro',price:9,features:['Unlimited packages','Interview coach','Pipeline tracker','Portfolio builder','Priority support'],featured:true},
-            {name:'Agency',price:99,features:['50 students','Admin dashboard','Bulk processing','White-label','API access']}
-          ].map(pl => (
-            <div key={pl.name} className="card" style={{textAlign:'center',position:'relative',border:pl.featured?'2px solid #1a1a2e':undefined}}>
-              {pl.featured && <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'#1a1a2e',color:'#fff',padding:'3px 14px',borderRadius:20,fontSize:11}}>Popular</div>}
-              <h3 style={{fontSize:17,fontWeight:700}}>{pl.name}</h3>
-              <div style={{fontSize:32,fontWeight:800,color:'#1a1a2e',margin:'1rem 0'}}>
-                {'$' + pl.price}<span style={{fontSize:14,color:'#888',fontWeight:400}}>/mo</span>
+          ].map(function(item) {
+            return (
+              <div key={item[0]} className="card" style={{textAlign:'center'}}>
+                <div style={{width:40,height:40,borderRadius:'50%',background:'#1a1a2e',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem',fontWeight:700,fontSize:18}}>
+                  {item[0]}
+                </div>
+                <h3 style={{fontSize:15,marginBottom:8}}>{item[1]}</h3>
+                <p style={{fontSize:13,color:'#555'}}>{item[2]}</p>
               </div>
-              <ul style={{textAlign:'left',listStyle:'none',marginBottom:'1rem'}}>
-                {pl.features.map(f => (
-                  <li key={f} style={{fontSize:13,color:'#555',padding:'4px 0',display:'flex',gap:8}}>
-                    <span style={{color:'#059669',fontWeight:700}}>✓</span>{f}
-                  </li>
-                ))}
-              </ul>
-              <button className={'btn ' + (pl.featured ? 'btn-primary' : 'btn-outline')} style={{width:'100%'}} onClick={() => go('register')}>
-                {pl.price === 0 ? 'Start free' : 'Get started'}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
+
+      <div style={{background:'#fff',borderTop:'1px solid #e8e8e0',padding:'2.5rem 1rem'}}>
+        <h2 style={{textAlign:'center',fontSize:22,fontWeight:700,marginBottom:'2rem'}}>Plans</h2>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'1rem',maxWidth:760,margin:'0 auto'}}>
+          {plans.map(function(pl) {
+            return (
+              <div key={pl.name} className="card" style={{textAlign:'center',position:'relative',border:pl.featured?'2px solid #1a1a2e':undefined}}>
+                {pl.featured && (
+                  <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'#1a1a2e',color:'#fff',padding:'3px 14px',borderRadius:20,fontSize:11,whiteSpace:'nowrap'}}>
+                    Most popular
+                  </div>
+                )}
+                <h3 style={{fontSize:18,fontWeight:700,marginBottom:8}}>{pl.name}</h3>
+                <div style={{fontSize:32,fontWeight:800,color:'#1a1a2e',margin:'1rem 0'}}>
+                  {'$' + pl.price}
+                  <span style={{fontSize:14,color:'#888',fontWeight:400}}>/mo</span>
+                </div>
+                <ul style={{textAlign:'left',listStyle:'none',marginBottom:'1.25rem'}}>
+                  {pl.features.map(function(f) {
+                    return (
+                      <li key={f} style={{fontSize:13,color:'#555',padding:'4px 0',display:'flex',gap:8}}>
+                        <span style={{color:'#059669',fontWeight:700}}>✓</span>{f}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <button className={'btn ' + (pl.featured ? 'btn-primary' : 'btn-outline')} style={{width:'100%'}}
+                  onClick={function() { go('register'); }}>
+                  {pl.price === 0 ? 'Start free' : 'Get started'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <footer style={{background:'#1a1a2e',color:'rgba(255,255,255,.5)',textAlign:'center',padding:'2rem 1rem',fontSize:13}}>
         ScholarBot © {new Date().getFullYear()} · AI-powered scholarship applications · Built for students worldwide
       </footer>
@@ -299,99 +393,170 @@ function HomePage({go}) {
   );
 }
 
-function AuthPage({mode, login, register, go}) {
-  const [form, setForm] = useState({name:'',email:'',password:'',degree_level:'Graduate',major:'',school:'',nationality:'Kenya',gpa:'',financial_need:false});
+// ── Auth Pages ────────────────────────────────────────────────
+function AuthPage(props) {
+  const mode = props.mode;
+  const loginFn = props.login;
+  const registerFn = props.register;
+  const go = props.go;
+  const isLogin = mode === 'login';
+
+  const [form, setForm] = useState({
+    name:'', email:'', password:'',
+    degree_level:'Graduate', major:'', school:'',
+    nationality:'Kenya', gpa:'', financial_need:false
+  });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const isLogin = mode === 'login';
-  const set = (k, v) => setForm(f => ({...f, [k]: v}));
-  const submit = async (e) => {
+
+  function setField(key, val) {
+    setForm(function(f) {
+      const next = {};
+      Object.keys(f).forEach(function(k) { next[k] = f[k]; });
+      next[key] = val;
+      return next;
+    });
+  }
+
+  function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     setErr('');
-    try {
-      if (isLogin) {
-        await login(form.email, form.password);
-        go('dashboard');
-        toast('Welcome back!', 'success');
-      } else {
-        await register({...form, gpa: parseFloat(form.gpa) || 0});
-        go('dashboard');
-        toast('Account created! Welcome.', 'success');
-      }
-    } catch(e) {
-      setErr(e.message);
-    } finally {
-      setLoading(false);
+    if (isLogin) {
+      loginFn(form.email, form.password)
+        .then(function() {
+          go('dashboard');
+          toast('Welcome back!', 'success');
+        })
+        .catch(function(e) { setErr(e.message); setLoading(false); });
+    } else {
+      const data = {
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        degree_level: form.degree_level,
+        major: form.major,
+        school: form.school,
+        nationality: form.nationality,
+        gpa: parseFloat(form.gpa) || 0,
+        financial_need: form.financial_need === true || form.financial_need === 'true'
+      };
+      registerFn(data)
+        .then(function() {
+          go('dashboard');
+          toast('Account created! Welcome to ScholarBot.', 'success');
+        })
+        .catch(function(e) { setErr(e.message); setLoading(false); });
     }
-  };
+  }
+
   return (
     <div className="page-narrow">
-      <div className="card" style={{marginTop:'2rem'}}>
-        <h2 style={{marginBottom:'1.5rem',fontSize:22}}>{isLogin ? 'Sign in' : 'Create account'}</h2>
-        <form onSubmit={submit}>
+      <div className="card" style={{marginTop:'2rem',padding:'2rem'}}>
+        <h2 style={{marginBottom:'1.5rem',fontSize:22,fontWeight:700}}>
+          {isLogin ? 'Sign in to ScholarBot' : 'Create your account'}
+        </h2>
+        <form onSubmit={handleSubmit}>
           {!isLogin && (
             <div className="form-group">
-              <label>Full name</label>
-              <input value={form.name} onChange={e => set('name', e.target.value)} required/>
+              <label>Full name *</label>
+              <input value={form.name}
+                onChange={function(e) { setField('name', e.target.value); }}
+                placeholder="e.g. Amina Hassan" required/>
             </div>
           )}
           <div className="form-group">
-            <label>Email</label>
-            <input type="email" value={form.email} onChange={e => set('email', e.target.value)} required/>
+            <label>Email address *</label>
+            <input type="email" value={form.email}
+              onChange={function(e) { setField('email', e.target.value); }}
+              placeholder="you@example.com" required/>
           </div>
           <div className="form-group">
-            <label>Password</label>
-            <input type="password" value={form.password} onChange={e => set('password', e.target.value)} required/>
+            <label>Password *</label>
+            <input type="password" value={form.password}
+              onChange={function(e) { setField('password', e.target.value); }}
+              placeholder="At least 8 characters" required/>
           </div>
+
           {!isLogin && (
             <React.Fragment>
+              <div className="divider"></div>
               <div className="grid2">
                 <div className="form-group">
-                  <label>Degree level</label>
-                  <select value={form.degree_level} onChange={e => set('degree_level', e.target.value)}>
-                    <option>Undergraduate</option>
-                    <option>Graduate</option>
-                    <option>Postgraduate</option>
+                  <label>Degree level *</label>
+                  <select value={form.degree_level}
+                    onChange={function(e) { setField('degree_level', e.target.value); }}>
+                    <option value="Undergraduate">Undergraduate</option>
+                    <option value="Graduate">Graduate</option>
+                    <option value="Postgraduate">Postgraduate / PhD</option>
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>GPA (0-4.0)</label>
-                  <input type="number" step="0.1" min="0" max="4" value={form.gpa} onChange={e => set('gpa', e.target.value)}/>
+                  <label>GPA (0 – 4.0)</label>
+                  <input type="number" step="0.01" min="0" max="4" value={form.gpa}
+                    onChange={function(e) { setField('gpa', e.target.value); }}
+                    placeholder="e.g. 3.5"/>
                 </div>
               </div>
               <div className="grid2">
                 <div className="form-group">
-                  <label>Major / Field</label>
-                  <input value={form.major} onChange={e => set('major', e.target.value)} required/>
+                  <label>Major / Field of study *</label>
+                  <input value={form.major}
+                    onChange={function(e) { setField('major', e.target.value); }}
+                    placeholder="e.g. Computer Science" required/>
                 </div>
                 <div className="form-group">
-                  <label>University</label>
-                  <input value={form.school} onChange={e => set('school', e.target.value)} required/>
+                  <label>University / School *</label>
+                  <input value={form.school}
+                    onChange={function(e) { setField('school', e.target.value); }}
+                    placeholder="e.g. University of Nairobi" required/>
                 </div>
               </div>
               <div className="grid2">
                 <div className="form-group">
-                  <label>Country</label>
-                  <input value={form.nationality} onChange={e => set('nationality', e.target.value)}/>
+                  <label>Country / Nationality</label>
+                  <input value={form.nationality}
+                    onChange={function(e) { setField('nationality', e.target.value); }}
+                    placeholder="e.g. Kenya"/>
                 </div>
-                <div className="form-group" style={{display:'flex',alignItems:'center',gap:8,paddingTop:22}}>
-                  <input type="checkbox" id="fn" checked={form.financial_need} onChange={e => set('financial_need', e.target.checked)} style={{width:18,height:18,cursor:'pointer'}}/>
-                  <label htmlFor="fn" style={{marginBottom:0,cursor:'pointer'}}>Financial need</label>
+                <div className="form-group" style={{paddingTop:26}}>
+                  <div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}
+                    onClick={function() { setField('financial_need', !form.financial_need); }}>
+                    <input type="checkbox" id="fn_check"
+                      checked={form.financial_need}
+                      onChange={function(e) { setField('financial_need', e.target.checked); }}
+                      onClick={function(e) { e.stopPropagation(); }}/>
+                    <label htmlFor="fn_check" style={{marginBottom:0,cursor:'pointer',fontSize:14}}>
+                      I have financial need
+                    </label>
+                  </div>
                 </div>
               </div>
             </React.Fragment>
           )}
-          {err && <p className="error" style={{marginBottom:8}}>{err}</p>}
-          <button className="btn btn-primary" style={{width:'100%'}} disabled={loading}>
-            {loading ? 'Loading...' : (isLogin ? 'Sign in' : 'Create account')}
+
+          {err && <div className="error" style={{marginBottom:12}}>{err}</div>}
+
+          <button className="btn btn-primary" type="submit" style={{width:'100%',justifyContent:'center',marginTop:4}} disabled={loading}>
+            {loading ? (
+              <React.Fragment><span className="spinner" style={{borderTopColor:'#fff'}}></span> &nbsp;{isLogin ? 'Signing in...' : 'Creating account...'}</React.Fragment>
+            ) : (
+              isLogin ? 'Sign in' : 'Create account'
+            )}
           </button>
         </form>
+
         <p style={{marginTop:'1rem',textAlign:'center',fontSize:13,color:'#555'}}>
           {isLogin ? (
-            <span>No account? <span style={{color:'#2563eb',cursor:'pointer',fontWeight:500}} onClick={() => go('register')}>Create one free</span></span>
+            <span>No account?&nbsp;
+              <span style={{color:'#2563eb',cursor:'pointer',fontWeight:600}}
+                onClick={function() { go('register'); }}>Create one free</span>
+            </span>
           ) : (
-            <span>Have account? <span style={{color:'#2563eb',cursor:'pointer',fontWeight:500}} onClick={() => go('login')}>Sign in</span></span>
+            <span>Already have an account?&nbsp;
+              <span style={{color:'#2563eb',cursor:'pointer',fontWeight:600}}
+                onClick={function() { go('login'); }}>Sign in</span>
+            </span>
           )}
         </p>
       </div>
@@ -399,96 +564,124 @@ function AuthPage({mode, login, register, go}) {
   );
 }
 
-function DashboardPage({user, go}) {
+// ── Dashboard ─────────────────────────────────────────────────
+function DashboardPage(props) {
+  const user = props.user;
+  const go = props.go;
   const [data, setData] = useState(null);
   const [readiness, setReadiness] = useState(null);
-  useEffect(() => {
+
+  useEffect(function() {
     Promise.all([api('GET', '/dashboard'), api('GET', '/readiness')])
-      .then(([d, r]) => { setData(d); setReadiness(r); })
-      .catch(() => {});
+      .then(function(results) { setData(results[0]); setReadiness(results[1]); })
+      .catch(function(e) { console.error(e); });
   }, []);
-  if (!data) return (
-    <div className="page">
-      <div className="empty"><div className="spinner"></div></div>
-    </div>
-  );
+
+  if (!data) {
+    return (
+      <div className="page">
+        <div className="empty"><div className="spinner" style={{width:36,height:36}}></div></div>
+      </div>
+    );
+  }
+
   const fname = user.name ? user.name.split(' ')[0] : 'there';
+  const metricCards = [
+    {label:'Matched', value: String(data.scholarships_matched || 0), sub:'scholarships', color:'#2563eb'},
+    {label:'Potential', value: '$' + Math.round((data.total_potential_usd || 0) / 1000) + 'k', sub:'in funding', color:'#059669'},
+    {label:'Submitted', value: String(data.applications_submitted || 0), sub:'applications', color:'#1a1a2e'},
+    {label:'Won', value: '$' + (data.total_won_usd || 0).toLocaleString(), sub:'in awards', color:'#7c3aed'},
+  ];
+
   return (
-    <div className="page pb-mobile">
+    <div className="page pb-safe">
       <h2 className="section-title">Hi, {fname} 👋</h2>
       <p className="section-sub">Your scholarship overview</p>
+
       <div className="grid4" style={{marginBottom:'1.25rem'}}>
-        {[
-          {label:'Matched',value:data.scholarships_matched,sub:'scholarships',color:'#2563eb'},
-          {label:'Potential',value:'$' + Math.round((data.total_potential_usd||0)/1000) + 'k',sub:'in funding',color:'#059669'},
-          {label:'Submitted',value:data.applications_submitted,sub:'applications',color:'#1a1a2e'},
-          {label:'Won',value:'$' + (data.total_won_usd||0).toLocaleString(),sub:'in awards',color:'#7c3aed'}
-        ].map(s => (
-          <div key={s.label} className="card" style={{borderRadius:10,padding:'1rem'}}>
-            <div style={{fontSize:12,color:'#888',marginBottom:3}}>{s.label}</div>
-            <div style={{fontSize:24,fontWeight:700,color:s.color}}>{s.value}</div>
-            <div style={{fontSize:11,color:'#888'}}>{s.sub}</div>
-          </div>
-        ))}
+        {metricCards.map(function(s) {
+          return (
+            <div key={s.label} className="card" style={{padding:'1rem'}}>
+              <div style={{fontSize:12,color:'#888',marginBottom:3}}>{s.label}</div>
+              <div style={{fontSize:23,fontWeight:700,color:s.color}}>{s.value}</div>
+              <div style={{fontSize:11,color:'#888'}}>{s.sub}</div>
+            </div>
+          );
+        })}
       </div>
+
       <div className="grid2" style={{marginBottom:'1.25rem'}}>
         {readiness && (
           <div className="card">
-            <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>Scholarship Readiness</div>
-            <div style={{display:'flex',gap:'1.5rem',alignItems:'flex-start'}}>
-              <ReadinessRing score={readiness.overall}/>
+            <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>📈 Readiness Score</div>
+            <div style={{display:'flex',gap:'1.25rem',alignItems:'flex-start'}}>
+              <ReadinessRing score={readiness.overall || 0}/>
               <div style={{flex:1}}>
-                <div style={{fontWeight:600,marginBottom:6}}>{readiness.level}</div>
-                {Object.entries(readiness.scores || {}).map(([k, v]) => (
-                  <div key={k} style={{marginBottom:7}}>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#555',marginBottom:2}}>
-                      <span>{k.replace(/_/g, ' ')}</span>
-                      <span>{v}%</span>
+                <div style={{fontWeight:600,marginBottom:8,color:'#1a1a2e'}}>{readiness.level}</div>
+                {Object.entries(readiness.scores || {}).map(function(entry) {
+                  const k = entry[0]; const v = entry[1];
+                  const barColor = v >= 70 ? '#059669' : v >= 50 ? '#2563eb' : '#d97706';
+                  return (
+                    <div key={k} style={{marginBottom:8}}>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#555',marginBottom:3}}>
+                        <span style={{textTransform:'capitalize'}}>{k.replace(/_/g,' ')}</span>
+                        <span style={{fontWeight:600}}>{v}%</span>
+                      </div>
+                      <div className="progress progress-sm">
+                        <div className="progress-fill" style={{width: v + '%', background: barColor}}></div>
+                      </div>
                     </div>
-                    <div className="progress">
-                      <div className="progress-fill" style={{
-                        width: v + '%',
-                        background: v >= 70 ? '#059669' : v >= 50 ? '#2563eb' : '#d97706'
-                      }}></div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
             {readiness.tips && readiness.tips[0] && (
-              <div style={{marginTop:'1rem',background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:8,padding:'8px 12px',fontSize:13}}>
-                💡 {readiness.tips[0]}
-              </div>
+              <div className="alert-info" style={{marginTop:'1rem'}}>💡 {readiness.tips[0]}</div>
             )}
           </div>
         )}
+
         <div className="card">
           <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>⏰ Upcoming Deadlines</div>
           {(!data.upcoming_deadlines || data.upcoming_deadlines.length === 0) ? (
-            <div style={{color:'#888',fontSize:14}}>No urgent deadlines. Browse scholarships to start.</div>
-          ) : data.upcoming_deadlines.map(d => (
-            <div key={d.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'.5px solid #e8e8e0'}}>
-              <div>
-                <div style={{fontWeight:500,fontSize:13}}>{(d.name||'').slice(0,38)}</div>
-                <div style={{fontSize:11,color:'#888',marginTop:2}}>{'$' + (d.amount_usd||0).toLocaleString()}</div>
-              </div>
-              <span className={'tag ' + (d.days_left<=7?'tag-red':d.days_left<=30?'tag-yellow':'tag-green')}>
-                {d.days_left}d
-              </span>
+            <div style={{color:'#888',fontSize:14}}>
+              No urgent deadlines within 60 days.
+              <br/><br/>
+              <button className="btn btn-outline btn-sm" onClick={function() { go('scholarships'); }}>
+                Browse scholarships →
+              </button>
             </div>
-          ))}
+          ) : (
+            data.upcoming_deadlines.map(function(d) {
+              const tagClass = d.days_left <= 7 ? 'tag-red' : d.days_left <= 30 ? 'tag-yellow' : 'tag-green';
+              return (
+                <div key={d.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'.5px solid #e8e8e0'}}>
+                  <div>
+                    <div style={{fontWeight:500,fontSize:13,lineHeight:1.3}}>{(d.name || '').slice(0, 36)}</div>
+                    <div style={{fontSize:11,color:'#888',marginTop:2}}>{'$' + (d.amount_usd || 0).toLocaleString()}</div>
+                  </div>
+                  <span className={'tag ' + tagClass}>{d.days_left}d</span>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
+
       <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-        <button className="btn btn-primary" onClick={() => go('scholarships')}>Browse scholarships →</button>
-        <button className="btn btn-outline" onClick={() => go('pipeline')}>My pipeline</button>
-        <button className="btn btn-outline" onClick={() => go('interview')}>Practice interview</button>
+        <button className="btn btn-primary" onClick={function() { go('scholarships'); }}>Browse scholarships →</button>
+        <button className="btn btn-outline" onClick={function() { go('packages'); }}>✨ Prepare packages</button>
+        <button className="btn btn-outline" onClick={function() { go('pipeline'); }}>My pipeline</button>
+        <button className="btn btn-outline" onClick={function() { go('interview'); }}>Practice interview</button>
       </div>
     </div>
   );
 }
 
-function ScholarshipsPage({user, go}) {
+// ── Scholarships ──────────────────────────────────────────────
+function ScholarshipsPage(props) {
+  const user = props.user;
+  const go = props.go;
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('all');
@@ -496,120 +689,165 @@ function ScholarshipsPage({user, go}) {
   const [region, setRegion] = useState('');
   const [selected, setSelected] = useState(null);
   const [adding, setAdding] = useState(null);
-  const load = useCallback(async () => {
+
+  function load() {
     setLoading(true);
-    try {
-      const ep = user ? '/scholarships/matched' : '/scholarships';
-      const params = new URLSearchParams();
-      if (tab !== 'all') params.set('degree_level', tab);
-      if (field) params.set('field', field);
-      if (region) params.set('region', region);
-      const r = await api('GET', ep + '?' + params.toString());
-      setList(r.scholarships || r.opportunities || []);
-    } finally {
-      setLoading(false);
-    }
-  }, [tab, field, region, user]);
-  useEffect(() => { load(); }, [load]);
-  const addToPipeline = async (s) => {
+    const ep = user ? '/scholarships/matched' : '/scholarships';
+    const params = new URLSearchParams();
+    if (tab !== 'all') params.set('degree_level', tab);
+    if (field) params.set('field', field);
+    if (region) params.set('region', region);
+    api('GET', ep + '?' + params.toString())
+      .then(function(r) {
+        setList(r.scholarships || r.opportunities || []);
+        setLoading(false);
+      })
+      .catch(function() { setLoading(false); });
+  }
+
+  useEffect(function() { load(); }, [tab, field, region]);
+
+  function addToPipeline(s) {
     if (!user) { go('register'); return; }
     setAdding(s.id);
-    try {
-      await api('POST', '/pipeline/add', {
-        scholarship_id: s.id,
-        scholarship_name: s.name,
-        amount_usd: s.amount_usd,
-        deadline: s.deadline,
-        url: s.url,
-        stage: 'researching'
+    api('POST', '/pipeline/add', {
+      scholarship_id: s.id,
+      scholarship_name: s.name,
+      amount_usd: s.amount_usd,
+      deadline: s.deadline,
+      url: s.url,
+      stage: 'researching'
+    })
+      .then(function() {
+        toast('Added to pipeline', 'success');
+        setAdding(null);
+      })
+      .catch(function(e) {
+        toast(e.message, 'error');
+        setAdding(null);
       });
-      toast('Added to pipeline', 'success');
-    } catch(e) {
-      toast(e.message, 'error');
-    } finally {
-      setAdding(null);
-    }
-  };
-  const filtered = tab === 'all' ? list : list.filter(s => {
+  }
+
+  const filtered = tab === 'all' ? list : list.filter(function(s) {
     const degs = s.degree_levels || [];
-    return degs.some(d => d.toLowerCase().includes(tab.slice(0,4).toLowerCase()));
+    return degs.some(function(d) { return d.toLowerCase().indexOf(tab.toLowerCase().slice(0,4)) !== -1; });
   });
+
   return (
-    <div className="page pb-mobile">
+    <div className="page pb-safe">
       <h2 className="section-title">Scholarships</h2>
-      <p className="section-sub">{user ? 'Matched for your profile' : 'All verified direct-portal scholarships'}</p>
+      <p className="section-sub">
+        {user ? 'Matched and ranked for your profile' : 'All verified direct-portal scholarships — no aggregators'}
+      </p>
+
       <div className="tab-bar">
-        {['all','Undergraduate','Graduate','Postgraduate'].map(t => (
-          <div key={t} className={'tab' + (tab===t?' active':'')} onClick={() => { setTab(t); setSelected(null); }}>
-            {t === 'all' ? 'All' : t}
-          </div>
-        ))}
+        {['all','Undergraduate','Graduate','Postgraduate'].map(function(t) {
+          return (
+            <div key={t} className={'tab' + (tab === t ? ' active' : '')}
+              onClick={function() { setTab(t); setSelected(null); }}>
+              {t === 'all' ? 'All levels' : t}
+            </div>
+          );
+        })}
       </div>
+
       <div style={{display:'flex',gap:8,marginBottom:'1.25rem',flexWrap:'wrap'}}>
-        <select value={field} onChange={e => setField(e.target.value)} style={{flex:1,minWidth:130}}>
+        <select value={field} onChange={function(e) { setField(e.target.value); }} style={{flex:1,minWidth:140}}>
           <option value="">All fields</option>
-          {['Computer Science','Information Technology','Cybersecurity','AI/ML','Data Science','Software Engineering'].map(f => (
-            <option key={f}>{f}</option>
-          ))}
+          {['Computer Science','Information Technology','Cybersecurity','AI / Machine Learning','Data Science','Software Engineering'].map(function(f) {
+            return <option key={f} value={f}>{f}</option>;
+          })}
         </select>
-        <select value={region} onChange={e => setRegion(e.target.value)} style={{flex:1,minWidth:120}}>
+        <select value={region} onChange={function(e) { setRegion(e.target.value); }} style={{flex:1,minWidth:120}}>
           <option value="">All regions</option>
-          {['Africa','Kenya','Global','UK','USA','Europe','Asia','Canada'].map(r => (
-            <option key={r}>{r}</option>
-          ))}
+          {['Africa','Kenya','Global','UK','USA','Europe','Asia','Canada','Australia'].map(function(r) {
+            return <option key={r} value={r}>{r}</option>;
+          })}
         </select>
-        <button className="btn btn-outline btn-sm" onClick={load}>↺</button>
+        <button className="btn btn-outline btn-sm" onClick={load} title="Refresh">↺</button>
       </div>
+
       {loading ? (
-        <div className="empty"><div className="spinner"></div></div>
+        <div className="empty">
+          <div className="spinner" style={{width:32,height:32}}></div>
+          <p style={{marginTop:12}}>Loading scholarships...</p>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="empty">
-          <div style={{fontSize:40,marginBottom:'.75rem'}}>🔍</div>
-          <p>No scholarships found</p>
+          <div className="empty-icon">🔍</div>
+          <p>No scholarships found for these filters.</p>
+          <button className="btn btn-outline btn-sm" style={{marginTop:12}} onClick={function() { setField(''); setRegion(''); setTab('all'); }}>
+            Clear filters
+          </button>
         </div>
       ) : (
         <React.Fragment>
-          <p style={{fontSize:13,color:'#888',marginBottom:'1rem'}}>{filtered.length} scholarships found</p>
+          <p style={{fontSize:13,color:'#888',marginBottom:'1rem'}}>
+            {filtered.length} scholarships · all verified direct-portal URLs
+          </p>
           <div className="sch-grid">
-            {filtered.map(s => (
-              <div key={s.id} className={'sch-card' + (selected && selected.id===s.id?' selected':'')} onClick={() => setSelected(selected && selected.id===s.id ? null : s)}>
-                <div style={{fontWeight:600,fontSize:14,lineHeight:1.3,marginBottom:2}}>{s.name}</div>
-                <div style={{fontSize:22,fontWeight:700,color:'#1a1a2e',margin:'4px 0'}}>{'$' + (s.amount_usd||0).toLocaleString()}</div>
-                <div style={{fontSize:12,color:'#888'}}>{s.provider}</div>
-                <div style={{fontSize:12,color:'#888',marginTop:4}}>
-                  {s.deadline}
-                  {s.days_left !== undefined && (
-                    <span className={'tag ' + (s.days_left<=30?'tag-red':'tag-green')} style={{marginLeft:6,fontSize:10}}>
-                      {s.days_left}d
-                    </span>
+            {filtered.map(function(s) {
+              const isSelected = selected && selected.id === s.id;
+              const dayClass = s.days_left !== undefined ? (s.days_left <= 30 ? 'tag-red' : 'tag-green') : '';
+              return (
+                <div key={s.id} className={'sch-card' + (isSelected ? ' selected' : '')}
+                  onClick={function() { setSelected(isSelected ? null : s); }}>
+                  <div style={{fontWeight:600,fontSize:14,lineHeight:1.3,marginBottom:4}}>{s.name}</div>
+                  <div style={{fontSize:22,fontWeight:700,color:'#1a1a2e',margin:'4px 0'}}>
+                    {'$' + (s.amount_usd || 0).toLocaleString()}
+                  </div>
+                  <div style={{fontSize:12,color:'#888'}}>{s.provider}</div>
+                  <div style={{fontSize:12,color:'#888',marginTop:4,display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                    {s.deadline && <span>{s.deadline}</span>}
+                    {s.days_left !== undefined && (
+                      <span className={'tag ' + dayClass} style={{fontSize:10}}>{s.days_left}d left</span>
+                    )}
+                  </div>
+                  {user && s.match_score !== undefined && (
+                    <div style={{marginTop:8}}>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#888',marginBottom:3}}>
+                        <span>Match score</span>
+                        <span style={{fontWeight:600}}>{Math.round(s.match_score * 100)}%</span>
+                      </div>
+                      <div className="progress progress-sm">
+                        <div className="progress-fill" style={{width: (s.match_score * 100) + '%', background:'#1a1a2e'}}></div>
+                      </div>
+                    </div>
+                  )}
+                  {s.tags && s.tags.length > 0 && (
+                    <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:8}}>
+                      {s.tags.filter(function(t) {
+                        return ['cybersecurity','ai','africa','uk','usa','prestigious','financial_need','fully-funded'].indexOf(t) !== -1;
+                      }).slice(0,3).map(function(t) {
+                        return <span key={t} className="tag tag-blue" style={{fontSize:10}}>{t}</span>;
+                      })}
+                    </div>
+                  )}
+                  {isSelected && (
+                    <div style={{marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid #e8e8e0'}}
+                      onClick={function(e) { e.stopPropagation(); }}>
+                      {s.essay_prompt && (
+                        <p style={{fontSize:13,color:'#555',marginBottom:'.75rem',fontStyle:'italic',lineHeight:1.5}}>
+                          {s.essay_prompt.slice(0, 140)}...
+                        </p>
+                      )}
+                      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                        <button className="btn btn-primary btn-sm"
+                          disabled={adding === s.id}
+                          onClick={function() { addToPipeline(s); }}>
+                          {adding === s.id ? 'Adding...' : '+ Add to pipeline'}
+                        </button>
+                        <a href={s.url} target="_blank" rel="noreferrer"
+                          className="btn btn-outline btn-sm"
+                          onClick={function(e) { e.stopPropagation(); }}>
+                          Apply →
+                        </a>
+                      </div>
+                    </div>
                   )}
                 </div>
-                {user && s.match_score !== undefined && (
-                  <div style={{marginTop:8}}>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#888',marginBottom:3}}>
-                      <span>Match</span>
-                      <span>{Math.round(s.match_score*100)}%</span>
-                    </div>
-                    <div className="progress">
-                      <div className="progress-fill" style={{width:(s.match_score*100)+'%',background:'#1a1a2e'}}></div>
-                    </div>
-                  </div>
-                )}
-                {selected && selected.id === s.id && (
-                  <div style={{marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid #e8e8e0'}} onClick={e => e.stopPropagation()}>
-                    <p style={{fontSize:13,color:'#555',marginBottom:'.75rem',fontStyle:'italic'}}>{(s.essay_prompt||'').slice(0,120)}...</p>
-                    <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                      <button className="btn btn-primary btn-sm" disabled={adding===s.id} onClick={() => addToPipeline(s)}>
-                        {adding===s.id ? 'Adding...' : '+ Pipeline'}
-                      </button>
-                      <a href={s.url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" onClick={e => e.stopPropagation()}>
-                        Apply →
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </React.Fragment>
       )}
@@ -617,83 +855,98 @@ function ScholarshipsPage({user, go}) {
   );
 }
 
+// ── Pipeline ──────────────────────────────────────────────────
 const STAGES = [
-  {id:'researching',label:'Researching',color:'#6366f1'},
-  {id:'essay_ready',label:'Essay Ready',color:'#d97706'},
-  {id:'submitted',label:'Submitted',color:'#2563eb'},
-  {id:'awaiting',label:'Awaiting',color:'#7c3aed'},
-  {id:'won',label:'Won 🏆',color:'#059669'},
-  {id:'rejected',label:'Rejected',color:'#dc2626'},
+  {id:'researching', label:'Researching', color:'#6366f1'},
+  {id:'essay_ready', label:'Essay Ready', color:'#d97706'},
+  {id:'submitted', label:'Submitted', color:'#2563eb'},
+  {id:'awaiting', label:'Awaiting', color:'#7c3aed'},
+  {id:'won', label:'Won 🏆', color:'#059669'},
+  {id:'rejected', label:'Rejected', color:'#dc2626'},
 ];
 
 function PipelinePage() {
   const [pipeline, setPipeline] = useState(null);
   const [loading, setLoading] = useState(true);
   const [moving, setMoving] = useState(null);
-  const load = async () => {
-    const r = await api('GET', '/pipeline');
-    setPipeline(r);
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
-  const move = async (appId, stage) => {
+
+  function load() {
+    api('GET', '/pipeline')
+      .then(function(r) { setPipeline(r); setLoading(false); })
+      .catch(function() { setLoading(false); });
+  }
+
+  useEffect(function() { load(); }, []);
+
+  function move(appId, stage) {
     setMoving(appId);
-    try {
-      await api('PATCH', '/pipeline/' + appId + '/move', {stage});
-      await load();
-      toast('Moved to ' + stage, 'success');
-    } catch(e) {
-      toast(e.message, 'error');
-    } finally {
-      setMoving(null);
-    }
-  };
-  const total = pipeline ? pipeline.total : 0;
-  const wonTotal = pipeline && pipeline.stages && pipeline.stages.won
-    ? pipeline.stages.won.reduce((a, x) => a + (x.amount_usd||0), 0) : 0;
+    api('PATCH', '/pipeline/' + appId + '/move', {stage: stage})
+      .then(function() { load(); toast('Moved to ' + stage.replace('_', ' '), 'success'); setMoving(null); })
+      .catch(function(e) { toast(e.message, 'error'); setMoving(null); });
+  }
+
+  const total = pipeline ? (pipeline.total || 0) : 0;
+  const wonList = pipeline && pipeline.stages ? (pipeline.stages.won || []) : [];
+  const wonTotal = wonList.reduce(function(a, x) { return a + (x.amount_usd || 0); }, 0);
+
   return (
-    <div className="page pb-mobile">
+    <div className="page pb-safe">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem',flexWrap:'wrap',gap:10}}>
         <div>
           <h2 className="section-title">Application Pipeline</h2>
-          <p className="section-sub">{total} applications · {'$' + wonTotal.toLocaleString()} won</p>
+          <p className="section-sub">
+            {total} applications · {'$' + wonTotal.toLocaleString()} won
+          </p>
         </div>
         <button className="btn btn-outline btn-sm" onClick={load}>↺ Refresh</button>
       </div>
+
       {loading ? (
-        <div className="empty"><div className="spinner"></div></div>
+        <div className="empty"><div className="spinner" style={{width:32,height:32}}></div></div>
       ) : total === 0 ? (
         <div className="empty">
-          <div style={{fontSize:40,marginBottom:'.75rem'}}>📋</div>
-          <p>Pipeline empty — add scholarships from the Scholarships page</p>
+          <div className="empty-icon">📋</div>
+          <p style={{marginBottom:'1rem'}}>Your pipeline is empty</p>
+          <p style={{fontSize:13,color:'#888'}}>Add scholarships from the Scholarships page to start tracking</p>
         </div>
       ) : (
         <div className="kanban">
-          {STAGES.map(stage => {
-            const cards = (pipeline.stages && pipeline.stages[stage.id]) || [];
+          {STAGES.map(function(stage) {
+            const cards = (pipeline.stages && pipeline.stages[stage.id]) ? pipeline.stages[stage.id] : [];
             return (
               <div key={stage.id} className="kanban-col">
                 <div className="kanban-col-title">
                   <span style={{color:stage.color}}>{stage.label}</span>
-                  <span style={{background:'#fff',border:'1px solid #e8e8e0',borderRadius:'50%',width:20,height:20,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11}}>
+                  <span style={{background:'#fff',border:'1px solid #e8e8e0',borderRadius:'50%',width:20,height:20,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:600}}>
                     {cards.length}
                   </span>
                 </div>
-                {cards.map(app => (
-                  <div key={app.id} className="kanban-card">
-                    <div style={{fontWeight:500,marginBottom:3,fontSize:12,lineHeight:1.3}}>{(app.scholarship_name||'').slice(0,38)}</div>
-                    <div style={{color:'#1a1a2e',fontWeight:700,fontSize:14}}>{'$' + (app.amount_usd||0).toLocaleString()}</div>
-                    <div style={{color:'#888',fontSize:11,marginTop:2}}>{app.deadline}</div>
-                    <div style={{marginTop:5,display:'flex',gap:3,flexWrap:'wrap'}}>
-                      {STAGES.filter(s => s.id !== stage.id).slice(0,2).map(s => (
-                        <button key={s.id} className="btn btn-xs btn-outline" disabled={moving===app.id}
-                          onClick={() => move(app.id, s.id)} style={{fontSize:10,padding:'2px 7px'}}>
-                          → {s.label.split(' ')[0]}
-                        </button>
-                      ))}
+                {cards.map(function(app) {
+                  const otherStages = STAGES.filter(function(s) { return s.id !== stage.id; }).slice(0, 2);
+                  return (
+                    <div key={app.id} className="kanban-card">
+                      <div style={{fontWeight:500,marginBottom:3,fontSize:12,lineHeight:1.3}}>
+                        {(app.scholarship_name || '').slice(0, 36)}
+                      </div>
+                      <div style={{color:'#1a1a2e',fontWeight:700,fontSize:14}}>
+                        {'$' + (app.amount_usd || 0).toLocaleString()}
+                      </div>
+                      <div style={{color:'#888',fontSize:11,marginTop:2}}>{app.deadline}</div>
+                      <div style={{marginTop:6,display:'flex',gap:3,flexWrap:'wrap'}}>
+                        {otherStages.map(function(s) {
+                          return (
+                            <button key={s.id} className="btn btn-xs btn-outline"
+                              disabled={moving === app.id}
+                              onClick={function() { move(app.id, s.id); }}
+                              style={{fontSize:10,padding:'2px 7px'}}>
+                              → {s.label.split(' ')[0]}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })}
@@ -703,34 +956,39 @@ function PipelinePage() {
   );
 }
 
-function PackagesPage({user}) {
+// ── Packages ──────────────────────────────────────────────────
+function PackagesPage(props) {
+  const user = props.user;
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [preparing, setPreparing] = useState(false);
-  const load = async () => {
+
+  function load() {
     setLoading(true);
-    const r = await api('GET', '/packages');
-    setPackages(r.packages || []);
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
-  const prepTop = async () => {
+    api('GET', '/packages')
+      .then(function(r) { setPackages(r.packages || []); setLoading(false); })
+      .catch(function() { setLoading(false); });
+  }
+
+  useEffect(function() { load(); }, []);
+
+  function prepTop() {
     setPreparing(true);
-    try {
-      await api('POST', '/packages/prepare', {top_n: 5});
-      toast('Preparing top 5 packages — refresh in ~2 min', 'success');
-    } catch(e) {
-      toast(e.message, 'error');
-    } finally {
-      setPreparing(false);
-    }
-  };
+    api('POST', '/packages/prepare', {top_n: 5})
+      .then(function() {
+        toast('Preparing top 5 packages — refresh in about 2 minutes', 'success');
+        setPreparing(false);
+        setTimeout(load, 10000);
+      })
+      .catch(function(e) { toast(e.message, 'error'); setPreparing(false); });
+  }
+
   return (
-    <div className="page pb-mobile">
+    <div className="page pb-safe">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem',flexWrap:'wrap',gap:10}}>
         <div>
           <h2 className="section-title">Application Packages</h2>
-          <p className="section-sub">Complete packages with essays and briefing docs</p>
+          <p className="section-sub">Complete packages with essays, briefing docs, and application links</p>
         </div>
         <div style={{display:'flex',gap:8}}>
           <button className="btn btn-outline btn-sm" onClick={load}>↺</button>
@@ -739,69 +997,98 @@ function PackagesPage({user}) {
           </button>
         </div>
       </div>
+
       {loading ? (
-        <div className="empty"><div className="spinner"></div></div>
+        <div className="empty"><div className="spinner" style={{width:32,height:32}}></div></div>
       ) : packages.length === 0 ? (
         <div className="empty">
-          <div style={{fontSize:40,marginBottom:'.75rem'}}>📦</div>
-          <p style={{marginBottom:'1rem'}}>No packages yet</p>
-          <p style={{fontSize:13,color:'#888',marginBottom:'1.5rem'}}>Click "Prepare top 5" to generate complete application packages</p>
+          <div className="empty-icon">📦</div>
+          <p style={{marginBottom:'1rem',fontWeight:500}}>No packages yet</p>
+          <p style={{fontSize:13,color:'#888',marginBottom:'1.5rem',maxWidth:400,margin:'0 auto 1.5rem'}}>
+            Click "Prepare top 5" to generate complete application packages with tailored essays for your best-matched scholarships
+          </p>
           <button className="btn btn-primary" onClick={prepTop} disabled={preparing}>
             {preparing ? 'Preparing...' : '✨ Prepare top 5 now'}
           </button>
         </div>
-      ) : packages.map(pkg => (
-        <div key={pkg.id} className="card" style={{marginBottom:'1rem'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:8}}>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:600,fontSize:16}}>{pkg.scholarship}</div>
-              <div style={{fontSize:13,color:'#555',marginTop:3}}>
-                {'$' + (pkg.amount_usd||0).toLocaleString()} · {pkg.deadline}
+      ) : (
+        packages.map(function(pkg) {
+          const dayClass = (pkg.days_left || 999) <= 7 ? 'tag-red' : (pkg.days_left || 999) <= 30 ? 'tag-yellow' : 'tag-green';
+          return (
+            <div key={pkg.id} className="card" style={{marginBottom:'1rem'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:600,fontSize:16}}>{pkg.scholarship}</div>
+                  <div style={{fontSize:13,color:'#555',marginTop:3}}>
+                    {'$' + (pkg.amount_usd || 0).toLocaleString()} · Deadline: {pkg.deadline || 'N/A'}
+                  </div>
+                  {pkg.essay_preview && (
+                    <p style={{fontSize:13,color:'#888',marginTop:8,fontStyle:'italic',lineHeight:1.5}}>
+                      {pkg.essay_preview}
+                    </p>
+                  )}
+                </div>
+                <span className={'tag ' + dayClass}>{pkg.days_left || '?'}d</span>
               </div>
-              {pkg.essay_preview && (
-                <p style={{fontSize:13,color:'#888',marginTop:8,fontStyle:'italic',lineHeight:1.5}}>{pkg.essay_preview}</p>
-              )}
+              <div style={{display:'flex',gap:8,marginTop:'1rem',flexWrap:'wrap'}}>
+                <a href={pkg.briefing_url} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
+                  Open briefing →
+                </a>
+                <a href={pkg.essay_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">
+                  View essay
+                </a>
+                {pkg.url && (
+                  <a href={pkg.url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">
+                    Apply →
+                  </a>
+                )}
+              </div>
             </div>
-            <span className={'tag ' + ((pkg.days_left||999)<=7?'tag-red':(pkg.days_left||999)<=30?'tag-yellow':'tag-green')}>
-              {pkg.days_left||'?'}d
-            </span>
-          </div>
-          <div style={{display:'flex',gap:8,marginTop:'1rem',flexWrap:'wrap'}}>
-            <a href={pkg.briefing_url} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">Open briefing →</a>
-            <a href={pkg.essay_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">View essay</a>
-            <a href={pkg.url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">Apply →</a>
-          </div>
-        </div>
-      ))}
+          );
+        })
+      )}
     </div>
   );
 }
 
+// ── Interview ─────────────────────────────────────────────────
 const RUBRICS = {
-  chevening: {name:'Chevening Official Rubric',dimensions:[
-    {key:'leadership',label:'Leadership & Influence',weight:25},
-    {key:'networking',label:'Networking Ability',weight:25},
-    {key:'ambassador',label:'Ambassador Potential',weight:25},
-    {key:'career_plan',label:'Study & Career Plan',weight:25}
-  ]},
-  fulbright: {name:'Fulbright Selection Criteria',dimensions:[
-    {key:'academic',label:'Academic Excellence',weight:30},
-    {key:'project',label:'Project Feasibility',weight:30},
-    {key:'cross_cultural',label:'Cross-cultural Engagement',weight:20},
-    {key:'impact',label:'Long-term Impact',weight:20}
-  ]},
-  gates_cambridge: {name:'Gates Cambridge Criteria',dimensions:[
-    {key:'academic',label:'Academic Achievement',weight:30},
-    {key:'leadership',label:'Leadership Potential',weight:30},
-    {key:'commitment',label:'Commitment to Others',weight:25},
-    {key:'cambridge_fit',label:'Cambridge Fit',weight:15}
-  ]},
-  general: {name:'General Rubric',dimensions:[
-    {key:'clarity',label:'Clarity & Structure',weight:25},
-    {key:'specificity',label:'Specificity & Evidence',weight:35},
-    {key:'relevance',label:'Relevance to Scholarship',weight:25},
-    {key:'impact',label:'Potential Impact',weight:15}
-  ]}
+  chevening: {
+    name: 'Chevening Official Rubric',
+    dimensions: [
+      {key:'leadership', label:'Leadership & Influence', weight:25},
+      {key:'networking', label:'Networking Ability', weight:25},
+      {key:'ambassador', label:'Ambassador Potential', weight:25},
+      {key:'career_plan', label:'Study & Career Plan', weight:25},
+    ]
+  },
+  fulbright: {
+    name: 'Fulbright Selection Criteria',
+    dimensions: [
+      {key:'academic', label:'Academic Excellence', weight:30},
+      {key:'project', label:'Project Feasibility', weight:30},
+      {key:'cross_cultural', label:'Cross-cultural Engagement', weight:20},
+      {key:'impact', label:'Long-term Impact', weight:20},
+    ]
+  },
+  gates_cambridge: {
+    name: 'Gates Cambridge Criteria',
+    dimensions: [
+      {key:'academic', label:'Academic Achievement', weight:30},
+      {key:'leadership', label:'Leadership Potential', weight:30},
+      {key:'commitment', label:'Commitment to Others', weight:25},
+      {key:'cambridge_fit', label:'Cambridge Fit', weight:15},
+    ]
+  },
+  general: {
+    name: 'General Scholarship Rubric',
+    dimensions: [
+      {key:'clarity', label:'Clarity & Structure', weight:25},
+      {key:'specificity', label:'Specificity & Evidence', weight:35},
+      {key:'relevance', label:'Relevance to Scholarship', weight:25},
+      {key:'impact', label:'Potential Impact', weight:15},
+    ]
+  }
 };
 
 function InterviewPage() {
@@ -813,112 +1100,144 @@ function InterviewPage() {
   const [scoring, setScoring] = useState(false);
   const [history, setHistory] = useState([]);
   const rubric = RUBRICS[scholarship] || RUBRICS.general;
-  useEffect(() => {
+
+  useEffect(function() {
     api('GET', '/interview/questions/' + scholarship)
-      .then(r => { setQuestions(r.questions || []); setCurrentQ(0); setAnswer(''); setResult(null); })
-      .catch(() => {});
+      .then(function(r) {
+        setQuestions(r.questions || []);
+        setCurrentQ(0);
+        setAnswer('');
+        setResult(null);
+      })
+      .catch(function() {});
   }, [scholarship]);
-  const submit = async () => {
-    if (!answer.trim() || answer.split(/\s+/).length < 20) {
-      toast('Please write a fuller answer (at least 20 words)', 'error');
-      return;
-    }
+
+  function submit() {
+    const words = answer.trim().split(/\s+/).length;
+    if (words < 20) { toast('Please write a fuller answer (at least 20 words)', 'error'); return; }
     setScoring(true);
-    try {
-      const q = questions[currentQ];
-      const r = await api('POST', '/interview/score', {question: q.q, answer, scholarship});
-      setResult(r);
-      setHistory(h => [...h, {question: q.q, score: r.overall_score, feedback: r.feedback}]);
-    } catch(e) {
-      toast(e.message, 'error');
-    } finally {
-      setScoring(false);
-    }
-  };
-  const next = () => {
+    const q = questions[currentQ];
+    api('POST', '/interview/score', {question: q.q, answer: answer, scholarship: scholarship})
+      .then(function(r) {
+        setResult(r);
+        setHistory(function(h) { return [...h, {question: q.q, score: r.overall_score, feedback: r.feedback}]; });
+        setScoring(false);
+      })
+      .catch(function(e) { toast(e.message, 'error'); setScoring(false); });
+  }
+
+  function next() {
     if (currentQ < questions.length - 1) {
-      setCurrentQ(q => q + 1);
+      setCurrentQ(function(q) { return q + 1; });
       setAnswer('');
       setResult(null);
     }
-  };
-  const wc = answer.split(/\s+/).filter(Boolean).length;
-  const avgScore = history.length ? Math.round(history.reduce((a, h) => a + h.score, 0) / history.length * 100) : 0;
+  }
+
+  const wc = answer.trim() ? answer.trim().split(/\s+/).length : 0;
+  const avgScore = history.length ? Math.round(history.reduce(function(a, h) { return a + h.score; }, 0) / history.length * 100) : 0;
+  const wcColor = wc < 100 ? '#dc2626' : wc <= 300 ? '#059669' : '#d97706';
+
   return (
-    <div className="page pb-mobile" style={{maxWidth:800}}>
+    <div className="page pb-safe" style={{maxWidth:800}}>
       <h2 className="section-title">Interview Coach</h2>
       <p className="section-sub">Practice with official scholarship scoring rubrics</p>
+
       <div style={{display:'flex',gap:10,marginBottom:'1.25rem',flexWrap:'wrap',alignItems:'flex-end'}}>
         <div className="form-group" style={{flex:1,minWidth:180,marginBottom:0}}>
           <label>Scholarship type</label>
-          <select value={scholarship} onChange={e => setScholarship(e.target.value)}>
-            {[['general','General'],['chevening','Chevening'],['fulbright','Fulbright'],['gates_cambridge','Gates Cambridge']].map(([v,l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
+          <select value={scholarship} onChange={function(e) { setScholarship(e.target.value); }}>
+            <option value="general">General (all scholarships)</option>
+            <option value="chevening">Chevening</option>
+            <option value="fulbright">Fulbright</option>
+            <option value="gates_cambridge">Gates Cambridge</option>
           </select>
         </div>
         {history.length > 0 && (
-          <div className="card" style={{padding:'8px 14px'}}>
+          <div className="card" style={{padding:'8px 14px',display:'flex',gap:'1rem',alignItems:'center',borderRadius:8}}>
             <span style={{fontSize:13,color:'#555'}}>Session avg: <strong>{avgScore}%</strong></span>
-            <span style={{fontSize:12,color:'#888',marginLeft:8}}>{history.length}/{questions.length}</span>
+            <span style={{fontSize:12,color:'#888'}}>{history.length}/{questions.length} done</span>
           </div>
         )}
       </div>
+
       {questions.length > 0 && (
         <React.Fragment>
           <div style={{background:'#f5f5f0',borderRadius:12,padding:'1.25rem',borderLeft:'4px solid #1a1a2e',marginBottom:'1rem'}}>
-            <div style={{fontSize:11,color:'#888',marginBottom:4,textTransform:'uppercase',letterSpacing:'.05em'}}>
-              Q{currentQ+1}/{questions.length}
+            <div style={{fontSize:11,color:'#888',marginBottom:4,textTransform:'uppercase',letterSpacing:'.06em',fontWeight:600}}>
+              Question {currentQ + 1} of {questions.length}
             </div>
-            <div style={{fontSize:17,fontWeight:600,marginBottom:10,lineHeight:1.4}}>{questions[currentQ] && questions[currentQ].q}</div>
+            <div style={{fontSize:17,fontWeight:600,marginBottom:10,lineHeight:1.4,color:'#1a1a1a'}}>
+              {questions[currentQ] && questions[currentQ].q}
+            </div>
             <div style={{fontSize:13,color:'#555',background:'rgba(99,102,241,.07)',padding:'8px 12px',borderRadius:6}}>
               💡 {questions[currentQ] && questions[currentQ].tips}
             </div>
           </div>
+
           <div className="form-group">
-            <label>Your answer ({wc} words — aim for 150-250)</label>
-            <textarea rows={7} value={answer} onChange={e => setAnswer(e.target.value)}
-              placeholder="Type your answer here. Be specific — use numbers, names, and concrete examples."/>
+            <label>Your answer — aim for 150 to 250 words</label>
+            <textarea rows={7} value={answer}
+              onChange={function(e) { setAnswer(e.target.value); }}
+              placeholder="Type your answer here. Be specific — use numbers, names, and real examples from your experience."/>
+            <div style={{display:'flex',justifyContent:'space-between',marginTop:4}}>
+              <span style={{fontSize:12,color:wcColor,fontWeight:500}}>
+                {wc} words {wc < 150 ? '(aim for 150+)' : wc > 300 ? '(consider trimming)' : '✓ Good length'}
+              </span>
+              <span style={{fontSize:11,color:'#888'}}>Rubric: {rubric.name}</span>
+            </div>
           </div>
+
           <div style={{display:'flex',gap:10,marginBottom:'1.5rem',flexWrap:'wrap'}}>
             <button className="btn btn-primary" disabled={scoring || !answer.trim()} onClick={submit}>
-              {scoring ? 'Scoring...' : 'Score my answer'}
+              {scoring ? (
+                <React.Fragment>
+                  <span className="spinner" style={{borderTopColor:'#fff'}}></span>&nbsp; Scoring...
+                </React.Fragment>
+              ) : 'Score my answer'}
             </button>
             {result && currentQ < questions.length - 1 && (
               <button className="btn btn-outline" onClick={next}>Next question →</button>
             )}
           </div>
+
           {result && (
-            <div className="card" style={{borderColor: result.overall_score>=.75?'#059669':result.overall_score>=.5?'#d97706':'#dc2626',borderWidth:1.5}}>
+            <div className="card" style={{
+              borderColor: result.overall_score >= .75 ? '#059669' : result.overall_score >= .5 ? '#d97706' : '#dc2626',
+              borderWidth: 1.5
+            }}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-                <span style={{fontWeight:700,fontSize:18}}>Score: {Math.round(result.overall_score*100)}%</span>
-                <span style={{fontSize:26,fontWeight:800,color:result.grade==='A'?'#059669':result.grade==='B'?'#2563eb':result.grade==='C'?'#d97706':'#dc2626'}}>
+                <span style={{fontWeight:700,fontSize:18}}>Score: {Math.round(result.overall_score * 100)}%</span>
+                <span style={{fontSize:28,fontWeight:800,color: result.grade==='A'?'#059669':result.grade==='B'?'#2563eb':result.grade==='C'?'#d97706':'#dc2626'}}>
                   {result.grade}
                 </span>
               </div>
               <div style={{marginBottom:'1rem'}}>
-                <div style={{fontSize:12,fontWeight:600,color:'#555',marginBottom:8}}>{rubric.name}</div>
-                {rubric.dimensions.map(dim => {
-                  const s = result.overall_score;
+                <div style={{fontSize:12,fontWeight:600,color:'#555',marginBottom:10}}>{rubric.name}</div>
+                {rubric.dimensions.map(function(dim) {
+                  const s = result.overall_score || 0;
+                  const barColor = s >= .75 ? '#059669' : s >= .5 ? '#2563eb' : '#d97706';
                   return (
-                    <div key={dim.key} style={{marginBottom:8}}>
-                      <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:3}}>
+                    <div key={dim.key} style={{marginBottom:10}}>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4}}>
                         <span>{dim.label} <span style={{color:'#888',fontSize:11}}>({dim.weight}%)</span></span>
-                        <span style={{fontWeight:600}}>{Math.round(s*100)}%</span>
+                        <span style={{fontWeight:600}}>{Math.round(s * 100)}%</span>
                       </div>
-                      <div className="progress">
-                        <div className="progress-fill" style={{
-                          width: (s*100) + '%',
-                          background: s>=.75?'#059669':s>=.5?'#2563eb':'#d97706'
-                        }}></div>
+                      <div className="progress progress-sm">
+                        <div className="progress-fill" style={{width: (s * 100) + '%', background: barColor}}></div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <div style={{background:'#f5f5f0',borderRadius:8,padding:'10px 12px',fontSize:14}}>
+              <div style={{background:'#f5f5f0',borderRadius:8,padding:'10px 14px',fontSize:14,lineHeight:1.5}}>
                 💡 {result.feedback}
               </div>
+              {result.filler_count > 0 && (
+                <div style={{fontSize:13,color:'#d97706',marginTop:8}}>
+                  ⚠ {result.filler_count} filler word(s) detected — aim to reduce these
+                </div>
+              )}
             </div>
           )}
         </React.Fragment>
@@ -927,127 +1246,217 @@ function InterviewPage() {
   );
 }
 
-function ProfilePage({user, setUser}) {
-  const [form, setForm] = useState({...user});
+// ── Profile ───────────────────────────────────────────────────
+function ProfilePage(props) {
+  const user = props.user;
+  const setUser = props.setUser;
+  const [form, setFormState] = useState({});
   const [saving, setSaving] = useState(false);
   const [readiness, setReadiness] = useState(null);
-  const set = (k, v) => setForm(f => ({...f, [k]: v}));
-  useEffect(() => {
-    api('GET', '/readiness').then(setReadiness).catch(() => {});
+  const fileRef = useRef(null);
+
+  useEffect(function() {
+    setFormState({
+      name: user.name || '',
+      email: user.email || '',
+      degree_level: user.degree_level || 'Graduate',
+      major: user.major || '',
+      school: user.school || '',
+      nationality: user.nationality || 'Kenya',
+      gpa: user.gpa || '',
+      financial_need: user.financial_need || false,
+      personal_statement: user.personal_statement || '',
+      skills: Array.isArray(user.skills) ? user.skills.join(', ') : (user.skills || ''),
+      extracurriculars: Array.isArray(user.extracurriculars) ? user.extracurriculars.join(', ') : (user.extracurriculars || ''),
+    });
+    api('GET', '/readiness').then(setReadiness).catch(function() {});
   }, []);
-  const save = async (e) => {
+
+  function setField(key, val) {
+    setFormState(function(f) {
+      const next = {};
+      Object.keys(f).forEach(function(k) { next[k] = f[k]; });
+      next[key] = val;
+      return next;
+    });
+  }
+
+  function save(e) {
     e.preventDefault();
     setSaving(true);
-    try {
-      const upd = await api('PATCH', '/profile', {
-        name: form.name, major: form.major, school: form.school,
-        gpa: parseFloat(form.gpa) || 0, nationality: form.nationality,
-        financial_need: form.financial_need,
-        personal_statement: form.personal_statement,
-        skills: typeof form.skills === 'string' ? form.skills.split(',').map(s => s.trim()).filter(Boolean) : form.skills,
-        extracurriculars: typeof form.extracurriculars === 'string' ? form.extracurriculars.split(',').map(s => s.trim()).filter(Boolean) : form.extracurriculars,
-      });
-      setUser({...user, ...upd});
-      const r = await api('GET', '/readiness');
-      setReadiness(r);
-      toast('Profile saved', 'success');
-    } catch(e) {
-      toast(e.message, 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
+    const payload = {
+      name: form.name,
+      major: form.major,
+      school: form.school,
+      gpa: parseFloat(form.gpa) || 0,
+      nationality: form.nationality,
+      financial_need: form.financial_need === true || form.financial_need === 'true',
+      personal_statement: form.personal_statement,
+      skills: form.skills ? form.skills.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [],
+      extracurriculars: form.extracurriculars ? form.extracurriculars.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [],
+    };
+    api('PATCH', '/profile', payload)
+      .then(function(upd) {
+        setUser(Object.assign({}, user, upd));
+        return api('GET', '/readiness');
+      })
+      .then(function(r) { setReadiness(r); toast('Profile saved successfully', 'success'); setSaving(false); })
+      .catch(function(e) { toast(e.message, 'error'); setSaving(false); });
+  }
+
   return (
-    <div className="page pb-mobile" style={{maxWidth:760}}>
+    <div className="page pb-safe" style={{maxWidth:760}}>
       <h2 className="section-title">Your Profile</h2>
+
       {readiness && (
-        <div className="card" style={{marginBottom:'1.25rem',display:'flex',gap:'1.5rem',alignItems:'flex-start',flexWrap:'wrap'}}>
-          <ReadinessRing score={readiness.overall}/>
+        <div className="card" style={{marginBottom:'1.25rem',display:'flex',gap:'1.25rem',alignItems:'flex-start',flexWrap:'wrap'}}>
+          <ReadinessRing score={readiness.overall || 0}/>
           <div style={{flex:1}}>
-            <div style={{fontWeight:600,fontSize:15,marginBottom:6}}>Readiness: {readiness.level}</div>
-            {Object.entries(readiness.scores || {}).map(([k, v]) => (
-              <div key={k} style={{minWidth:140,flex:1,marginBottom:6}}>
-                <div style={{fontSize:11,color:'#888',marginBottom:2}}>{k.replace(/_/g,' ')}</div>
-                <div className="progress">
-                  <div className="progress-fill" style={{
-                    width: v + '%',
-                    background: v >= 70 ? '#059669' : v >= 50 ? '#2563eb' : '#d97706'
-                  }}></div>
-                </div>
-              </div>
-            ))}
+            <div style={{fontWeight:600,fontSize:15,marginBottom:8}}>Readiness: {readiness.level}</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'6px 16px'}}>
+              {Object.entries(readiness.scores || {}).map(function(entry) {
+                const k = entry[0]; const v = entry[1];
+                return (
+                  <div key={k} style={{minWidth:130}}>
+                    <div style={{fontSize:11,color:'#888',marginBottom:3,textTransform:'capitalize'}}>{k.replace(/_/g,' ')}</div>
+                    <div className="progress progress-sm">
+                      <div className="progress-fill" style={{
+                        width: v + '%',
+                        background: v >= 70 ? '#059669' : v >= 50 ? '#2563eb' : '#d97706'
+                      }}></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
             {readiness.tips && readiness.tips[0] && (
-              <p style={{fontSize:13,color:'#555',marginTop:8}}>💡 {readiness.tips[0]}</p>
+              <p style={{fontSize:13,color:'#555',marginTop:10}}>💡 {readiness.tips[0]}</p>
             )}
           </div>
         </div>
       )}
+
       <form onSubmit={save}>
         <div className="card" style={{marginBottom:'1rem'}}>
-          <div style={{fontWeight:600,marginBottom:'1rem'}}>Personal details</div>
+          <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>Personal details</div>
           <div className="grid2">
-            <div className="form-group"><label>Full name</label><input value={form.name||''} onChange={e => set('name', e.target.value)}/></div>
-            <div className="form-group"><label>Email</label><input value={form.email||''} disabled style={{background:'#f5f5f0',color:'#888'}}/></div>
+            <div className="form-group">
+              <label>Full name</label>
+              <input value={form.name || ''} onChange={function(e) { setField('name', e.target.value); }}/>
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input value={form.email || ''} disabled style={{background:'#f5f5f0',color:'#888'}}/>
+            </div>
           </div>
           <div className="grid2">
-            <div className="form-group"><label>Country</label><input value={form.nationality||''} onChange={e => set('nationality', e.target.value)}/></div>
-            <div className="form-group" style={{display:'flex',alignItems:'center',gap:8,paddingTop:22}}>
-              <input type="checkbox" id="fn2" checked={form.financial_need||false} onChange={e => set('financial_need', e.target.checked)} style={{width:18,height:18,cursor:'pointer'}}/>
-              <label htmlFor="fn2" style={{marginBottom:0,cursor:'pointer'}}>Financial need</label>
+            <div className="form-group">
+              <label>Country / Nationality</label>
+              <input value={form.nationality || ''} onChange={function(e) { setField('nationality', e.target.value); }}/>
+            </div>
+            <div className="form-group" style={{paddingTop:24}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}
+                onClick={function() { setField('financial_need', !form.financial_need); }}>
+                <input type="checkbox" id="fn_profile"
+                  checked={form.financial_need || false}
+                  onChange={function(e) { setField('financial_need', e.target.checked); }}
+                  onClick={function(e) { e.stopPropagation(); }}/>
+                <label htmlFor="fn_profile" style={{marginBottom:0,cursor:'pointer',fontSize:14}}>
+                  I have financial need
+                </label>
+              </div>
             </div>
           </div>
         </div>
+
         <div className="card" style={{marginBottom:'1rem'}}>
-          <div style={{fontWeight:600,marginBottom:'1rem'}}>Academic background</div>
+          <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>Academic background</div>
           <div className="grid2">
             <div className="form-group">
               <label>Degree level</label>
-              <select value={form.degree_level||'Graduate'} onChange={e => set('degree_level', e.target.value)}>
-                <option>Undergraduate</option><option>Graduate</option><option>Postgraduate</option>
+              <select value={form.degree_level || 'Graduate'} onChange={function(e) { setField('degree_level', e.target.value); }}>
+                <option value="Undergraduate">Undergraduate</option>
+                <option value="Graduate">Graduate</option>
+                <option value="Postgraduate">Postgraduate / PhD</option>
               </select>
             </div>
-            <div className="form-group"><label>GPA (0-4.0)</label><input type="number" step="0.1" min="0" max="4" value={form.gpa||''} onChange={e => set('gpa', e.target.value)}/></div>
+            <div className="form-group">
+              <label>GPA (0 – 4.0)</label>
+              <input type="number" step="0.01" min="0" max="4"
+                value={form.gpa || ''} onChange={function(e) { setField('gpa', e.target.value); }}/>
+            </div>
           </div>
           <div className="grid2">
-            <div className="form-group"><label>Major / Field</label><input value={form.major||''} onChange={e => set('major', e.target.value)}/></div>
-            <div className="form-group"><label>University</label><input value={form.school||''} onChange={e => set('school', e.target.value)}/></div>
+            <div className="form-group">
+              <label>Major / Field of study</label>
+              <input value={form.major || ''} onChange={function(e) { setField('major', e.target.value); }}/>
+            </div>
+            <div className="form-group">
+              <label>University / School</label>
+              <input value={form.school || ''} onChange={function(e) { setField('school', e.target.value); }}/>
+            </div>
           </div>
         </div>
-        <div className="card" style={{marginBottom:'1rem'}}>
-          <div style={{fontWeight:600,marginBottom:'1rem'}}>Skills and activities</div>
+
+        <div className="card" style={{marginBottom:'1.25rem'}}>
+          <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>Skills and activities</div>
           <div className="form-group">
             <label>Skills (comma-separated)</label>
-            <input value={Array.isArray(form.skills)?form.skills.join(', '):(form.skills||'')} onChange={e => set('skills', e.target.value)} placeholder="Python, Cloud Computing, Leadership..."/>
+            <input value={form.skills || ''}
+              onChange={function(e) { setField('skills', e.target.value); }}
+              placeholder="Python, Cloud Computing, Data Analysis, Leadership..."/>
+            <p className="helper">More skills = better scholarship matching</p>
           </div>
           <div className="form-group">
-            <label>Extracurricular activities</label>
-            <input value={Array.isArray(form.extracurriculars)?form.extracurriculars.join(', '):(form.extracurriculars||'')} onChange={e => set('extracurriculars', e.target.value)} placeholder="Tech club president, Community teaching..."/>
+            <label>Extracurricular activities (comma-separated)</label>
+            <input value={form.extracurriculars || ''}
+              onChange={function(e) { setField('extracurriculars', e.target.value); }}
+              placeholder="Tech club president, Community volunteer, Research assistant..."/>
           </div>
           <div className="form-group">
-            <label>Personal statement</label>
-            <textarea rows={4} value={form.personal_statement||''} onChange={e => set('personal_statement', e.target.value)} placeholder="Your goals, background, and what drives you..."/>
+            <label>Personal statement <span style={{fontWeight:400,color:'#888'}}>(used in generated essays)</span></label>
+            <textarea rows={4} value={form.personal_statement || ''}
+              onChange={function(e) { setField('personal_statement', e.target.value); }}
+              placeholder="Your goals, background, what drives you, and the impact you want to make..."/>
+            <p className="helper">The more detail here, the better and more personal your generated essays</p>
           </div>
         </div>
-        <button className="btn btn-primary" type="submit" disabled={saving}>
-          {saving ? 'Saving...' : 'Save profile'}
+
+        <button className="btn btn-primary" type="submit" disabled={saving}
+          style={{justifyContent:'center'}}>
+          {saving ? (
+            <React.Fragment>
+              <span className="spinner" style={{borderTopColor:'#fff'}}></span>&nbsp; Saving...
+            </React.Fragment>
+          ) : 'Save profile'}
         </button>
       </form>
     </div>
   );
 }
 
+// ── App ───────────────────────────────────────────────────────
 function App() {
-  const {user, loading, login, register, logout, setUser} = useAuth();
+  const auth = useAuth();
+  const user = auth.user;
+  const loading = auth.loading;
+  const login = auth.login;
+  const register = auth.register;
+  const logout = auth.logout;
+  const setUser = auth.setUser;
   const [page, setPage] = useState('home');
   const toasts = useToasts();
-  const go = useCallback((p) => {
+
+  function go(p) {
     setPage(p);
-    window.scrollTo({top:0, behavior:'smooth'});
-  }, []);
-  useEffect(() => {
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  useEffect(function() {
     if (user && page === 'home') go('dashboard');
     if (!user && ['dashboard','pipeline','packages','profile'].includes(page)) go('home');
-  }, [user, page]);
+  }, [user]);
+
   if (loading) {
     return (
       <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:'1rem'}}>
@@ -1056,25 +1465,30 @@ function App() {
       </div>
     );
   }
-  const pages = {
-    home: <HomePage go={go}/>,
-    login: <AuthPage mode="login" login={login} register={register} go={go}/>,
-    register: <AuthPage mode="register" login={login} register={register} go={go}/>,
-    dashboard: user && <DashboardPage user={user} go={go}/>,
-    scholarships: <ScholarshipsPage user={user} go={go}/>,
-    pipeline: user && <PipelinePage/>,
-    packages: user && <PackagesPage user={user}/>,
-    interview: <InterviewPage/>,
-    profile: user && <ProfilePage user={user} setUser={setUser}/>,
-  };
+
+  function renderPage() {
+    if (page === 'home') return <HomePage go={go}/>;
+    if (page === 'login') return <AuthPage mode="login" login={login} register={register} go={go}/>;
+    if (page === 'register') return <AuthPage mode="register" login={login} register={register} go={go}/>;
+    if (page === 'dashboard' && user) return <DashboardPage user={user} go={go}/>;
+    if (page === 'scholarships') return <ScholarshipsPage user={user} go={go}/>;
+    if (page === 'pipeline' && user) return <PipelinePage/>;
+    if (page === 'packages' && user) return <PackagesPage user={user}/>;
+    if (page === 'interview') return <InterviewPage/>;
+    if (page === 'profile' && user) return <ProfilePage user={user} setUser={setUser}/>;
+    return <HomePage go={go}/>;
+  }
+
   return (
     <React.Fragment>
       <Nav user={user} page={page} go={go} logout={logout}/>
-      <div>{pages[page] || pages['home']}</div>
+      <div>{renderPage()}</div>
       <div className="toast-wrap">
-        {toasts.map(t => (
-          <div key={t.id} className={'toast ' + t.type}>{t.msg}</div>
-        ))}
+        {toasts.map(function(t) {
+          return (
+            <div key={t.id} className={'toast ' + t.type}>{t.msg}</div>
+          );
+        })}
       </div>
     </React.Fragment>
   );
