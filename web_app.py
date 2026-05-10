@@ -239,7 +239,11 @@ async def startup():
     init_db()
     logger.info("ScholarBot v4 started")
 
-def _hash_pw(pw): return _pwd.hash(pw[:72])
+def _hash_pw(pw):
+    # bcrypt hard limit is 72 bytes - encode then truncate
+    pw_bytes = pw.encode('utf-8')[:72]
+    pw_truncated = pw_bytes.decode('utf-8', errors='ignore')
+    return _pwd.hash(pw_truncated)
 
 def _check_pw(pw, hashed):
     if ":" in hashed and len(hashed.split(":")[0]) == 32:
@@ -248,7 +252,10 @@ def _check_pw(pw, hashed):
             salt, h = hashed.split(":", 1)
             return hashlib.sha256((salt+pw).encode()).hexdigest() == h
         except: return False
-    try: return _pwd.verify(pw[:72], hashed)
+    try:
+        pw_bytes = pw.encode('utf-8')[:72]
+        pw_truncated = pw_bytes.decode('utf-8', errors='ignore')
+        return _pwd.verify(pw_truncated, hashed)
     except: return False
 
 def _make_token(uid):
