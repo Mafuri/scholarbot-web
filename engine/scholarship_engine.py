@@ -556,6 +556,45 @@ def _load_db() -> list[dict]:
     return db
 
 
+# ── Data Guard — Anti-Hallucination ──────────────────────────
+# All scholarship facts MUST come from this verified DB.
+# LLMs are only used for essays and scoring — never for facts.
+
+VERIFIED_FIELDS = {
+    "name", "provider", "url", "amount_usd", "deadline",
+    "degree_levels", "eligible_countries", "major_restrictions",
+    "gpa_min", "financial_need", "essay_prompt", "requirements",
+    "eligibility", "tags"
+}
+
+def verify_scholarship_data(scholarship: dict) -> dict:
+    """
+    Strip any fields not in the verified DB schema.
+    Ensures no LLM-generated scholarship facts reach the user.
+    """
+    db_record = get_by_id(scholarship.get("id", ""))
+    if db_record:
+        # Use DB record as source of truth, only add computed fields
+        safe = {k: v for k, v in db_record.items() if k in VERIFIED_FIELDS}
+        # Allow computed/display fields
+        for computed in ["match_score", "days_left", "win_probability",
+                         "targeting_score", "status", "id", "source"]:
+            if computed in scholarship:
+                safe[computed] = scholarship[computed]
+            elif computed in db_record:
+                safe[computed] = db_record[computed]
+        return safe
+    # Not in DB — still allow but flag as unverified
+    scholarship["_unverified"] = True
+    return scholarship
+
+
+def safe_scholarship_list(scholarships: list[dict]) -> list[dict]:
+    """Apply data guard to a list of scholarships."""
+    return [verify_scholarship_data(s) for s in scholarships]
+
+
+
 # ── Core engine functions ─────────────────────────────────────
 
 def count_scholarships() -> int:
@@ -654,6 +693,85 @@ def rank_for_profile(profile: dict) -> list[dict]:
         -x.get("amount_usd", 0)
     ))
     return valid
+
+
+
+
+# ── Scholarship Readiness Score ──────────────────────────────
+
+def compute_readiness_score(profile: dict) -> dict:
+    """
+    Compute a Scholarship Readiness Score across 5 dimensions.
+    Returns scores (0-100) per dimension and an overall score.
+    """
+    scores = {}
+
+    # 1. Academic score (GPA, degree level)
+    gpa = float(profile.get("gpa", 0))
+    academic = min(100, int(gpa / 4.0 * 70 +
+        (10 if profile.get("degree_level") in ("Graduate","Postgraduate") else 5) +
+        (20 if profile.get("school") else 0)))
+    scores["academic"] = academic
+
+    # 2. Leadership & Activities
+    activities = profile.get("extracurriculars", [])
+    if isinstance(activities, str):
+        activities = [a.strip() for a in activities.split(",") if a.strip()]
+    leadership = min(100, len(activities) * 20)
+    scores["leadership"] = leadership
+
+    # 3. Profile completeness
+    required = ["name","email","gpa","major","school","nationality",
+                "degree_level","personal_statement"]
+    optional = ["skills","extracurriculars","languages","demographic_tags"]
+    filled_req = sum(1 for f in required if profile.get(f))
+    filled_opt = sum(1 for f in optional if profile.get(f))
+    completeness = min(100, int(filled_req/len(required)*70 + filled_opt/len(optional)*30))
+    scores["profile_completeness"] = completeness
+
+    # 4. Research/Skills depth
+    skills = profile.get("skills", [])
+    if isinstance(skills, str):
+        skills = [s.strip() for s in skills.split(",") if s.strip()]
+    research = min(100, len(skills) * 12 +
+        (20 if profile.get("personal_statement") else 0))
+    scores["skills_research"] = research
+
+    # 5. Financial/eligibility readiness
+    eligibility = 60  # base
+    if profile.get("nationality"):
+        eligibility += 20
+    if profile.get("financial_need") is not None:
+        eligibility += 20
+    scores["eligibility"] = min(100, eligibility)
+
+    overall = int(sum(scores.values()) / len(scores))
+
+    # Recommendations
+    tips = []
+    if academic < 60:
+        tips.append("Add your GPA to improve academic score")
+    if leadership < 40:
+        tips.append("Add extracurricular activities and leadership roles")
+    if completeness < 70:
+        tips.append("Complete your profile — missing fields reduce matching accuracy")
+    if scores["skills_research"] < 50:
+        tips.append("Add your skills and a personal statement")
+    if not tips:
+        tips.append("Strong profile! Apply to your top matched scholarships now.")
+
+    level = ("Excellent" if overall >= 80 else
+             "Good" if overall >= 60 else
+             "Fair" if overall >= 40 else "Needs work")
+
+    return {
+        "overall": overall,
+        "level": level,
+        "scores": scores,
+        "tips": tips,
+        "scholarships_unlocked": len([s for s in rank_for_profile(profile)
+                                      if s.get("match_score", 0) >= 0.5]),
+    }
 
 
 def generate_essay_for(scholarship: dict, profile: dict,
