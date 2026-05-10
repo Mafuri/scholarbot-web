@@ -15,7 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse,FileResponse
 from fastapi.security import HTTPBearer,HTTPAuthorizationCredentials
-from fastapi.security security = HTTPBearer(auto_error=False)
+from fastapi.security import HTTPBearer,HTTPAuthorizationCredentials
+security = HTTPBearer(auto_error=False)
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
