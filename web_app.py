@@ -204,7 +204,11 @@ async def get_opps(opp_type: Optional[str]=None, degree_level: Optional[str]=Non
 async def get_scholarships(degree_level: Optional[str]=None, field: Optional[str]=None,
                             region: Optional[str]=None, min_amount: Optional[int]=None,
                             user: User = Depends(optional_user)):
-    return await get_opps("scholarship", degree_level, field, region, min_amount, user)
+    result = await get_opps("scholarship", degree_level, field, region, min_amount, user)
+    # Return with "scholarships" key for frontend compatibility
+    return {"scholarships": result.get("opportunities", []),
+            "count": result.get("count", 0),
+            "total_potential_usd": result.get("total_potential_usd", 0)}
 
 @app.get("/api/scholarships/matched")
 async def matched_scholarships(user: User = Depends(get_current_user)):
