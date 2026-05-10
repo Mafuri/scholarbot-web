@@ -21,4 +21,4 @@ RUN mkdir -p data/uploads data/packages static
 EXPOSE 8000
 
 # Start
-CMD ["uvicorn", "web_app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["sh", "-c", "uvicorn web_app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
