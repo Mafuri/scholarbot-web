@@ -1,554 +1,1500 @@
-"""
-ScholarBot Web Platform v4 — Production Ready
-"""
-from __future__ import annotations
-import logging, os, secrets, uuid
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Optional
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScholarBot — AI Scholarship Assistant</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f9f9f7;color:#1a1a1a;line-height:1.6;font-size:15px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 18px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:500;transition:opacity .15s;text-decoration:none;white-space:nowrap}
+.btn:hover{opacity:.85}.btn:active{transform:scale(.97)}
+.btn-primary{background:#1a1a2e;color:#fff}
+.btn-outline{background:transparent;border:1.5px solid #d0d0c8;color:#1a1a1a}
+.btn-outline:hover{background:#f5f5f0}
+.btn-green{background:#059669;color:#fff}
+.btn-sm{padding:6px 12px;font-size:13px}
+.btn-xs{padding:4px 10px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.card{background:#fff;border:.5px solid #e8e8e0;border-radius:12px;padding:1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500}
+.tag-blue{background:#dbeafe;color:#1d4ed8}
+.tag-green{background:#d1fae5;color:#15803d}
+.tag-yellow{background:#fef3c7;color:#92400e}
+.tag-red{background:#fee2e2;color:#991b1b}
+.form-group{margin-bottom:1rem}
+label{font-size:13px;font-weight:500;color:#555;display:block;margin-bottom:5px}
+input,select,textarea{width:100%;padding:10px 13px;border:1.5px solid #e8e8e0;border-radius:10px;font-size:14px;background:#fff;color:#1a1a1a;outline:none;transition:border-color .15s;-webkit-appearance:none;appearance:none}
+input:focus,select:focus,textarea:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+input[type="checkbox"]{width:18px!important;height:18px!important;padding:0!important;border-radius:4px!important;cursor:pointer;flex-shrink:0;-webkit-appearance:checkbox!important;appearance:checkbox!important;border:1.5px solid #d0d0c8}
+input[type="number"]{-webkit-appearance:none;appearance:none}
+.error{color:#dc2626;font-size:13px;margin-top:6px;padding:8px 12px;background:#fee2e2;border-radius:8px}
+.helper{color:#888;font-size:12px;margin-top:4px}
+.nav{background:#1a1a2e;color:#fff;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 1.25rem;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.nav-brand{font-size:17px;font-weight:700;cursor:pointer;letter-spacing:-.3px;flex-shrink:0}
+.nav-links{display:flex;gap:2px;align-items:center;overflow-x:auto}
+.nav-link{padding:6px 11px;border-radius:8px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.75);transition:all .15s;white-space:nowrap;font-weight:500}
+.nav-link:hover,.nav-link.active{background:rgba(255,255,255,.15);color:#fff}
+.page{max-width:1100px;margin:0 auto;padding:1.5rem 1rem}
+.page-narrow{max-width:680px;margin:0 auto;padding:1.5rem 1rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.section-title{font-size:20px;font-weight:700;margin-bottom:.5rem}
+.section-sub{color:#555;font-size:14px;margin-bottom:1.25rem}
+.tab-bar{display:flex;border-bottom:1.5px solid #e8e8e0;margin-bottom:1.25rem;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab-bar::-webkit-scrollbar{display:none}
+.tab{padding:9px 16px;cursor:pointer;font-size:13px;font-weight:500;color:#888;border-bottom:2px solid transparent;margin-bottom:-1.5px;white-space:nowrap;transition:all .15s}
+.tab.active{color:#1a1a2e;border-bottom-color:#1a1a2e}
+.progress{background:#e5e7eb;border-radius:10px;height:8px;overflow:hidden}
+.progress-sm{height:5px}
+.progress-fill{height:100%;border-radius:10px;transition:width .5s ease}
+.kanban{display:flex;gap:.75rem;overflow-x:auto;padding-bottom:.75rem;-webkit-overflow-scrolling:touch}
+.kanban::-webkit-scrollbar{height:4px}
+.kanban::-webkit-scrollbar-thumb{background:#d0d0c8;border-radius:4px}
+.kanban-col{flex:0 0 200px;background:#f5f5f0;border-radius:12px;padding:.75rem;min-height:200px}
+.kanban-col-title{font-size:11px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;display:flex;justify-content:space-between;align-items:center}
+.kanban-card{background:#fff;border:.5px solid #e8e8e0;border-radius:8px;padding:.75rem;margin-bottom:.5rem;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.sch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.875rem}
+.sch-card{border:.5px solid #e8e8e0;border-radius:12px;background:#fff;padding:1rem;cursor:pointer;transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.sch-card:hover,.sch-card.selected{border-color:#6366f1;box-shadow:0 4px 16px rgba(99,102,241,.12);transform:translateY(-1px)}
+.hero{text-align:center;padding:4rem 1rem 3rem;max-width:780px;margin:0 auto}
+.hero h1{font-size:clamp(26px,5vw,44px);font-weight:800;line-height:1.15;margin-bottom:1rem;letter-spacing:-.5px}
+.hero p{font-size:clamp(14px,2vw,18px);color:#555;margin-bottom:2rem;max-width:560px;margin-left:auto;margin-right:auto}
+.stat-row{display:flex;justify-content:center;gap:2rem;padding:1.75rem 1rem;background:#fff;border-top:1px solid #e8e8e0;border-bottom:1px solid #e8e8e0;flex-wrap:wrap}
+.empty{text-align:center;padding:3rem 1rem;color:#888}
+.empty-icon{font-size:40px;margin-bottom:.75rem}
+.spinner{width:20px;height:20px;border:2px solid rgba(0,0,0,.1);border-top-color:#1a1a2e;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast-wrap{position:fixed;bottom:1rem;right:1rem;left:1rem;display:flex;flex-direction:column;gap:.5rem;z-index:999;align-items:flex-end;pointer-events:none}
+.toast{background:#1a1a2e;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.15);animation:slideIn .25s ease;max-width:360px;pointer-events:auto}
+.toast.success{background:#15803d}
+.toast.error{background:#dc2626}
+@keyframes slideIn{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e8e8e0;z-index:200;box-shadow:0 -2px 10px rgba(0,0,0,.06)}
+.mobile-nav-inner{display:flex;justify-content:space-around;padding:.4rem 0}
+.mob-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 8px;color:#888;font-size:10px;font-weight:500;transition:color .15s;min-width:52px}
+.mob-item.active{color:#1a1a2e}
+.mob-icon{font-size:19px}
+.pb-safe{padding-bottom:0}
+.readiness-wrap{position:relative;width:96px;height:96px;flex-shrink:0}
+.readiness-wrap svg{transform:rotate(-90deg)}
+.readiness-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:20px;line-height:1}
+.readiness-sub{font-size:10px;color:#888;margin-top:2px}
+.alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;border-radius:8px;padding:8px 12px;font-size:13px}
+.divider{height:.5px;background:#e8e8e0;margin:1rem 0}
+@media(max-width:640px){
+  .nav-links .nav-link{display:none}
+  .nav-links .btn{display:none}
+  .mobile-nav{display:block}
+  .pb-safe{padding-bottom:68px}
+  .grid2,.grid3,.grid4{grid-template-columns:1fr}
+  .sch-grid{grid-template-columns:1fr}
+  .kanban-col{flex:0 0 185px}
+  .hero{padding:2.5rem 1rem 2rem}
+  .stat-row{gap:1.5rem}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState, useEffect, useCallback, useRef} = React;
 
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+// ── API ───────────────────────────────────────────────────────
+const BASE = window.location.origin;
+let _tok = localStorage.getItem('sb_tok') || '';
 
-from database import (
-    init_db, get_db, SessionLocal,
-    User, Application, Package, RecRequest, Job,
-    ApplicationStage, RecStatus,
-)
+async function api(method, path, body, isForm) {
+  const headers = {'Authorization': 'Bearer ' + _tok};
+  if (!isForm) headers['Content-Type'] = 'application/json';
+  try {
+    const r = await fetch(BASE + '/api' + path, {
+      method: method,
+      headers: headers,
+      body: body ? (isForm ? body : JSON.stringify(body)) : undefined
+    });
+    if (r.status === 401) {
+      _tok = '';
+      localStorage.removeItem('sb_tok');
+      window.location.reload();
+    }
+    const data = await r.json().catch(function() { return {}; });
+    if (!r.ok) throw new Error(data.detail || 'Request failed (' + r.status + ')');
+    return data;
+  } catch(e) {
+    if (e.name === 'TypeError') throw new Error('Network error — check your connection');
+    throw e;
+  }
+}
 
-logging.basicConfig(level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s")
-logger = logging.getLogger(__name__)
+// ── Toast ─────────────────────────────────────────────────────
+let _addToast = function() {};
+function useToasts() {
+  const [toasts, setToasts] = useState([]);
+  _addToast = function(msg, type) {
+    const id = Date.now();
+    setToasts(function(t) { return [...t, {id: id, msg: msg, type: type || 'info'}]; });
+    setTimeout(function() {
+      setToasts(function(t) { return t.filter(function(x) { return x.id !== id; }); });
+    }, 3500);
+  };
+  return toasts;
+}
+function toast(msg, type) { _addToast(msg, type); }
 
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
-_JWT_SECRET = os.environ.get("SECRET_KEY", secrets.token_hex(32))
-_JWT_ALG = "HS256"
-_JWT_DAYS = 7
-security = HTTPBearer(auto_error=False)
+// ── Auth ──────────────────────────────────────────────────────
+function useAuth() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-app = FastAPI(title="ScholarBot API", version="4.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-    allow_methods=["*"], allow_headers=["*"])
+  useEffect(function() {
+    if (_tok) {
+      api('GET', '/auth/me')
+        .then(function(u) { setUser(u); setLoading(false); })
+        .catch(function() {
+          _tok = '';
+          localStorage.removeItem('sb_tok');
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+  }, []);
 
-@app.on_event("startup")
-async def startup():
-    Path("data/uploads").mkdir(parents=True, exist_ok=True)
-    Path("data/packages").mkdir(parents=True, exist_ok=True)
-    Path("static").mkdir(parents=True, exist_ok=True)
-    init_db()
-    logger.info("ScholarBot v4 started")
+  function login(email, pw) {
+    return api('POST', '/auth/login', {email: email, password: pw}).then(function(r) {
+      _tok = r.token;
+      localStorage.setItem('sb_tok', r.token);
+      setUser(r.user);
+    });
+  }
 
-def _hash_pw(pw):
-    return _pwd.hash(pw)
+  function register(data) {
+    return api('POST', '/auth/register', data).then(function(r) {
+      _tok = r.token;
+      localStorage.setItem('sb_tok', r.token);
+      setUser(r.user);
+    });
+  }
 
-def _check_pw(pw, hashed):
-    if ":" in hashed and len(hashed.split(":")[0]) == 32:
-        import hashlib
-        try:
-            salt, h = hashed.split(":", 1)
-            return hashlib.sha256(f"{salt}{pw}".encode()).hexdigest() == h
-        except Exception:
-            return False
-    try:
-        return _pwd.verify(pw, hashed)
-    except Exception:
-        return False
+  function logout() {
+    _tok = '';
+    localStorage.removeItem('sb_tok');
+    setUser(null);
+  }
 
-def _make_token(uid):
-    exp = datetime.utcnow() + timedelta(days=_JWT_DAYS)
-    return jwt.encode({"sub": uid, "exp": exp}, _JWT_SECRET, algorithm=_JWT_ALG)
+  return {user: user, loading: loading, login: login, register: register, logout: logout, setUser: setUser};
+}
 
-def _decode_jwt(token):
-    try:
-        return jwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALG]).get("sub")
-    except JWTError:
-        return None
+// ── ReadinessRing ─────────────────────────────────────────────
+function ReadinessRing(props) {
+  const score = props.score || 0;
+  const r = 36;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (score / 100) * circ;
+  const color = score >= 80 ? '#059669' : score >= 60 ? '#2563eb' : score >= 40 ? '#d97706' : '#dc2626';
+  return (
+    <div className="readiness-wrap">
+      <svg width="96" height="96" viewBox="0 0 96 96">
+        <circle cx="48" cy="48" r={r} fill="none" stroke="#e5e7eb" strokeWidth="8"/>
+        <circle cx="48" cy="48" r={r} fill="none" stroke={color} strokeWidth="8"
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          style={{transition: 'stroke-dashoffset 1s ease'}}/>
+      </svg>
+      <div className="readiness-val" style={{color: color}}>
+        <span>{score}</span>
+        <span className="readiness-sub">/ 100</span>
+      </div>
+    </div>
+  );
+}
 
-def get_current_user(creds: HTTPAuthorizationCredentials = Depends(security),
-                     db: Session = Depends(get_db)):
-    if not creds: raise HTTPException(401, "Not authenticated")
-    uid = _decode_jwt(creds.credentials)
-    if not uid: raise HTTPException(401, "Invalid or expired token")
-    user = db.query(User).filter(User.id == uid).first()
-    if not user: raise HTTPException(401, "User not found")
-    return user
+// ── Nav ───────────────────────────────────────────────────────
+function Nav(props) {
+  const user = props.user;
+  const page = props.page;
+  const go = props.go;
+  const logout = props.logout;
 
-def optional_user(creds: HTTPAuthorizationCredentials = Depends(security),
-                   db: Session = Depends(get_db)):
-    if not creds: return None
-    uid = _decode_jwt(creds.credentials)
-    if not uid: return None
-    return db.query(User).filter(User.id == uid).first()
+  const authedLinks = [
+    {id:'home', label:'Home', icon:'🏠'},
+    {id:'dashboard', label:'Dashboard', icon:'📊'},
+    {id:'scholarships', label:'Scholarships', icon:'🎓'},
+    {id:'pipeline', label:'Pipeline', icon:'📋'},
+    {id:'packages', label:'Packages', icon:'📦'},
+    {id:'interview', label:'Interview', icon:'🎤'},
+    {id:'profile', label:'Profile', icon:'👤'},
+  ];
 
-def _get_llm():
-    import requests as req
-    key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if key:
-        def claude(s, u):
-            try:
-                r = req.post("https://api.anthropic.com/v1/messages",
-                    headers={"x-api-key": key, "anthropic-version": "2023-06-01",
-                             "content-type": "application/json"},
-                    json={"model": "claude-haiku-4-5-20251001", "max_tokens": 1000,
-                          "system": s, "messages": [{"role": "user", "content": u}]},
-                    timeout=30)
-                return r.json()["content"][0]["text"]
-            except Exception:
-                return "I am a motivated student committed to excellence and community impact."
-        return claude
-    return lambda s, u: "I am a motivated student committed to excellence and community impact."
+  const mobileLinks = [
+    {id:'home', label:'Home', icon:'🏠'},
+    {id:'dashboard', label:'Dashboard', icon:'📊'},
+    {id:'scholarships', label:'Scholarships', icon:'🎓'},
+    {id:'pipeline', label:'Pipeline', icon:'📋'},
+    {id:'packages', label:'Packages', icon:'📦'},
+  ];
 
-def _days_until(d):
-    try: return (datetime.strptime(d, "%Y-%m-%d") - datetime.utcnow()).days
-    except: return 999
+  return (
+    <React.Fragment>
+      <nav className="nav">
+        <div className="nav-brand" onClick={function() { go('home'); }}>🎓 ScholarBot</div>
+        <div className="nav-links">
+          {user ? (
+            <React.Fragment>
+              {authedLinks.map(function(l) {
+                return (
+                  <div key={l.id}
+                    className={'nav-link' + (page === l.id ? ' active' : '')}
+                    onClick={function() { go(l.id); }}>
+                    {l.label}
+                  </div>
+                );
+              })}
+              <div className="nav-link" style={{color:'rgba(255,255,255,.5)',marginLeft:4}}
+                onClick={logout}>
+                Sign out
+              </div>
+            </React.Fragment>
+          ) : (
+            <React.Fragment>
+              <div className={'nav-link' + (page==='home' ? ' active' : '')}
+                onClick={function() { go('home'); }}>
+                Home
+              </div>
+              <div className="nav-link" onClick={function() { go('login'); }}>Log in</div>
+              <button className="btn btn-primary btn-sm" style={{marginLeft:6}}
+                onClick={function() { go('register'); }}>
+                Get started free
+              </button>
+            </React.Fragment>
+          )}
+        </div>
+      </nav>
+      {user && (
+        <div className="mobile-nav">
+          <div className="mobile-nav-inner">
+            {mobileLinks.map(function(l) {
+              return (
+                <div key={l.id}
+                  className={'mob-item' + (page === l.id ? ' active' : '')}
+                  onClick={function() { go(l.id); }}>
+                  <span className="mob-icon">{l.icon}</span>
+                  <span>{l.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </React.Fragment>
+  );
+}
 
-class RegisterReq(BaseModel):
-    name: str; email: str; password: str; degree_level: str = "Graduate"
-    major: str = ""; school: str = ""; nationality: str = "Kenya"
-    gpa: float = 0.0; financial_need: bool = False
+// ── Home Page ─────────────────────────────────────────────────
+function HomePage(props) {
+  const go = props.go;
+  const plans = [
+    {name:'Free', price:0, features:['3 packages/month','Scholarship matching','Essay generation','Deadline alerts']},
+    {name:'Pro', price:9, features:['Unlimited packages','Interview coach','Pipeline tracker','Portfolio builder','Priority support'], featured:true},
+    {name:'Agency', price:99, features:['50 students','Admin dashboard','Bulk processing','White-label','API access']}
+  ];
+  return (
+    <div>
+      <div className="hero">
+        <h1>Win scholarships with AI</h1>
+        <p>Find, match, and apply to scholarships worldwide — Undergraduate, Graduate, and Postgraduate. ScholarBot builds your complete application. You click Submit.</p>
+        <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap'}}>
+          <button className="btn btn-primary" style={{fontSize:15,padding:'11px 26px'}}
+            onClick={function() { go('register'); }}>
+            Start free →
+          </button>
+          <button className="btn btn-outline" style={{fontSize:15,padding:'11px 26px'}}
+            onClick={function() { go('scholarships'); }}>
+            Browse scholarships
+          </button>
+        </div>
+      </div>
 
-class LoginReq(BaseModel):
-    email: str; password: str
+      <div className="stat-row">
+        {[['87+','Verified opportunities'],['$2.2M+','Total funding'],['3','Degree levels'],['8','Opportunity types']].map(function(item) {
+          return (
+            <div key={item[1]} style={{textAlign:'center'}}>
+              <div style={{fontSize:26,fontWeight:800,color:'#1a1a2e'}}>{item[0]}</div>
+              <div style={{fontSize:12,color:'#888',marginTop:2}}>{item[1]}</div>
+            </div>
+          );
+        })}
+      </div>
 
-class ProfileUpdate(BaseModel):
-    name: Optional[str]=None; major: Optional[str]=None; school: Optional[str]=None
-    gpa: Optional[float]=None; financial_need: Optional[bool]=None
-    nationality: Optional[str]=None; languages: Optional[list]=None
-    skills: Optional[list]=None; extracurriculars: Optional[list]=None
-    personal_statement: Optional[str]=None; demographic_tags: Optional[list]=None
+      <div style={{padding:'2.5rem 1rem',maxWidth:860,margin:'0 auto'}}>
+        <h2 style={{textAlign:'center',fontSize:22,fontWeight:700,marginBottom:'2rem'}}>How it works</h2>
+        <div className="grid3">
+          {[
+            ['1','Create your profile','Upload your CV. ScholarBot extracts your GPA, major, and skills automatically.'],
+            ['2','Get matched','AI ranks scholarships for your specific degree level, country, and field.'],
+            ['3','Prepare and submit','Essays written, briefing docs ready. Open the form, paste, click Submit.']
+          ].map(function(item) {
+            return (
+              <div key={item[0]} className="card" style={{textAlign:'center'}}>
+                <div style={{width:40,height:40,borderRadius:'50%',background:'#1a1a2e',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1rem',fontWeight:700,fontSize:18}}>
+                  {item[0]}
+                </div>
+                <h3 style={{fontSize:15,marginBottom:8}}>{item[1]}</h3>
+                <p style={{fontSize:13,color:'#555'}}>{item[2]}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
-class RecReqCreate(BaseModel):
-    opportunity_name: str; recommender_name: str; recommender_email: str
-    recommender_title: str = ""; recommender_institution: str = ""
-    relationship_desc: str = ""; deadline: str = ""; submission_link: str = ""
+      <div style={{background:'#fff',borderTop:'1px solid #e8e8e0',padding:'2.5rem 1rem'}}>
+        <h2 style={{textAlign:'center',fontSize:22,fontWeight:700,marginBottom:'2rem'}}>Plans</h2>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'1rem',maxWidth:760,margin:'0 auto'}}>
+          {plans.map(function(pl) {
+            return (
+              <div key={pl.name} className="card" style={{textAlign:'center',position:'relative',border:pl.featured?'2px solid #1a1a2e':undefined}}>
+                {pl.featured && (
+                  <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'#1a1a2e',color:'#fff',padding:'3px 14px',borderRadius:20,fontSize:11,whiteSpace:'nowrap'}}>
+                    Most popular
+                  </div>
+                )}
+                <h3 style={{fontSize:18,fontWeight:700,marginBottom:8}}>{pl.name}</h3>
+                <div style={{fontSize:32,fontWeight:800,color:'#1a1a2e',margin:'1rem 0'}}>
+                  {'$' + pl.price}
+                  <span style={{fontSize:14,color:'#888',fontWeight:400}}>/mo</span>
+                </div>
+                <ul style={{textAlign:'left',listStyle:'none',marginBottom:'1.25rem'}}>
+                  {pl.features.map(function(f) {
+                    return (
+                      <li key={f} style={{fontSize:13,color:'#555',padding:'4px 0',display:'flex',gap:8}}>
+                        <span style={{color:'#059669',fontWeight:700}}>✓</span>{f}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <button className={'btn ' + (pl.featured ? 'btn-primary' : 'btn-outline')} style={{width:'100%'}}
+                  onClick={function() { go('register'); }}>
+                  {pl.price === 0 ? 'Start free' : 'Get started'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
-class RecStatusUp(BaseModel):
-    status: str
+      <footer style={{background:'#1a1a2e',color:'rgba(255,255,255,.5)',textAlign:'center',padding:'2rem 1rem',fontSize:13}}>
+        ScholarBot © {new Date().getFullYear()} · AI-powered scholarship applications · Built for students worldwide
+      </footer>
+    </div>
+  );
+}
 
-@app.post("/api/auth/register")
-async def register(req: RegisterReq, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == req.email).first():
-        raise HTTPException(400, "Email already registered")
-    u = User(id=f"user_{uuid.uuid4().hex[:10]}", name=req.name, email=req.email,
-             password_hash=_hash_pw(req.password), degree_level=req.degree_level,
-             major=req.major, school=req.school, nationality=req.nationality,
-             gpa=req.gpa, financial_need=req.financial_need,
-             languages=["English"], skills=[], extracurriculars=[],
-             demographic_tags=[], personal_statement="")
-    db.add(u); db.commit(); db.refresh(u)
-    return {"token": _make_token(u.id), "user": u.to_dict()}
+// ── Auth Pages ────────────────────────────────────────────────
+function AuthPage(props) {
+  const mode = props.mode;
+  const loginFn = props.login;
+  const registerFn = props.register;
+  const go = props.go;
+  const isLogin = mode === 'login';
 
-@app.post("/api/auth/login")
-async def login(req: LoginReq, db: Session = Depends(get_db)):
-    u = db.query(User).filter(User.email == req.email).first()
-    if not u or not _check_pw(req.password, u.password_hash):
-        raise HTTPException(401, "Invalid email or password")
-    return {"token": _make_token(u.id), "user": u.to_dict()}
+  const [form, setForm] = useState({
+    name:'', email:'', password:'',
+    degree_level:'Graduate', major:'', school:'',
+    nationality:'Kenya', gpa:'', financial_need:false
+  });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
-@app.get("/api/auth/me")
-async def me(user: User = Depends(get_current_user)): return user.to_dict()
+  function setField(key, val) {
+    setForm(function(f) {
+      const next = {};
+      Object.keys(f).forEach(function(k) { next[k] = f[k]; });
+      next[key] = val;
+      return next;
+    });
+  }
 
-@app.patch("/api/profile")
-async def update_profile(upd: ProfileUpdate, user: User = Depends(get_current_user),
-                          db: Session = Depends(get_db)):
-    for f, v in upd.dict(exclude_none=True).items(): setattr(user, f, v)
-    user.updated_at = datetime.utcnow(); db.commit(); db.refresh(user)
-    return user.to_dict()
+  function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setErr('');
+    if (isLogin) {
+      loginFn(form.email, form.password)
+        .then(function() {
+          go('dashboard');
+          toast('Welcome back!', 'success');
+        })
+        .catch(function(e) { setErr(e.message); setLoading(false); });
+    } else {
+      const data = {
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        degree_level: form.degree_level,
+        major: form.major,
+        school: form.school,
+        nationality: form.nationality,
+        gpa: parseFloat(form.gpa) || 0,
+        financial_need: form.financial_need === true || form.financial_need === 'true'
+      };
+      registerFn(data)
+        .then(function() {
+          go('dashboard');
+          toast('Account created! Welcome to ScholarBot.', 'success');
+        })
+        .catch(function(e) { setErr(e.message); setLoading(false); });
+    }
+  }
 
-@app.post("/api/profile/upload-doc")
-async def upload_doc(file: UploadFile = File(...),
-                      user: User = Depends(get_current_user),
-                      db: Session = Depends(get_db)):
-    ext = Path(file.filename).suffix.lower()
-    if ext not in {".pdf",".docx",".doc",".jpg",".jpeg",".png"}:
-        raise HTTPException(400, f"Unsupported: {ext}")
-    d = Path(f"data/uploads/{user.id}"); d.mkdir(parents=True, exist_ok=True)
-    p = d / f"{uuid.uuid4().hex[:8]}_{file.filename}"
-    p.write_bytes(await file.read())
-    return {"message": "Document uploaded"}
+  return (
+    <div className="page-narrow">
+      <div className="card" style={{marginTop:'2rem',padding:'2rem'}}>
+        <h2 style={{marginBottom:'1.5rem',fontSize:22,fontWeight:700}}>
+          {isLogin ? 'Sign in to ScholarBot' : 'Create your account'}
+        </h2>
+        <form onSubmit={handleSubmit}>
+          {!isLogin && (
+            <div className="form-group">
+              <label>Full name *</label>
+              <input value={form.name}
+                onChange={function(e) { setField('name', e.target.value); }}
+                placeholder="e.g. Amina Hassan" required/>
+            </div>
+          )}
+          <div className="form-group">
+            <label>Email address *</label>
+            <input type="email" value={form.email}
+              onChange={function(e) { setField('email', e.target.value); }}
+              placeholder="you@example.com" required/>
+          </div>
+          <div className="form-group">
+            <label>Password *</label>
+            <input type="password" value={form.password}
+              onChange={function(e) { setField('password', e.target.value); }}
+              placeholder="At least 8 characters" required/>
+          </div>
 
-@app.get("/api/readiness")
-async def readiness(user: User = Depends(get_current_user)):
-    from engine.scholarship_engine import compute_readiness_score
-    return compute_readiness_score(user.to_dict())
+          {!isLogin && (
+            <React.Fragment>
+              <div className="divider"></div>
+              <div className="grid2">
+                <div className="form-group">
+                  <label>Degree level *</label>
+                  <select value={form.degree_level}
+                    onChange={function(e) { setField('degree_level', e.target.value); }}>
+                    <option value="Undergraduate">Undergraduate</option>
+                    <option value="Graduate">Graduate</option>
+                    <option value="Postgraduate">Postgraduate / PhD</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>GPA (0 – 4.0)</label>
+                  <input type="number" step="0.01" min="0" max="4" value={form.gpa}
+                    onChange={function(e) { setField('gpa', e.target.value); }}
+                    placeholder="e.g. 3.5"/>
+                </div>
+              </div>
+              <div className="grid2">
+                <div className="form-group">
+                  <label>Major / Field of study *</label>
+                  <input value={form.major}
+                    onChange={function(e) { setField('major', e.target.value); }}
+                    placeholder="e.g. Computer Science" required/>
+                </div>
+                <div className="form-group">
+                  <label>University / School *</label>
+                  <input value={form.school}
+                    onChange={function(e) { setField('school', e.target.value); }}
+                    placeholder="e.g. University of Nairobi" required/>
+                </div>
+              </div>
+              <div className="grid2">
+                <div className="form-group">
+                  <label>Country / Nationality</label>
+                  <input value={form.nationality}
+                    onChange={function(e) { setField('nationality', e.target.value); }}
+                    placeholder="e.g. Kenya"/>
+                </div>
+                <div className="form-group" style={{paddingTop:26}}>
+                  <div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}
+                    onClick={function() { setField('financial_need', !form.financial_need); }}>
+                    <input type="checkbox" id="fn_check"
+                      checked={form.financial_need}
+                      onChange={function(e) { setField('financial_need', e.target.checked); }}
+                      onClick={function(e) { e.stopPropagation(); }}/>
+                    <label htmlFor="fn_check" style={{marginBottom:0,cursor:'pointer',fontSize:14}}>
+                      I have financial need
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </React.Fragment>
+          )}
 
-@app.get("/api/opportunities")
-async def get_opps(opp_type: Optional[str]=None, degree_level: Optional[str]=None,
-                    field: Optional[str]=None, region: Optional[str]=None,
-                    min_amount: Optional[int]=None,
-                    user: User = Depends(optional_user)):
-    from engine.opportunity_db import match_opportunities
-    profile = user.to_dict() if user else {"degree_level": degree_level or "Graduate",
-        "nationality": "Kenya", "financial_need": False, "gpa": 0, "major": ""}
-    opps = match_opportunities(profile, opp_type=opp_type, min_amount=min_amount or 0)
-    if field:
-        opps = [o for o in opps if field.lower() in " ".join(o.get("tags",[])).lower()
-                or field.lower() in o.get("name","").lower()]
-    if region:
-        opps = [o for o in opps if any(region.lower() in c.lower()
-                for c in o.get("eligible_countries",[]))]
-    by_type = {}
-    for o in opps:
-        by_type.setdefault(o["opportunity_type"], 0)
-        by_type[o["opportunity_type"]] += 1
-    return {"opportunities": opps, "count": len(opps), "by_type": by_type,
-            "total_potential_usd": sum(o["amount_usd"] for o in opps)}
+          {err && <div className="error" style={{marginBottom:12}}>{err}</div>}
 
-@app.get("/api/scholarships")
-async def get_scholarships(degree_level: Optional[str]=None, field: Optional[str]=None,
-                            region: Optional[str]=None, min_amount: Optional[int]=None,
-                            user: User = Depends(optional_user)):
-    result = await get_opps("scholarship", degree_level, field, region, min_amount, user)
-    # Return with "scholarships" key for frontend compatibility
-    return {"scholarships": result.get("opportunities", []),
-            "count": result.get("count", 0),
-            "total_potential_usd": result.get("total_potential_usd", 0)}
+          <button className="btn btn-primary" type="submit" style={{width:'100%',justifyContent:'center',marginTop:4}} disabled={loading}>
+            {loading ? (
+              <React.Fragment><span className="spinner" style={{borderTopColor:'#fff'}}></span> &nbsp;{isLogin ? 'Signing in...' : 'Creating account...'}</React.Fragment>
+            ) : (
+              isLogin ? 'Sign in' : 'Create account'
+            )}
+          </button>
+        </form>
 
-@app.get("/api/scholarships/matched")
-async def matched_scholarships(user: User = Depends(get_current_user)):
-    from engine.opportunity_db import match_opportunities
-    opps = match_opportunities(user.to_dict(), opp_type="scholarship")
-    return {"scholarships": opps, "count": len(opps),
-            "total_potential_usd": sum(o["amount_usd"] for o in opps)}
+        <p style={{marginTop:'1rem',textAlign:'center',fontSize:13,color:'#555'}}>
+          {isLogin ? (
+            <span>No account?&nbsp;
+              <span style={{color:'#2563eb',cursor:'pointer',fontWeight:600}}
+                onClick={function() { go('register'); }}>Create one free</span>
+            </span>
+          ) : (
+            <span>Already have an account?&nbsp;
+              <span style={{color:'#2563eb',cursor:'pointer',fontWeight:600}}
+                onClick={function() { go('login'); }}>Sign in</span>
+            </span>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
 
-@app.post("/api/essays/generate")
-async def gen_essay(req: dict, bt: BackgroundTasks,
-                     user: User = Depends(get_current_user)):
-    from engine.opportunity_db import load_all_opportunities
-    opp_id = req.get("scholarship_id","")
-    opp = next((o for o in load_all_opportunities() if o["id"]==opp_id), None)
-    if not opp: raise HTTPException(404, "Opportunity not found")
-    db = SessionLocal()
-    job = Job(user_id=user.id, job_type="essay", status="running")
-    db.add(job); db.commit(); jid = job.id; db.close()
-    bt.add_task(_essay_job, jid, opp, user.to_dict(),
-                req.get("tone","personal-narrative"), req.get("max_words",400))
-    return {"job_id": jid, "status": "running", "message": "Essay generation started"}
+// ── Dashboard ─────────────────────────────────────────────────
+function DashboardPage(props) {
+  const user = props.user;
+  const go = props.go;
+  const [data, setData] = useState(null);
+  const [readiness, setReadiness] = useState(null);
 
-@app.post("/api/packages/prepare")
-async def prep_packages(req: dict, bt: BackgroundTasks,
-                         user: User = Depends(get_current_user)):
-    db = SessionLocal()
-    job = Job(user_id=user.id, job_type="packages", status="running")
-    db.add(job); db.commit(); jid = job.id; db.close()
-    bt.add_task(_packages_job, jid, user.to_dict(),
-                req.get("top_n",5), req.get("opportunity_ids"))
-    return {"job_id": jid, "status": "running",
-            "message": f"Preparing top {req.get('top_n',5)} packages"}
+  useEffect(function() {
+    Promise.all([api('GET', '/dashboard'), api('GET', '/readiness')])
+      .then(function(results) { setData(results[0]); setReadiness(results[1]); })
+      .catch(function(e) { console.error(e); });
+  }, []);
 
-@app.get("/api/packages")
-async def list_pkgs(user: User = Depends(get_current_user),
-                     db: Session = Depends(get_db)):
-    pkgs = db.query(Package).filter(Package.user_id==user.id)\
-             .order_by(Package.created_at.desc()).all()
-    return {"packages": [p.to_dict() for p in pkgs]}
+  if (!data) {
+    return (
+      <div className="page">
+        <div className="empty"><div className="spinner" style={{width:36,height:36}}></div></div>
+      </div>
+    );
+  }
 
-@app.get("/api/packages/{uid}/{pid}/briefing", response_class=HTMLResponse)
-async def get_briefing(uid: str, pid: str, user: User = Depends(get_current_user),
-                        db: Session = Depends(get_db)):
-    if user.id != uid: raise HTTPException(403, "Access denied")
-    pkg = db.query(Package).filter(Package.id==pid).first()
-    if not pkg: raise HTTPException(404, "Package not found")
-    return HTMLResponse(pkg.briefing_html or "<p>Briefing not available</p>")
+  const fname = user.name ? user.name.split(' ')[0] : 'there';
+  const metricCards = [
+    {label:'Matched', value: String(data.scholarships_matched || 0), sub:'scholarships', color:'#2563eb'},
+    {label:'Potential', value: '$' + Math.round((data.total_potential_usd || 0) / 1000) + 'k', sub:'in funding', color:'#059669'},
+    {label:'Submitted', value: String(data.applications_submitted || 0), sub:'applications', color:'#1a1a2e'},
+    {label:'Won', value: '$' + (data.total_won_usd || 0).toLocaleString(), sub:'in awards', color:'#7c3aed'},
+  ];
 
-@app.get("/api/packages/{uid}/{pid}/essay")
-async def get_pkg_essay(uid: str, pid: str, user: User = Depends(get_current_user),
-                         db: Session = Depends(get_db)):
-    if user.id != uid: raise HTTPException(403, "Access denied")
-    pkg = db.query(Package).filter(Package.id==pid).first()
-    if not pkg: raise HTTPException(404, "Not found")
-    return {"essay": pkg.essay_text or ""}
+  return (
+    <div className="page pb-safe">
+      <h2 className="section-title">Hi, {fname} 👋</h2>
+      <p className="section-sub">Your scholarship overview</p>
 
-@app.get("/api/pipeline")
-async def get_pipeline(user: User = Depends(get_current_user),
-                        db: Session = Depends(get_db)):
-    apps = db.query(Application).filter(Application.user_id==user.id).all()
-    stages = {s.value: [] for s in ApplicationStage}
-    for a in apps: stages[a.stage.value].append(a.to_dict())
-    won_total = sum(a.amount_usd for a in apps if a.stage==ApplicationStage.won)
-    return {"stages": stages, "counts": {k:len(v) for k,v in stages.items()},
-            "total": len(apps), "won_total_usd": won_total}
+      <div className="grid4" style={{marginBottom:'1.25rem'}}>
+        {metricCards.map(function(s) {
+          return (
+            <div key={s.label} className="card" style={{padding:'1rem'}}>
+              <div style={{fontSize:12,color:'#888',marginBottom:3}}>{s.label}</div>
+              <div style={{fontSize:23,fontWeight:700,color:s.color}}>{s.value}</div>
+              <div style={{fontSize:11,color:'#888'}}>{s.sub}</div>
+            </div>
+          );
+        })}
+      </div>
 
-@app.patch("/api/pipeline/{app_id}/move")
-async def move_stage(app_id: str, data: dict, user: User = Depends(get_current_user),
-                      db: Session = Depends(get_db)):
-    a = db.query(Application).filter(Application.id==app_id,
-        Application.user_id==user.id).first()
-    if not a: raise HTTPException(404, "Application not found")
-    try: a.stage = ApplicationStage(data.get("stage", a.stage.value))
-    except ValueError: raise HTTPException(400, "Invalid stage")
-    a.updated_at = datetime.utcnow(); db.commit(); db.refresh(a)
-    return a.to_dict()
+      <div className="grid2" style={{marginBottom:'1.25rem'}}>
+        {readiness && (
+          <div className="card">
+            <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>📈 Readiness Score</div>
+            <div style={{display:'flex',gap:'1.25rem',alignItems:'flex-start'}}>
+              <ReadinessRing score={readiness.overall || 0}/>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:600,marginBottom:8,color:'#1a1a2e'}}>{readiness.level}</div>
+                {Object.entries(readiness.scores || {}).map(function(entry) {
+                  const k = entry[0]; const v = entry[1];
+                  const barColor = v >= 70 ? '#059669' : v >= 50 ? '#2563eb' : '#d97706';
+                  return (
+                    <div key={k} style={{marginBottom:8}}>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#555',marginBottom:3}}>
+                        <span style={{textTransform:'capitalize'}}>{k.replace(/_/g,' ')}</span>
+                        <span style={{fontWeight:600}}>{v}%</span>
+                      </div>
+                      <div className="progress progress-sm">
+                        <div className="progress-fill" style={{width: v + '%', background: barColor}}></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {readiness.tips && readiness.tips[0] && (
+              <div className="alert-info" style={{marginTop:'1rem'}}>💡 {readiness.tips[0]}</div>
+            )}
+          </div>
+        )}
 
-@app.post("/api/pipeline/add")
-async def add_pipeline(data: dict, user: User = Depends(get_current_user),
-                        db: Session = Depends(get_db)):
-    try: stage = ApplicationStage(data.get("stage","researching"))
-    except ValueError: stage = ApplicationStage.researching
-    a = Application(user_id=user.id, opportunity_id=data.get("scholarship_id",""),
-                    scholarship_name=data.get("scholarship_name",""),
-                    opportunity_type=data.get("opportunity_type","scholarship"),
-                    amount_usd=float(data.get("amount_usd",0)),
-                    deadline=data.get("deadline",""), url=data.get("url",""),
-                    stage=stage, notes=data.get("notes",""))
-    db.add(a); db.commit(); db.refresh(a)
-    return a.to_dict()
+        <div className="card">
+          <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>⏰ Upcoming Deadlines</div>
+          {(!data.upcoming_deadlines || data.upcoming_deadlines.length === 0) ? (
+            <div style={{color:'#888',fontSize:14}}>
+              No urgent deadlines within 60 days.
+              <br/><br/>
+              <button className="btn btn-outline btn-sm" onClick={function() { go('scholarships'); }}>
+                Browse scholarships →
+              </button>
+            </div>
+          ) : (
+            data.upcoming_deadlines.map(function(d) {
+              const tagClass = d.days_left <= 7 ? 'tag-red' : d.days_left <= 30 ? 'tag-yellow' : 'tag-green';
+              return (
+                <div key={d.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'.5px solid #e8e8e0'}}>
+                  <div>
+                    <div style={{fontWeight:500,fontSize:13,lineHeight:1.3}}>{(d.name || '').slice(0, 36)}</div>
+                    <div style={{fontSize:11,color:'#888',marginTop:2}}>{'$' + (d.amount_usd || 0).toLocaleString()}</div>
+                  </div>
+                  <span className={'tag ' + tagClass}>{d.days_left}d</span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
 
-@app.get("/api/applications")
-async def list_apps(user: User = Depends(get_current_user),
-                     db: Session = Depends(get_db)):
-    apps = db.query(Application).filter(Application.user_id==user.id).all()
-    won = [a for a in apps if a.stage==ApplicationStage.won]
-    submitted = [a for a in apps if a.stage==ApplicationStage.submitted]
-    return {"applications": [a.to_dict() for a in apps], "total": len(apps),
-            "submitted": len(submitted), "won": len(won),
-            "total_applied_usd": sum(a.amount_usd for a in submitted),
-            "total_won_usd": sum(a.amount_usd for a in won)}
+      <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+        <button className="btn btn-primary" onClick={function() { go('scholarships'); }}>Browse scholarships →</button>
+        <button className="btn btn-outline" onClick={function() { go('packages'); }}>✨ Prepare packages</button>
+        <button className="btn btn-outline" onClick={function() { go('pipeline'); }}>My pipeline</button>
+        <button className="btn btn-outline" onClick={function() { go('interview'); }}>Practice interview</button>
+      </div>
+    </div>
+  );
+}
 
-@app.post("/api/applications/record")
-async def record_app(data: dict, user: User = Depends(get_current_user),
-                      db: Session = Depends(get_db)):
-    a = Application(user_id=user.id, opportunity_id=data.get("scholarship_id",""),
-                    scholarship_name=data.get("scholarship_name",""),
-                    opportunity_type=data.get("opportunity_type","scholarship"),
-                    amount_usd=float(data.get("amount_usd",0)),
-                    deadline=data.get("deadline",""), url=data.get("url",""),
-                    stage=ApplicationStage.submitted, submitted_at=datetime.utcnow())
-    db.add(a)
-    user.applications_this_month = (user.applications_this_month or 0) + 1
-    db.commit(); db.refresh(a)
-    return a.to_dict()
+// ── Scholarships ──────────────────────────────────────────────
+function ScholarshipsPage(props) {
+  const user = props.user;
+  const go = props.go;
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('all');
+  const [field, setField] = useState('');
+  const [region, setRegion] = useState('');
+  const [selected, setSelected] = useState(null);
+  const [adding, setAdding] = useState(null);
 
-@app.patch("/api/applications/{app_id}/outcome")
-async def update_outcome(app_id: str, data: dict,
-                          user: User = Depends(get_current_user),
-                          db: Session = Depends(get_db)):
-    a = db.query(Application).filter(Application.id==app_id,
-        Application.user_id==user.id).first()
-    if not a: raise HTTPException(404, "Application not found")
-    try: a.stage = ApplicationStage(data.get("status", a.stage.value))
-    except ValueError: pass
-    a.notes = data.get("notes", a.notes)
-    a.outcome_date = datetime.utcnow(); a.updated_at = datetime.utcnow()
-    db.commit(); db.refresh(a)
-    return a.to_dict()
+  function load() {
+    setLoading(true);
+    const ep = user ? '/scholarships/matched' : '/scholarships';
+    const params = new URLSearchParams();
+    if (tab !== 'all') params.set('degree_level', tab);
+    if (field) params.set('field', field);
+    if (region) params.set('region', region);
+    api('GET', ep + '?' + params.toString())
+      .then(function(r) {
+        setList(r.scholarships || r.opportunities || []);
+        setLoading(false);
+      })
+      .catch(function() { setLoading(false); });
+  }
 
-@app.get("/api/recommendations")
-async def list_recs(user: User = Depends(get_current_user),
-                     db: Session = Depends(get_db)):
-    recs = db.query(RecRequest).filter(RecRequest.user_id==user.id)\
-             .order_by(RecRequest.created_at.desc()).all()
-    return {"recommendations": [r.to_dict() for r in recs], "total": len(recs),
-            "received": sum(1 for r in recs if r.status==RecStatus.received),
-            "pending": sum(1 for r in recs if r.status!=RecStatus.received)}
+  useEffect(function() { load(); }, [tab, field, region]);
 
-@app.post("/api/recommendations")
-async def create_rec(req: RecReqCreate, bt: BackgroundTasks,
-                      user: User = Depends(get_current_user),
-                      db: Session = Depends(get_db)):
-    rec = RecRequest(user_id=user.id, opportunity_name=req.opportunity_name,
-                     recommender_name=req.recommender_name,
-                     recommender_email=req.recommender_email,
-                     recommender_title=req.recommender_title,
-                     recommender_institution=req.recommender_institution,
-                     relationship_desc=req.relationship_desc, deadline=req.deadline,
-                     submission_link=req.submission_link, status=RecStatus.requested)
-    db.add(rec); db.commit(); db.refresh(rec)
-    bt.add_task(_rec_letter_job, rec.id, user.to_dict(), req.dict())
-    return {**rec.to_dict(), "message": "Request created. Draft letter being generated."}
+  function addToPipeline(s) {
+    if (!user) { go('register'); return; }
+    setAdding(s.id);
+    api('POST', '/pipeline/add', {
+      scholarship_id: s.id,
+      scholarship_name: s.name,
+      amount_usd: s.amount_usd,
+      deadline: s.deadline,
+      url: s.url,
+      stage: 'researching'
+    })
+      .then(function() {
+        toast('Added to pipeline', 'success');
+        setAdding(null);
+      })
+      .catch(function(e) {
+        toast(e.message, 'error');
+        setAdding(null);
+      });
+  }
 
-@app.patch("/api/recommendations/{rid}/status")
-async def update_rec_status(rid: str, upd: RecStatusUp,
-                             user: User = Depends(get_current_user),
-                             db: Session = Depends(get_db)):
-    rec = db.query(RecRequest).filter(RecRequest.id==rid,
-        RecRequest.user_id==user.id).first()
-    if not rec: raise HTTPException(404, "Not found")
-    try: rec.status = RecStatus(upd.status)
-    except ValueError: raise HTTPException(400, "Invalid status")
-    if rec.status == RecStatus.received: rec.received_at = datetime.utcnow()
-    rec.updated_at = datetime.utcnow(); db.commit(); db.refresh(rec)
-    return rec.to_dict()
+  const filtered = tab === 'all' ? list : list.filter(function(s) {
+    const degs = s.degree_levels || [];
+    return degs.some(function(d) { return d.toLowerCase().indexOf(tab.toLowerCase().slice(0,4)) !== -1; });
+  });
 
-@app.get("/api/interview/questions/{scholarship_slug}")
-async def interview_qs(scholarship_slug: str,
-                        user: User = Depends(get_current_user)):
-    from engine.interview_data import QUESTION_BANKS
-    return {"scholarship": scholarship_slug,
-            "questions": QUESTION_BANKS.get(scholarship_slug.lower(),
-                                             QUESTION_BANKS["general"])}
+  return (
+    <div className="page pb-safe">
+      <h2 className="section-title">Scholarships</h2>
+      <p className="section-sub">
+        {user ? 'Matched and ranked for your profile' : 'All verified direct-portal scholarships — no aggregators'}
+      </p>
 
-@app.post("/api/interview/score")
-async def interview_score(data: dict, user: User = Depends(get_current_user)):
-    from engine.scholarship_engine import score_answer
-    return score_answer(data.get("question",""), data.get("answer",""),
-                        user.to_dict(), data.get("scholarship","general"))
+      <div className="tab-bar">
+        {['all','Undergraduate','Graduate','Postgraduate'].map(function(t) {
+          return (
+            <div key={t} className={'tab' + (tab === t ? ' active' : '')}
+              onClick={function() { setTab(t); setSelected(null); }}>
+              {t === 'all' ? 'All levels' : t}
+            </div>
+          );
+        })}
+      </div>
 
-@app.get("/api/jobs/{jid}")
-async def get_job(jid: str, user: User = Depends(get_current_user),
-                   db: Session = Depends(get_db)):
-    j = db.query(Job).filter(Job.id==jid, Job.user_id==user.id).first()
-    if not j: raise HTTPException(404, "Job not found")
-    return j.to_dict()
+      <div style={{display:'flex',gap:8,marginBottom:'1.25rem',flexWrap:'wrap'}}>
+        <select value={field} onChange={function(e) { setField(e.target.value); }} style={{flex:1,minWidth:140}}>
+          <option value="">All fields</option>
+          {['Computer Science','Information Technology','Cybersecurity','AI / Machine Learning','Data Science','Software Engineering'].map(function(f) {
+            return <option key={f} value={f}>{f}</option>;
+          })}
+        </select>
+        <select value={region} onChange={function(e) { setRegion(e.target.value); }} style={{flex:1,minWidth:120}}>
+          <option value="">All regions</option>
+          {['Africa','Kenya','Global','UK','USA','Europe','Asia','Canada','Australia'].map(function(r) {
+            return <option key={r} value={r}>{r}</option>;
+          })}
+        </select>
+        <button className="btn btn-outline btn-sm" onClick={load} title="Refresh">↺</button>
+      </div>
 
-@app.get("/api/dashboard")
-async def dashboard(user: User = Depends(get_current_user),
-                     db: Session = Depends(get_db)):
-    from engine.opportunity_db import match_opportunities
-    profile = user.to_dict()
-    matched = match_opportunities(profile)
-    apps = db.query(Application).filter(Application.user_id==user.id).all()
-    won = [a for a in apps if a.stage==ApplicationStage.won]
-    submitted = [a for a in apps if a.stage==ApplicationStage.submitted]
-    upcoming = sorted(
-        [{"name":o["name"],"deadline":o["deadline"],"amount_usd":o.get("amount_usd",0),
-          "days_left":_days_until(o.get("deadline",""))}
-         for o in matched if 0<=_days_until(o.get("deadline",""))<=60],
-        key=lambda x: x["days_left"])
-    return {"user": profile, "scholarships_matched": len(matched),
-            "total_potential_usd": sum(o["amount_usd"] for o in matched),
-            "applications_submitted": len(submitted), "applications_won": len(won),
-            "total_won_usd": sum(a.amount_usd for a in won),
-            "upcoming_deadlines": upcoming[:5]}
+      {loading ? (
+        <div className="empty">
+          <div className="spinner" style={{width:32,height:32}}></div>
+          <p style={{marginTop:12}}>Loading scholarships...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty">
+          <div className="empty-icon">🔍</div>
+          <p>No scholarships found for these filters.</p>
+          <button className="btn btn-outline btn-sm" style={{marginTop:12}} onClick={function() { setField(''); setRegion(''); setTab('all'); }}>
+            Clear filters
+          </button>
+        </div>
+      ) : (
+        <React.Fragment>
+          <p style={{fontSize:13,color:'#888',marginBottom:'1rem'}}>
+            {filtered.length} scholarships · all verified direct-portal URLs
+          </p>
+          <div className="sch-grid">
+            {filtered.map(function(s) {
+              const isSelected = selected && selected.id === s.id;
+              const dayClass = s.days_left !== undefined ? (s.days_left <= 30 ? 'tag-red' : 'tag-green') : '';
+              return (
+                <div key={s.id} className={'sch-card' + (isSelected ? ' selected' : '')}
+                  onClick={function() { setSelected(isSelected ? null : s); }}>
+                  <div style={{fontWeight:600,fontSize:14,lineHeight:1.3,marginBottom:4}}>{s.name}</div>
+                  <div style={{fontSize:22,fontWeight:700,color:'#1a1a2e',margin:'4px 0'}}>
+                    {'$' + (s.amount_usd || 0).toLocaleString()}
+                  </div>
+                  <div style={{fontSize:12,color:'#888'}}>{s.provider}</div>
+                  <div style={{fontSize:12,color:'#888',marginTop:4,display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                    {s.deadline && <span>{s.deadline}</span>}
+                    {s.days_left !== undefined && (
+                      <span className={'tag ' + dayClass} style={{fontSize:10}}>{s.days_left}d left</span>
+                    )}
+                  </div>
+                  {user && s.match_score !== undefined && (
+                    <div style={{marginTop:8}}>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#888',marginBottom:3}}>
+                        <span>Match score</span>
+                        <span style={{fontWeight:600}}>{Math.round(s.match_score * 100)}%</span>
+                      </div>
+                      <div className="progress progress-sm">
+                        <div className="progress-fill" style={{width: (s.match_score * 100) + '%', background:'#1a1a2e'}}></div>
+                      </div>
+                    </div>
+                  )}
+                  {s.tags && s.tags.length > 0 && (
+                    <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:8}}>
+                      {s.tags.filter(function(t) {
+                        return ['cybersecurity','ai','africa','uk','usa','prestigious','financial_need','fully-funded'].indexOf(t) !== -1;
+                      }).slice(0,3).map(function(t) {
+                        return <span key={t} className="tag tag-blue" style={{fontSize:10}}>{t}</span>;
+                      })}
+                    </div>
+                  )}
+                  {isSelected && (
+                    <div style={{marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid #e8e8e0'}}
+                      onClick={function(e) { e.stopPropagation(); }}>
+                      {s.essay_prompt && (
+                        <p style={{fontSize:13,color:'#555',marginBottom:'.75rem',fontStyle:'italic',lineHeight:1.5}}>
+                          {s.essay_prompt.slice(0, 140)}...
+                        </p>
+                      )}
+                      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                        <button className="btn btn-primary btn-sm"
+                          disabled={adding === s.id}
+                          onClick={function() { addToPipeline(s); }}>
+                          {adding === s.id ? 'Adding...' : '+ Add to pipeline'}
+                        </button>
+                        <a href={s.url} target="_blank" rel="noreferrer"
+                          className="btn btn-outline btn-sm"
+                          onClick={function(e) { e.stopPropagation(); }}>
+                          Apply →
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </React.Fragment>
+      )}
+    </div>
+  );
+}
 
-@app.get("/api/health")
-async def health(db: Session = Depends(get_db)):
-    return {"status":"ok","users":db.query(User).count(),
-            "version":"4.0.0","timestamp":datetime.utcnow().isoformat()}
+// ── Pipeline ──────────────────────────────────────────────────
+const STAGES = [
+  {id:'researching', label:'Researching', color:'#6366f1'},
+  {id:'essay_ready', label:'Essay Ready', color:'#d97706'},
+  {id:'submitted', label:'Submitted', color:'#2563eb'},
+  {id:'awaiting', label:'Awaiting', color:'#7c3aed'},
+  {id:'won', label:'Won 🏆', color:'#059669'},
+  {id:'rejected', label:'Rejected', color:'#dc2626'},
+];
 
-@app.get("/api/stats")
-async def stats(db: Session = Depends(get_db)):
-    from engine.opportunity_db import load_all_opportunities
-    opps = load_all_opportunities()
-    by_type = {}
-    for o in opps:
-        by_type.setdefault(o["opportunity_type"],0); by_type[o["opportunity_type"]]+=1
-    return {"total_users":db.query(User).count(),"opportunities_in_db":len(opps),
-            "total_potential_funding_usd":sum(o["amount_usd"] for o in opps),
-            "by_type":by_type,"degree_levels":["Undergraduate","Graduate","Postgraduate"]}
+function PipelinePage() {
+  const [pipeline, setPipeline] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [moving, setMoving] = useState(null);
 
-@app.get("/", response_class=HTMLResponse)
-async def spa():
-    p = Path("static/index.html")
-    if p.exists(): return HTMLResponse(p.read_text(encoding="utf-8"))
-    return HTMLResponse("<h1>ScholarBot API v4</h1><p>Frontend loading...</p>")
+  function load() {
+    api('GET', '/pipeline')
+      .then(function(r) { setPipeline(r); setLoading(false); })
+      .catch(function() { setLoading(false); });
+  }
 
-@app.get("/{path:path}", response_class=HTMLResponse)
-async def spa_fallback(path: str):
-    if path.startswith("api/"): raise HTTPException(404)
-    p = Path("static/index.html")
-    if p.exists(): return HTMLResponse(p.read_text(encoding="utf-8"))
-    raise HTTPException(404)
+  useEffect(function() { load(); }, []);
 
-def _update_job(jid, status, result=None, error=None):
-    db = SessionLocal()
-    try:
-        j = db.query(Job).filter(Job.id==jid).first()
-        if j:
-            j.status=status
-            if result is not None: j.result=result
-            if error is not None: j.error=error
-            j.completed_at=datetime.utcnow(); db.commit()
-    finally: db.close()
+  function move(appId, stage) {
+    setMoving(appId);
+    api('PATCH', '/pipeline/' + appId + '/move', {stage: stage})
+      .then(function() { load(); toast('Moved to ' + stage.replace('_', ' '), 'success'); setMoving(null); })
+      .catch(function(e) { toast(e.message, 'error'); setMoving(null); });
+  }
 
-def _essay_job(jid, opp, profile, tone, max_words):
-    try:
-        from engine.scholarship_engine import generate_essay_for
-        essay = generate_essay_for(opp, profile, tone, max_words)
-        _update_job(jid,"done",result={"essay":essay,"word_count":len(essay.split())})
-    except Exception as e:
-        _update_job(jid,"failed",error=str(e))
+  const total = pipeline ? (pipeline.total || 0) : 0;
+  const wonList = pipeline && pipeline.stages ? (pipeline.stages.won || []) : [];
+  const wonTotal = wonList.reduce(function(a, x) { return a + (x.amount_usd || 0); }, 0);
 
-def _packages_job(jid, profile, top_n, opp_ids):
-    try:
-        from engine.opportunity_db import match_opportunities, load_all_opportunities
-        from engine.scholarship_engine import generate_essay_for
-        if opp_ids:
-            all_opps = load_all_opportunities()
-            opps = [o for o in all_opps if o["id"] in opp_ids]
-        else:
-            opps = match_opportunities(profile)[:top_n]
-        uid = profile.get("id","anon"); created=[]; db=SessionLocal()
-        try:
-            for o in opps:
-                if not o: continue
-                try: essay = generate_essay_for(o, profile)
-                except: essay = f"Essay for {o['name']}.\n\nPrompt: {o.get('essay_prompt','')}\n\nPlease personalise this essay."
-                dl = _days_until(o.get("deadline",""))
-                briefing = _build_briefing(o, profile, essay, dl)
-                pkg = Package(user_id=uid, opportunity_id=o.get("id",""),
-                              scholarship_name=o.get("name",""),
-                              opportunity_type=o.get("opportunity_type","scholarship"),
-                              amount_usd=o.get("amount_usd",0),
-                              deadline=o.get("deadline",""), days_left=dl,
-                              url=o.get("url",""), essay_text=essay,
-                              briefing_html=briefing)
-                db.add(pkg); created.append({"opportunity":o["name"],"days_left":dl})
-            db.commit()
-        finally: db.close()
-        _update_job(jid,"done",result={"packages":created,"count":len(created)})
-    except Exception as e:
-        logger.exception("Package job failed")
-        _update_job(jid,"failed",error=str(e))
+  return (
+    <div className="page pb-safe">
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem',flexWrap:'wrap',gap:10}}>
+        <div>
+          <h2 className="section-title">Application Pipeline</h2>
+          <p className="section-sub">
+            {total} applications · {'$' + wonTotal.toLocaleString()} won
+          </p>
+        </div>
+        <button className="btn btn-outline btn-sm" onClick={load}>↺ Refresh</button>
+      </div>
 
-def _rec_letter_job(rec_id, profile, req):
-    db = SessionLocal()
-    try:
-        rec = db.query(RecRequest).filter(RecRequest.id==rec_id).first()
-        if not rec: return
-        llm=_get_llm(); name=profile.get("name",""); major=profile.get("major","")
-        school=profile.get("school",""); gpa=profile.get("gpa","")
-        acts=", ".join((profile.get("extracurriculars") or [])[:3])
-        opp_name=req.get("opportunity_name","this opportunity")
-        rec_name=req.get("recommender_name",""); rec_title=req.get("recommender_title","")
-        rel=req.get("relationship_desc","")
-        try:
-            letter=llm("Write a professional recommendation letter. Output only the letter text.",
-                f"Write a strong 300-word recommendation for {name} applying to {opp_name}. "
-                f"Student: {major} at {school}, GPA {gpa}, activities: {acts}. "
-                f"Recommender: {rec_name}, {rec_title}. Relationship: {rel}. First person, specific.")
-        except:
-            letter=(f"Dear Selection Committee,\n\nI am delighted to recommend {name} for "
-                    f"{opp_name}. As their {rec_title}, I have witnessed their exceptional "
-                    f"dedication to {major} at {school}.\n\n{name} consistently demonstrates "
-                    f"intellectual curiosity and commitment to excellence.\n\n"
-                    f"Sincerely,\n{rec_name}\n{rec_title}")
-        briefing=(f"RECOMMENDATION BRIEFING\nStudent: {name}\nApplying to: {opp_name}\n"
-                  f"Deadline: {req.get('deadline','TBC')}\nSubmit at: {req.get('submission_link','TBC')}\n\n"
-                  f"ABOUT THE STUDENT\nDegree: {profile.get('degree_level','')} in {major}\n"
-                  f"University: {school} | GPA: {gpa}\nActivities: {acts}\n"
-                  f"Your relationship: {rel}\n\nDRAFT LETTER\n{'='*50}\n{letter}")
-        rec.drafted_letter=letter; rec.briefing_text=briefing
-        rec.updated_at=datetime.utcnow(); db.commit()
-    except Exception as e: logger.error("Rec letter job failed: %s",e)
-    finally: db.close()
+      {loading ? (
+        <div className="empty"><div className="spinner" style={{width:32,height:32}}></div></div>
+      ) : total === 0 ? (
+        <div className="empty">
+          <div className="empty-icon">📋</div>
+          <p style={{marginBottom:'1rem'}}>Your pipeline is empty</p>
+          <p style={{fontSize:13,color:'#888'}}>Add scholarships from the Scholarships page to start tracking</p>
+        </div>
+      ) : (
+        <div className="kanban">
+          {STAGES.map(function(stage) {
+            const cards = (pipeline.stages && pipeline.stages[stage.id]) ? pipeline.stages[stage.id] : [];
+            return (
+              <div key={stage.id} className="kanban-col">
+                <div className="kanban-col-title">
+                  <span style={{color:stage.color}}>{stage.label}</span>
+                  <span style={{background:'#fff',border:'1px solid #e8e8e0',borderRadius:'50%',width:20,height:20,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:600}}>
+                    {cards.length}
+                  </span>
+                </div>
+                {cards.map(function(app) {
+                  const otherStages = STAGES.filter(function(s) { return s.id !== stage.id; }).slice(0, 2);
+                  return (
+                    <div key={app.id} className="kanban-card">
+                      <div style={{fontWeight:500,marginBottom:3,fontSize:12,lineHeight:1.3}}>
+                        {(app.scholarship_name || '').slice(0, 36)}
+                      </div>
+                      <div style={{color:'#1a1a2e',fontWeight:700,fontSize:14}}>
+                        {'$' + (app.amount_usd || 0).toLocaleString()}
+                      </div>
+                      <div style={{color:'#888',fontSize:11,marginTop:2}}>{app.deadline}</div>
+                      <div style={{marginTop:6,display:'flex',gap:3,flexWrap:'wrap'}}>
+                        {otherStages.map(function(s) {
+                          return (
+                            <button key={s.id} className="btn btn-xs btn-outline"
+                              disabled={moving === app.id}
+                              onClick={function() { move(app.id, s.id); }}
+                              style={{fontSize:10,padding:'2px 7px'}}>
+                              → {s.label.split(' ')[0]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
-def _build_briefing(opp, profile, essay, days_left):
-    urg="#dc2626" if days_left<=7 else "#d97706" if days_left<=30 else "#059669"
-    fields={"Full name":profile.get("name",""),"Email":profile.get("email",""),
-            "University":profile.get("school",""),"Degree":profile.get("degree_level",""),
-            "Major":profile.get("major",""),"GPA":str(profile.get("gpa","")),
-            "Country":profile.get("nationality",""),"Financial need":"Yes" if profile.get("financial_need") else "No"}
-    rows="".join(f"<tr><td style='padding:7px 12px;font-weight:500;color:#555;width:140px;border-bottom:1px solid #f0f0f0'>{k}</td><td style='padding:7px 12px;border-bottom:1px solid #f0f0f0'><span onclick=\"navigator.clipboard.writeText('{v}')\" style='cursor:pointer;background:#f8f8f8;padding:3px 8px;border-radius:4px;font-family:monospace;font-size:13px' title='Click to copy'>{v}</span></td></tr>" for k,v in fields.items() if v)
-    essay_safe=essay.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><title>{opp['name']}</title>
-<style>body{{font-family:-apple-system,sans-serif;background:#f9f9f7;margin:0}}
-.hdr{{background:#1a1a2e;color:#fff;padding:1.5rem 2rem;display:flex;justify-content:space-between}}
-.hdr h1{{font-size:18px;font-weight:500;margin:0}}.urg{{background:{urg};color:#fff;padding:4px 12px;border-radius:20px;font-size:12px}}
-.body{{max-width:760px;margin:0 auto;padding:2rem}}.card{{background:#fff;border:1px solid #e8e8e0;border-radius:12px;margin-bottom:1.25rem;overflow:hidden}}
-.ch{{background:#f5f5f0;padding:.75rem 1.25rem;font-size:13px;font-weight:500;border-bottom:1px solid #e8e8e0}}.cb{{padding:1.25rem}}
-.btn{{display:inline-block;background:#1a1a2e;color:#fff;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:13px}}
-table{{width:100%;border-collapse:collapse}}.essay{{background:#f8f8f8;border:1px solid #e0e0e0;border-radius:8px;padding:1rem;font-size:14px;line-height:1.7;white-space:pre-wrap}}</style>
-</head><body>
-<div class="hdr"><div><h1>{opp['name']}</h1><p style="margin:4px 0 0;opacity:.7;font-size:13px">${opp.get('amount_usd',0):,.0f} | Deadline: {opp.get('deadline','')}</p></div><span class="urg">{days_left} days left</span></div>
-<div class="body">
-<div class="card"><div class="ch">Step 1 — Open application form</div><div class="cb"><a class="btn" href="{opp.get('url','')}" target="_blank">Open Application Form &rarr;</a></div></div>
-<div class="card"><div class="ch">Step 2 — Copy your details (click any value)</div><div class="cb"><table>{rows}</table></div></div>
-<div class="card"><div class="ch">Step 3 — Paste your essay</div><div class="cb"><p style="font-size:12px;color:#888;margin-bottom:.75rem"><em>{opp.get('essay_prompt','')[:120]}</em></p><div class="essay">{essay_safe}</div></div></div>
-</div></body></html>"""
+// ── Packages ──────────────────────────────────────────────────
+function PackagesPage(props) {
+  const user = props.user;
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [preparing, setPreparing] = useState(false);
+
+  function load() {
+    setLoading(true);
+    api('GET', '/packages')
+      .then(function(r) { setPackages(r.packages || []); setLoading(false); })
+      .catch(function() { setLoading(false); });
+  }
+
+  useEffect(function() { load(); }, []);
+
+  function prepTop() {
+    setPreparing(true);
+    api('POST', '/packages/prepare', {top_n: 5})
+      .then(function() {
+        toast('Preparing top 5 packages — refresh in about 2 minutes', 'success');
+        setPreparing(false);
+        setTimeout(load, 10000);
+      })
+      .catch(function(e) { toast(e.message, 'error'); setPreparing(false); });
+  }
+
+  return (
+    <div className="page pb-safe">
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem',flexWrap:'wrap',gap:10}}>
+        <div>
+          <h2 className="section-title">Application Packages</h2>
+          <p className="section-sub">Complete packages with essays, briefing docs, and application links</p>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <button className="btn btn-outline btn-sm" onClick={load}>↺</button>
+          <button className="btn btn-primary" disabled={preparing} onClick={prepTop}>
+            {preparing ? 'Preparing...' : '✨ Prepare top 5'}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="empty"><div className="spinner" style={{width:32,height:32}}></div></div>
+      ) : packages.length === 0 ? (
+        <div className="empty">
+          <div className="empty-icon">📦</div>
+          <p style={{marginBottom:'1rem',fontWeight:500}}>No packages yet</p>
+          <p style={{fontSize:13,color:'#888',marginBottom:'1.5rem',maxWidth:400,margin:'0 auto 1.5rem'}}>
+            Click "Prepare top 5" to generate complete application packages with tailored essays for your best-matched scholarships
+          </p>
+          <button className="btn btn-primary" onClick={prepTop} disabled={preparing}>
+            {preparing ? 'Preparing...' : '✨ Prepare top 5 now'}
+          </button>
+        </div>
+      ) : (
+        packages.map(function(pkg) {
+          const dayClass = (pkg.days_left || 999) <= 7 ? 'tag-red' : (pkg.days_left || 999) <= 30 ? 'tag-yellow' : 'tag-green';
+          return (
+            <div key={pkg.id} className="card" style={{marginBottom:'1rem'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:8}}>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:600,fontSize:16}}>{pkg.scholarship}</div>
+                  <div style={{fontSize:13,color:'#555',marginTop:3}}>
+                    {'$' + (pkg.amount_usd || 0).toLocaleString()} · Deadline: {pkg.deadline || 'N/A'}
+                  </div>
+                  {pkg.essay_preview && (
+                    <p style={{fontSize:13,color:'#888',marginTop:8,fontStyle:'italic',lineHeight:1.5}}>
+                      {pkg.essay_preview}
+                    </p>
+                  )}
+                </div>
+                <span className={'tag ' + dayClass}>{pkg.days_left || '?'}d</span>
+              </div>
+              <div style={{display:'flex',gap:8,marginTop:'1rem',flexWrap:'wrap'}}>
+                <a href={pkg.briefing_url} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
+                  Open briefing →
+                </a>
+                <a href={pkg.essay_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">
+                  View essay
+                </a>
+                {pkg.url && (
+                  <a href={pkg.url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">
+                    Apply →
+                  </a>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+// ── Interview ─────────────────────────────────────────────────
+const RUBRICS = {
+  chevening: {
+    name: 'Chevening Official Rubric',
+    dimensions: [
+      {key:'leadership', label:'Leadership & Influence', weight:25},
+      {key:'networking', label:'Networking Ability', weight:25},
+      {key:'ambassador', label:'Ambassador Potential', weight:25},
+      {key:'career_plan', label:'Study & Career Plan', weight:25},
+    ]
+  },
+  fulbright: {
+    name: 'Fulbright Selection Criteria',
+    dimensions: [
+      {key:'academic', label:'Academic Excellence', weight:30},
+      {key:'project', label:'Project Feasibility', weight:30},
+      {key:'cross_cultural', label:'Cross-cultural Engagement', weight:20},
+      {key:'impact', label:'Long-term Impact', weight:20},
+    ]
+  },
+  gates_cambridge: {
+    name: 'Gates Cambridge Criteria',
+    dimensions: [
+      {key:'academic', label:'Academic Achievement', weight:30},
+      {key:'leadership', label:'Leadership Potential', weight:30},
+      {key:'commitment', label:'Commitment to Others', weight:25},
+      {key:'cambridge_fit', label:'Cambridge Fit', weight:15},
+    ]
+  },
+  general: {
+    name: 'General Scholarship Rubric',
+    dimensions: [
+      {key:'clarity', label:'Clarity & Structure', weight:25},
+      {key:'specificity', label:'Specificity & Evidence', weight:35},
+      {key:'relevance', label:'Relevance to Scholarship', weight:25},
+      {key:'impact', label:'Potential Impact', weight:15},
+    ]
+  }
+};
+
+function InterviewPage() {
+  const [scholarship, setScholarship] = useState('general');
+  const [questions, setQuestions] = useState([]);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [answer, setAnswer] = useState('');
+  const [result, setResult] = useState(null);
+  const [scoring, setScoring] = useState(false);
+  const [history, setHistory] = useState([]);
+  const rubric = RUBRICS[scholarship] || RUBRICS.general;
+
+  useEffect(function() {
+    api('GET', '/interview/questions/' + scholarship)
+      .then(function(r) {
+        setQuestions(r.questions || []);
+        setCurrentQ(0);
+        setAnswer('');
+        setResult(null);
+      })
+      .catch(function() {});
+  }, [scholarship]);
+
+  function submit() {
+    const words = answer.trim().split(/\s+/).length;
+    if (words < 20) { toast('Please write a fuller answer (at least 20 words)', 'error'); return; }
+    setScoring(true);
+    const q = questions[currentQ];
+    api('POST', '/interview/score', {question: q.q, answer: answer, scholarship: scholarship})
+      .then(function(r) {
+        setResult(r);
+        setHistory(function(h) { return [...h, {question: q.q, score: r.overall_score, feedback: r.feedback}]; });
+        setScoring(false);
+      })
+      .catch(function(e) { toast(e.message, 'error'); setScoring(false); });
+  }
+
+  function next() {
+    if (currentQ < questions.length - 1) {
+      setCurrentQ(function(q) { return q + 1; });
+      setAnswer('');
+      setResult(null);
+    }
+  }
+
+  const wc = answer.trim() ? answer.trim().split(/\s+/).length : 0;
+  const avgScore = history.length ? Math.round(history.reduce(function(a, h) { return a + h.score; }, 0) / history.length * 100) : 0;
+  const wcColor = wc < 100 ? '#dc2626' : wc <= 300 ? '#059669' : '#d97706';
+
+  return (
+    <div className="page pb-safe" style={{maxWidth:800}}>
+      <h2 className="section-title">Interview Coach</h2>
+      <p className="section-sub">Practice with official scholarship scoring rubrics</p>
+
+      <div style={{display:'flex',gap:10,marginBottom:'1.25rem',flexWrap:'wrap',alignItems:'flex-end'}}>
+        <div className="form-group" style={{flex:1,minWidth:180,marginBottom:0}}>
+          <label>Scholarship type</label>
+          <select value={scholarship} onChange={function(e) { setScholarship(e.target.value); }}>
+            <option value="general">General (all scholarships)</option>
+            <option value="chevening">Chevening</option>
+            <option value="fulbright">Fulbright</option>
+            <option value="gates_cambridge">Gates Cambridge</option>
+          </select>
+        </div>
+        {history.length > 0 && (
+          <div className="card" style={{padding:'8px 14px',display:'flex',gap:'1rem',alignItems:'center',borderRadius:8}}>
+            <span style={{fontSize:13,color:'#555'}}>Session avg: <strong>{avgScore}%</strong></span>
+            <span style={{fontSize:12,color:'#888'}}>{history.length}/{questions.length} done</span>
+          </div>
+        )}
+      </div>
+
+      {questions.length > 0 && (
+        <React.Fragment>
+          <div style={{background:'#f5f5f0',borderRadius:12,padding:'1.25rem',borderLeft:'4px solid #1a1a2e',marginBottom:'1rem'}}>
+            <div style={{fontSize:11,color:'#888',marginBottom:4,textTransform:'uppercase',letterSpacing:'.06em',fontWeight:600}}>
+              Question {currentQ + 1} of {questions.length}
+            </div>
+            <div style={{fontSize:17,fontWeight:600,marginBottom:10,lineHeight:1.4,color:'#1a1a1a'}}>
+              {questions[currentQ] && questions[currentQ].q}
+            </div>
+            <div style={{fontSize:13,color:'#555',background:'rgba(99,102,241,.07)',padding:'8px 12px',borderRadius:6}}>
+              💡 {questions[currentQ] && questions[currentQ].tips}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Your answer — aim for 150 to 250 words</label>
+            <textarea rows={7} value={answer}
+              onChange={function(e) { setAnswer(e.target.value); }}
+              placeholder="Type your answer here. Be specific — use numbers, names, and real examples from your experience."/>
+            <div style={{display:'flex',justifyContent:'space-between',marginTop:4}}>
+              <span style={{fontSize:12,color:wcColor,fontWeight:500}}>
+                {wc} words {wc < 150 ? '(aim for 150+)' : wc > 300 ? '(consider trimming)' : '✓ Good length'}
+              </span>
+              <span style={{fontSize:11,color:'#888'}}>Rubric: {rubric.name}</span>
+            </div>
+          </div>
+
+          <div style={{display:'flex',gap:10,marginBottom:'1.5rem',flexWrap:'wrap'}}>
+            <button className="btn btn-primary" disabled={scoring || !answer.trim()} onClick={submit}>
+              {scoring ? (
+                <React.Fragment>
+                  <span className="spinner" style={{borderTopColor:'#fff'}}></span>&nbsp; Scoring...
+                </React.Fragment>
+              ) : 'Score my answer'}
+            </button>
+            {result && currentQ < questions.length - 1 && (
+              <button className="btn btn-outline" onClick={next}>Next question →</button>
+            )}
+          </div>
+
+          {result && (
+            <div className="card" style={{
+              borderColor: result.overall_score >= .75 ? '#059669' : result.overall_score >= .5 ? '#d97706' : '#dc2626',
+              borderWidth: 1.5
+            }}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+                <span style={{fontWeight:700,fontSize:18}}>Score: {Math.round(result.overall_score * 100)}%</span>
+                <span style={{fontSize:28,fontWeight:800,color: result.grade==='A'?'#059669':result.grade==='B'?'#2563eb':result.grade==='C'?'#d97706':'#dc2626'}}>
+                  {result.grade}
+                </span>
+              </div>
+              <div style={{marginBottom:'1rem'}}>
+                <div style={{fontSize:12,fontWeight:600,color:'#555',marginBottom:10}}>{rubric.name}</div>
+                {rubric.dimensions.map(function(dim) {
+                  const s = result.overall_score || 0;
+                  const barColor = s >= .75 ? '#059669' : s >= .5 ? '#2563eb' : '#d97706';
+                  return (
+                    <div key={dim.key} style={{marginBottom:10}}>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4}}>
+                        <span>{dim.label} <span style={{color:'#888',fontSize:11}}>({dim.weight}%)</span></span>
+                        <span style={{fontWeight:600}}>{Math.round(s * 100)}%</span>
+                      </div>
+                      <div className="progress progress-sm">
+                        <div className="progress-fill" style={{width: (s * 100) + '%', background: barColor}}></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{background:'#f5f5f0',borderRadius:8,padding:'10px 14px',fontSize:14,lineHeight:1.5}}>
+                💡 {result.feedback}
+              </div>
+              {result.filler_count > 0 && (
+                <div style={{fontSize:13,color:'#d97706',marginTop:8}}>
+                  ⚠ {result.filler_count} filler word(s) detected — aim to reduce these
+                </div>
+              )}
+            </div>
+          )}
+        </React.Fragment>
+      )}
+    </div>
+  );
+}
+
+// ── Profile ───────────────────────────────────────────────────
+function ProfilePage(props) {
+  const user = props.user;
+  const setUser = props.setUser;
+  const [form, setFormState] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [readiness, setReadiness] = useState(null);
+  const fileRef = useRef(null);
+
+  useEffect(function() {
+    setFormState({
+      name: user.name || '',
+      email: user.email || '',
+      degree_level: user.degree_level || 'Graduate',
+      major: user.major || '',
+      school: user.school || '',
+      nationality: user.nationality || 'Kenya',
+      gpa: user.gpa || '',
+      financial_need: user.financial_need || false,
+      personal_statement: user.personal_statement || '',
+      skills: Array.isArray(user.skills) ? user.skills.join(', ') : (user.skills || ''),
+      extracurriculars: Array.isArray(user.extracurriculars) ? user.extracurriculars.join(', ') : (user.extracurriculars || ''),
+    });
+    api('GET', '/readiness').then(setReadiness).catch(function() {});
+  }, []);
+
+  function setField(key, val) {
+    setFormState(function(f) {
+      const next = {};
+      Object.keys(f).forEach(function(k) { next[k] = f[k]; });
+      next[key] = val;
+      return next;
+    });
+  }
+
+  function save(e) {
+    e.preventDefault();
+    setSaving(true);
+    const payload = {
+      name: form.name,
+      major: form.major,
+      school: form.school,
+      gpa: parseFloat(form.gpa) || 0,
+      nationality: form.nationality,
+      financial_need: form.financial_need === true || form.financial_need === 'true',
+      personal_statement: form.personal_statement,
+      skills: form.skills ? form.skills.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [],
+      extracurriculars: form.extracurriculars ? form.extracurriculars.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [],
+    };
+    api('PATCH', '/profile', payload)
+      .then(function(upd) {
+        setUser(Object.assign({}, user, upd));
+        return api('GET', '/readiness');
+      })
+      .then(function(r) { setReadiness(r); toast('Profile saved successfully', 'success'); setSaving(false); })
+      .catch(function(e) { toast(e.message, 'error'); setSaving(false); });
+  }
+
+  return (
+    <div className="page pb-safe" style={{maxWidth:760}}>
+      <h2 className="section-title">Your Profile</h2>
+
+      {readiness && (
+        <div className="card" style={{marginBottom:'1.25rem',display:'flex',gap:'1.25rem',alignItems:'flex-start',flexWrap:'wrap'}}>
+          <ReadinessRing score={readiness.overall || 0}/>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:600,fontSize:15,marginBottom:8}}>Readiness: {readiness.level}</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'6px 16px'}}>
+              {Object.entries(readiness.scores || {}).map(function(entry) {
+                const k = entry[0]; const v = entry[1];
+                return (
+                  <div key={k} style={{minWidth:130}}>
+                    <div style={{fontSize:11,color:'#888',marginBottom:3,textTransform:'capitalize'}}>{k.replace(/_/g,' ')}</div>
+                    <div className="progress progress-sm">
+                      <div className="progress-fill" style={{
+                        width: v + '%',
+                        background: v >= 70 ? '#059669' : v >= 50 ? '#2563eb' : '#d97706'
+                      }}></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {readiness.tips && readiness.tips[0] && (
+              <p style={{fontSize:13,color:'#555',marginTop:10}}>💡 {readiness.tips[0]}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={save}>
+        <div className="card" style={{marginBottom:'1rem'}}>
+          <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>Personal details</div>
+          <div className="grid2">
+            <div className="form-group">
+              <label>Full name</label>
+              <input value={form.name || ''} onChange={function(e) { setField('name', e.target.value); }}/>
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input value={form.email || ''} disabled style={{background:'#f5f5f0',color:'#888'}}/>
+            </div>
+          </div>
+          <div className="grid2">
+            <div className="form-group">
+              <label>Country / Nationality</label>
+              <input value={form.nationality || ''} onChange={function(e) { setField('nationality', e.target.value); }}/>
+            </div>
+            <div className="form-group" style={{paddingTop:24}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}
+                onClick={function() { setField('financial_need', !form.financial_need); }}>
+                <input type="checkbox" id="fn_profile"
+                  checked={form.financial_need || false}
+                  onChange={function(e) { setField('financial_need', e.target.checked); }}
+                  onClick={function(e) { e.stopPropagation(); }}/>
+                <label htmlFor="fn_profile" style={{marginBottom:0,cursor:'pointer',fontSize:14}}>
+                  I have financial need
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{marginBottom:'1rem'}}>
+          <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>Academic background</div>
+          <div className="grid2">
+            <div className="form-group">
+              <label>Degree level</label>
+              <select value={form.degree_level || 'Graduate'} onChange={function(e) { setField('degree_level', e.target.value); }}>
+                <option value="Undergraduate">Undergraduate</option>
+                <option value="Graduate">Graduate</option>
+                <option value="Postgraduate">Postgraduate / PhD</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>GPA (0 – 4.0)</label>
+              <input type="number" step="0.01" min="0" max="4"
+                value={form.gpa || ''} onChange={function(e) { setField('gpa', e.target.value); }}/>
+            </div>
+          </div>
+          <div className="grid2">
+            <div className="form-group">
+              <label>Major / Field of study</label>
+              <input value={form.major || ''} onChange={function(e) { setField('major', e.target.value); }}/>
+            </div>
+            <div className="form-group">
+              <label>University / School</label>
+              <input value={form.school || ''} onChange={function(e) { setField('school', e.target.value); }}/>
+            </div>
+          </div>
+        </div>
+
+        <div className="card" style={{marginBottom:'1.25rem'}}>
+          <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>Skills and activities</div>
+          <div className="form-group">
+            <label>Skills (comma-separated)</label>
+            <input value={form.skills || ''}
+              onChange={function(e) { setField('skills', e.target.value); }}
+              placeholder="Python, Cloud Computing, Data Analysis, Leadership..."/>
+            <p className="helper">More skills = better scholarship matching</p>
+          </div>
+          <div className="form-group">
+            <label>Extracurricular activities (comma-separated)</label>
+            <input value={form.extracurriculars || ''}
+              onChange={function(e) { setField('extracurriculars', e.target.value); }}
+              placeholder="Tech club president, Community volunteer, Research assistant..."/>
+          </div>
+          <div className="form-group">
+            <label>Personal statement <span style={{fontWeight:400,color:'#888'}}>(used in generated essays)</span></label>
+            <textarea rows={4} value={form.personal_statement || ''}
+              onChange={function(e) { setField('personal_statement', e.target.value); }}
+              placeholder="Your goals, background, what drives you, and the impact you want to make..."/>
+            <p className="helper">The more detail here, the better and more personal your generated essays</p>
+          </div>
+        </div>
+
+        <button className="btn btn-primary" type="submit" disabled={saving}
+          style={{justifyContent:'center'}}>
+          {saving ? (
+            <React.Fragment>
+              <span className="spinner" style={{borderTopColor:'#fff'}}></span>&nbsp; Saving...
+            </React.Fragment>
+          ) : 'Save profile'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────
+function App() {
+  const auth = useAuth();
+  const user = auth.user;
+  const loading = auth.loading;
+  const login = auth.login;
+  const register = auth.register;
+  const logout = auth.logout;
+  const setUser = auth.setUser;
+  const [page, setPage] = useState('home');
+  const toasts = useToasts();
+
+  function go(p) {
+    setPage(p);
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  useEffect(function() {
+    if (user && page === 'home') go('dashboard');
+    if (!user && ['dashboard','pipeline','packages','profile'].includes(page)) go('home');
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:'1rem'}}>
+        <div className="spinner" style={{width:36,height:36}}></div>
+        <p style={{color:'#888',fontSize:14}}>Loading ScholarBot...</p>
+      </div>
+    );
+  }
+
+  function renderPage() {
+    if (page === 'home') return <HomePage go={go}/>;
+    if (page === 'login') return <AuthPage mode="login" login={login} register={register} go={go}/>;
+    if (page === 'register') return <AuthPage mode="register" login={login} register={register} go={go}/>;
+    if (page === 'dashboard' && user) return <DashboardPage user={user} go={go}/>;
+    if (page === 'scholarships') return <ScholarshipsPage user={user} go={go}/>;
+    if (page === 'pipeline' && user) return <PipelinePage/>;
+    if (page === 'packages' && user) return <PackagesPage user={user}/>;
+    if (page === 'interview') return <InterviewPage/>;
+    if (page === 'profile' && user) return <ProfilePage user={user} setUser={setUser}/>;
+    return <HomePage go={go}/>;
+  }
+
+  return (
+    <React.Fragment>
+      <Nav user={user} page={page} go={go} logout={logout}/>
+      <div>{renderPage()}</div>
+      <div className="toast-wrap">
+        {toasts.map(function(t) {
+          return (
+            <div key={t.id} className={'toast ' + t.type}>{t.msg}</div>
+          );
+        })}
+      </div>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
