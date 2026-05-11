@@ -2,7 +2,6 @@
 ScholarBot Web Platform v4 — Single File Edition
 All database models inlined to eliminate import issues.
 """
-from __future__ import annotations
 import logging, os, secrets, uuid, traceback
 from datetime import datetime, timedelta
 from pathlib import Path
