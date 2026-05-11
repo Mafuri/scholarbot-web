@@ -303,20 +303,19 @@ def _sanitise(text: str, max_len: int = 8000) -> str:
     """Strip control chars, limit length, block prompt injection."""
     if not text:
         return ""
-    # Remove control characters
-    text = _re.sub(r'[-
--]', '', str(text))
+    # Remove control characters (non-printable ASCII)
+    text = "".join(ch for ch in str(text) if ord(ch) >= 32 or ch in "\n\r\t")
     # Block common prompt injection patterns
     injection_patterns = [
-        r'ignore\s+(?:all\s+)?(?:previous|above|prior)',
-        r'disregard\s+(?:all\s+)?(?:previous|above|prior)',
-        r'forget\s+(?:all\s+)?(?:previous|above)',
-        r'new\s+instructions?:',
-        r'system\s*prompt',
-        r'you\s+are\s+now',
+        r"ignore\s+(?:all\s+)?(?:previous|above|prior)",
+        r"disregard\s+(?:all\s+)?(?:previous|above|prior)",
+        r"forget\s+(?:all\s+)?(?:previous|above)",
+        r"new\s+instructions?:",
+        r"system\s*prompt",
+        r"you\s+are\s+now",
     ]
     for pattern in injection_patterns:
-        text = _re.sub(pattern, '[REMOVED]', text, flags=_re.IGNORECASE)
+        text = _re.sub(pattern, "[REMOVED]", text, flags=_re.IGNORECASE)
     return text[:max_len]
 
 
