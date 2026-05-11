@@ -1,24 +1,12 @@
 FROM python:3.11-slim
-
 WORKDIR /app
-
-# Install system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libmupdf-dev gcc && \
     rm -rf /var/lib/apt/lists/*
-
-# Install Python deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy app
 COPY . .
-
-# Create data dirs
 RUN mkdir -p data/uploads data/packages static
-
-# Expose port
 EXPOSE 8000
-
-# Start
-CMD ["sh", "-c", "uvicorn web_app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+# Task 9: 4 workers for concurrency (Phase 1)
+CMD ["sh", "-c", "uvicorn web_app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 4"]
