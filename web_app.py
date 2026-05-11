@@ -215,9 +215,6 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 import bcrypt as _bcrypt
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 
 logging.basicConfig(level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s")
@@ -228,8 +225,6 @@ _JWT_ALG = "HS256"
 _JWT_DAYS = 7
 security = HTTPBearer(auto_error=False)
 
-# Task 2: Rate limiter
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/hour"])
 app = FastAPI(title="ScholarBot API", version="4.0.0")
 # Task 1: CORS restricted to known origins only
 ALLOWED_ORIGINS = [
@@ -238,13 +233,43 @@ ALLOWED_ORIGINS = [
     "http://localhost:8000",   # local dev
     "http://127.0.0.1:8000",
 ]
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET","POST","PATCH","DELETE","OPTIONS"],
     allow_headers=["Authorization","Content-Type"])
+
+# Task 2+3: Middleware-based rate limiting — no decorator conflicts
+import time as _time
+from collections import defaultdict as _defaultdict
+
+_rate_store: dict = _defaultdict(list)
+_RATE_RULES = {
+    "/api/auth/register": (10, 3600),   # 10 per hour
+    "/api/auth/login":    (20, 3600),   # 20 per hour
+    "/api/essays":        (10, 3600),   # 10 per hour
+    "/api/packages":      (5,  3600),   # 5 per hour
+}
+
+@app.middleware("http")
+async def rate_limit_middleware(request, call_next):
+    path = request.url.path
+    ip = request.client.host if request.client else "unknown"
+    now = _time.time()
+    for prefix, (limit, window) in _RATE_RULES.items():
+        if path.startswith(prefix):
+            key = f"{ip}:{prefix}"
+            _rate_store[key] = [t for t in _rate_store[key] if now - t < window]
+            if len(_rate_store[key]) >= limit:
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    {"detail": f"Rate limit exceeded. Max {limit} requests per hour."},
+                    status_code=429
+                )
+            _rate_store[key].append(now)
+            break
+    return await call_next(request)
+
 
 @app.on_event("startup")
 async def startup():
@@ -402,8 +427,7 @@ class RecStatusUp(BaseModel):
     status: str
 
 @app.post("/api/auth/register")
-@limiter.limit("10/hour")
-async def register(request: Request, req: RegisterReq, db: Session = Depends(get_db)):
+async def register(req: RegisterReq, db: Session = Depends(get_db)):
     try:
         existing = db.query(User).filter(User.email == req.email).first()
         if existing:
@@ -444,8 +468,7 @@ async def register(request: Request, req: RegisterReq, db: Session = Depends(get
         raise HTTPException(400, "Registration error: " + str(e))
 
 @app.post("/api/auth/login")
-@limiter.limit("20/hour")
-async def login(request: Request, req: LoginReq, db: Session = Depends(get_db)):
+async def login(req: LoginReq, db: Session = Depends(get_db)):
     u = db.query(User).filter(User.email == req.email).first()
     if not u or not _check_pw(req.password, u.password_hash):
         raise HTTPException(401, "Invalid email or password")
@@ -678,8 +701,7 @@ async def matched_scholarships(user: User = Depends(get_current_user)):
             "total_potential_usd":sum(o["amount_usd"] for o in opps)}
 
 @app.post("/api/essays/generate")
-@limiter.limit("10/hour")
-async def gen_essay(request: Request, req: dict, bt: BackgroundTasks,
+async def gen_essay(req: dict, bt: BackgroundTasks,
     user: User = Depends(get_current_user)):
     from engine.opportunity_db import load_all_opportunities
     opp = next((o for o in load_all_opportunities()
@@ -696,8 +718,7 @@ async def gen_essay(request: Request, req: dict, bt: BackgroundTasks,
             "message":"Essay generation started"}
 
 @app.post("/api/packages/prepare")
-@limiter.limit("5/hour")
-async def prep_packages(request: Request, req: dict, bt: BackgroundTasks,
+async def prep_packages(req: dict, bt: BackgroundTasks,
     user: User = Depends(get_current_user)):
     db = SessionLocal()
     job = Job(id="job_"+uuid.uuid4().hex[:8], user_id=user.id,
