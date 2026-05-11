@@ -1,41 +1,72 @@
 """
 ScholarBot — Database setup and models.
-All SQLAlchemy models live here so each router can import cleanly.
+Engine is created lazily on first use to ensure env vars are available
+in all worker processes.
 """
 import uuid
 import os
+import logging
 from datetime import datetime
 from sqlalchemy import (
     create_engine, Column, String, Float, Boolean,
-    Integer, Text, DateTime, JSON, ForeignKey
+    Integer, Text, DateTime, JSON, ForeignKey, event
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy.pool import StaticPool
-from app.config import DATABASE_URL
 
-# ── Engine ────────────────────────────────────────────────────
-if "sqlite" in DATABASE_URL:
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-else:
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
-    )
+logger = logging.getLogger(__name__)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+_engine = None
+_SessionLocal = None
+
+
+def _get_database_url() -> str:
+    url = os.environ.get("DATABASE_URL", "sqlite:///data/scholarbot.db")
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
+def get_engine():
+    global _engine
+    if _engine is None:
+        url = _get_database_url()
+        if "sqlite" in url:
+            _engine = create_engine(
+                url,
+                connect_args={"check_same_thread": False},
+                poolclass=StaticPool,
+            )
+        else:
+            _engine = create_engine(
+                url,
+                pool_pre_ping=True,
+                pool_size=3,
+                max_overflow=5,
+                pool_recycle=300,
+                connect_args={"connect_timeout": 10},
+            )
+        logger.info("Database engine created: %s", url.split("://")[0])
+    return _engine
+
+
+def get_session_factory():
+    global _SessionLocal
+    if _SessionLocal is None:
+        _SessionLocal = sessionmaker(
+            autocommit=False, autoflush=False, bind=get_engine()
+        )
+    return _SessionLocal
+
+
+def SessionLocal():
+    return get_session_factory()()
 
 
 # ── Models ────────────────────────────────────────────────────
 class User(Base):
     __tablename__ = "users"
-
     id                      = Column(String(32), primary_key=True)
     name                    = Column(String(200), nullable=False)
     email                   = Column(String(200), unique=True, nullable=False, index=True)
@@ -44,7 +75,6 @@ class User(Base):
     major                   = Column(String(200), default="")
     school                  = Column(String(200), default="")
     nationality             = Column(String(100), default="Kenya")
-    # GPA stored on 4.0 scale internally; original stored for display
     gpa                     = Column(Float, default=0.0)
     gpa_original            = Column(Float, nullable=True)
     gpa_scale               = Column(Float, default=4.0)
@@ -59,7 +89,6 @@ class User(Base):
     created_at              = Column(DateTime, default=datetime.utcnow)
     updated_at              = Column(DateTime, default=datetime.utcnow,
                                      onupdate=datetime.utcnow)
-
     applications = relationship("Application", back_populates="user",
                                 cascade="all, delete-orphan")
     packages     = relationship("Package", back_populates="user",
@@ -69,19 +98,12 @@ class User(Base):
 
     def to_dict(self, include_password: bool = False) -> dict:
         d = {
-            "id": self.id,
-            "name": self.name,
-            "email": self.email,
-            "degree_level": self.degree_level,
-            "major": self.major,
-            "school": self.school,
-            "nationality": self.nationality,
-            "gpa": self.gpa,
-            "gpa_original": self.gpa_original,
-            "gpa_scale": self.gpa_scale,
-            "financial_need": self.financial_need,
-            "languages": self.languages or [],
-            "skills": self.skills or [],
+            "id": self.id, "name": self.name, "email": self.email,
+            "degree_level": self.degree_level, "major": self.major,
+            "school": self.school, "nationality": self.nationality,
+            "gpa": self.gpa, "gpa_original": self.gpa_original,
+            "gpa_scale": self.gpa_scale, "financial_need": self.financial_need,
+            "languages": self.languages or [], "skills": self.skills or [],
             "extracurriculars": self.extracurriculars or [],
             "demographic_tags": self.demographic_tags or [],
             "personal_statement": self.personal_statement or "",
@@ -96,10 +118,8 @@ class User(Base):
 
 class Application(Base):
     __tablename__ = "applications"
-
     id               = Column(String(32), primary_key=True)
-    user_id          = Column(String(32), ForeignKey("users.id"),
-                              nullable=False, index=True)
+    user_id          = Column(String(32), ForeignKey("users.id"), nullable=False, index=True)
     opportunity_id   = Column(String(32), default="")
     scholarship_name = Column(String(300), default="")
     opportunity_type = Column(String(50), default="scholarship")
@@ -110,37 +130,38 @@ class Application(Base):
     notes            = Column(Text, default="")
     submitted_at     = Column(DateTime, nullable=True)
     outcome_date     = Column(DateTime, nullable=True)
+    # Phase 3: Feedback loop columns
+    essay_used           = Column(Boolean, nullable=True)     # Did they use the AI essay?
+    essay_helpfulness    = Column(Integer, nullable=True)     # 1-5 rating
+    feedback_text        = Column(Text, nullable=True)        # Open feedback
+    feedback_submitted_at = Column(DateTime, nullable=True)
     created_at       = Column(DateTime, default=datetime.utcnow)
-    updated_at       = Column(DateTime, default=datetime.utcnow,
-                              onupdate=datetime.utcnow)
-
+    updated_at       = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user = relationship("User", back_populates="applications")
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id,
-            "user_id": self.user_id,
+            "id": self.id, "user_id": self.user_id,
             "opportunity_id": self.opportunity_id,
             "scholarship_name": self.scholarship_name,
             "opportunity_type": self.opportunity_type,
-            "amount_usd": self.amount_usd,
-            "deadline": self.deadline,
-            "url": self.url,
-            "status": self.stage or "researching",
+            "amount_usd": self.amount_usd, "deadline": self.deadline,
+            "url": self.url, "status": self.stage or "researching",
             "notes": self.notes,
             "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
             "outcome_date": self.outcome_date.isoformat() if self.outcome_date else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "essay_used": self.essay_used,
+            "essay_helpfulness": self.essay_helpfulness,
+            "feedback_text": self.feedback_text,
         }
 
 
 class Package(Base):
     __tablename__ = "packages"
-
     id               = Column(String(32), primary_key=True)
-    user_id          = Column(String(32), ForeignKey("users.id"),
-                              nullable=False, index=True)
+    user_id          = Column(String(32), ForeignKey("users.id"), nullable=False, index=True)
     opportunity_id   = Column(String(32), default="")
     scholarship_name = Column(String(300), default="")
     opportunity_type = Column(String(50), default="scholarship")
@@ -155,25 +176,17 @@ class Package(Base):
     essay_version    = Column(Integer, default=1)
     parent_package_id = Column(String(32), nullable=True)
     created_at       = Column(DateTime, default=datetime.utcnow)
-
     user = relationship("User", back_populates="packages")
 
     def to_dict(self) -> dict:
-        preview = (
-            (self.essay_text or "")[:150] + "..."
-            if self.essay_text else ""
-        )
+        preview = (self.essay_text or "")[:150] + "..." if self.essay_text else ""
         return {
-            "id": self.id,
-            "user_id": self.user_id,
+            "id": self.id, "user_id": self.user_id,
             "opportunity_id": self.opportunity_id,
             "scholarship": self.scholarship_name,
-            "amount_usd": self.amount_usd,
-            "deadline": self.deadline,
-            "days_left": self.days_left,
-            "url": self.url,
-            "essay_preview": preview,
-            "essay_version": self.essay_version,
+            "amount_usd": self.amount_usd, "deadline": self.deadline,
+            "days_left": self.days_left, "url": self.url,
+            "essay_preview": preview, "essay_version": self.essay_version,
             "briefing_url": f"/api/packages/{self.user_id}/{self.id}/briefing",
             "essay_url": f"/api/packages/{self.user_id}/{self.id}/essay",
             "created_at": self.created_at.isoformat() if self.created_at else None,
@@ -182,10 +195,8 @@ class Package(Base):
 
 class RecRequest(Base):
     __tablename__ = "rec_requests"
-
     id                      = Column(String(32), primary_key=True)
-    user_id                 = Column(String(32), ForeignKey("users.id"),
-                                    nullable=False, index=True)
+    user_id                 = Column(String(32), ForeignKey("users.id"), nullable=False, index=True)
     opportunity_name        = Column(String(300), default="")
     recommender_name        = Column(String(200), default="")
     recommender_email       = Column(String(200), default="")
@@ -201,23 +212,19 @@ class RecRequest(Base):
     reminded_at             = Column(DateTime, nullable=True)
     received_at             = Column(DateTime, nullable=True)
     created_at              = Column(DateTime, default=datetime.utcnow)
-    updated_at              = Column(DateTime, default=datetime.utcnow,
-                                     onupdate=datetime.utcnow)
-
+    updated_at              = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user = relationship("User", back_populates="rec_requests")
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id,
-            "user_id": self.user_id,
+            "id": self.id, "user_id": self.user_id,
             "opportunity_name": self.opportunity_name,
             "recommender_name": self.recommender_name,
             "recommender_email": self.recommender_email,
             "recommender_title": self.recommender_title,
             "recommender_institution": self.recommender_institution,
             "relationship_desc": self.relationship_desc,
-            "deadline": self.deadline,
-            "submission_link": self.submission_link,
+            "deadline": self.deadline, "submission_link": self.submission_link,
             "drafted_letter": self.drafted_letter or "",
             "briefing_text": self.briefing_text or "",
             "status": self.status or "requested",
@@ -229,11 +236,10 @@ class RecRequest(Base):
 
 class Job(Base):
     __tablename__ = "jobs"
-
     id           = Column(String(32), primary_key=True)
     user_id      = Column(String(32), default="", index=True)
     job_type     = Column(String(50), default="")
-    status       = Column(String(20), default="pending")
+    status       = Column(String(20), default="running")
     result       = Column(JSON, nullable=True)
     error        = Column(Text, nullable=True)
     started_at   = Column(DateTime, default=datetime.utcnow)
@@ -241,33 +247,36 @@ class Job(Base):
 
     def to_dict(self) -> dict:
         return {
-            "id": self.id,
-            "status": self.status,
-            "result": self.result,
-            "error": self.error,
+            "id": self.id, "status": self.status,
+            "result": self.result, "error": self.error,
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
         }
 
 
-# ── Helpers ───────────────────────────────────────────────────
+# ── Session dependency ────────────────────────────────────────
 def get_db():
-    db = SessionLocal()
+    db = get_session_factory()()
     try:
         yield db
     finally:
         db.close()
 
 
+# ── Init ──────────────────────────────────────────────────────
 def init_db():
     os.makedirs("data", exist_ok=True)
+    engine = get_engine()
     try:
         Base.metadata.create_all(bind=engine, checkfirst=True)
-        print(f"[DB] Initialised ({DATABASE_URL.split('://')[0]})")
+        db_type = _get_database_url().split("://")[0]
+        logger.info("DB initialised (%s)", db_type)
+        print(f"[DB] Initialised ({db_type})")
     except Exception as e:
+        logger.error("DB init warning: %s", e)
         print(f"[DB] Warning: {e}")
         for table in Base.metadata.sorted_tables:
             try:
                 table.create(engine, checkfirst=True)
             except Exception as te:
-                print(f"[DB] {table.name}: {te}")
+                logger.error("Table %s: %s", table.name, te)
