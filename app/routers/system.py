@@ -1,6 +1,8 @@
 """System router — /api/health, /api/stats, /api/dashboard, /api/jobs/*"""
 from datetime import datetime
+from pathlib import Path
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db, User, Application, Job
@@ -11,18 +13,42 @@ from app.config import APP_VERSION
 router = APIRouter(prefix="/api", tags=["system"])
 
 
+@router.get("/manifest.json")
+async def manifest():
+    """PWA manifest."""
+    p = Path("static/manifest.json")
+    if p.exists():
+        return FileResponse(str(p), media_type="application/manifest+json")
+    return JSONResponse({})
+
+
+@router.get("/sw.js")
+async def service_worker():
+    """PWA service worker — served from root scope."""
+    p = Path("static/sw.js")
+    if p.exists():
+        return FileResponse(str(p), media_type="application/javascript",
+                           headers={"Service-Worker-Allowed": "/"})
+    return JSONResponse({})
+
+
 @router.get("/health")
 async def health(db: Session = Depends(get_db)):
+    db_error_msg = None
     try:
         user_count = db.query(User).count()
         db_ok = True
     except Exception as e:
         user_count = -1
         db_ok = False
+        db_error_msg = str(e)[:200]
+    from app.config import DATABASE_URL
     return {
         "status": "ok" if db_ok else "db_error",
         "version": APP_VERSION,
         "users": user_count,
+        "db_type": DATABASE_URL.split("://")[0],
+        "db_error": db_error_msg,
         "cache": match_cache.stats(),
         "timestamp": datetime.utcnow().isoformat(),
     }
@@ -89,6 +115,13 @@ async def dashboard(
         "total_won_usd": sum(a.amount_usd for a in won),
         "upcoming_deadlines": upcoming[:5],
     }
+
+
+@router.get("/validate-listings")
+async def validate_listings(user: User = Depends(get_current_user)):
+    """Phase 4 T4: Run fraud detection on all scholarship listings."""
+    from app.services.fraud_detection import validate_all_opportunities
+    return validate_all_opportunities()
 
 
 @router.get("/jobs/{jid}")

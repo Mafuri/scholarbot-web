@@ -61,7 +61,7 @@ async def rate_limit_middleware(request: Request, call_next):
 # ── Routers ───────────────────────────────────────────────────
 from app.routers import (
     auth, profile, scholarships, pipeline,
-    packages, interview, recommendations, system,
+    packages, interview, recommendations, system, account,
 )
 
 app.include_router(auth.router)
@@ -72,8 +72,31 @@ app.include_router(packages.router)
 app.include_router(interview.router)
 app.include_router(recommendations.router)
 app.include_router(system.router)
+app.include_router(account.router)
 
 # ── Startup ───────────────────────────────────────────────────
+@app.middleware("http")
+async def security_headers_middleware(request, call_next):
+    """Phase 4 T6: Security headers on all responses."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    # CSP: allow CDN for React/Babel, own origin for API
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
+        "https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline'; "
+        "connect-src 'self' https://api.anthropic.com; "
+        "img-src 'self' data:; "
+        "font-src 'self';"
+    )
+    return response
+
+
 @app.on_event("startup")
 async def startup():
     Path("data/uploads").mkdir(parents=True, exist_ok=True)
