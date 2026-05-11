@@ -208,7 +208,7 @@ def init_db():
             try: table.create(engine, checkfirst=True)
             except Exception as te: print("[DB] "+table.name+": "+str(te))
 
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -216,6 +216,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 import bcrypt as _bcrypt
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 logging.basicConfig(level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s")
@@ -226,9 +229,23 @@ _JWT_ALG = "HS256"
 _JWT_DAYS = 7
 security = HTTPBearer(auto_error=False)
 
+# Task 2: Rate limiter
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/hour"])
 app = FastAPI(title="ScholarBot API", version="4.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"],
-    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+# Task 1: CORS restricted to known origins only
+ALLOWED_ORIGINS = [
+    "https://scholarbot-web.onrender.com",
+    "http://localhost:3000",   # local dev
+    "http://localhost:8000",   # local dev
+    "http://127.0.0.1:8000",
+]
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET","POST","PATCH","DELETE","OPTIONS"],
+    allow_headers=["Authorization","Content-Type"])
 
 @app.on_event("startup")
 async def startup():
@@ -236,23 +253,21 @@ async def startup():
     Path("data/packages").mkdir(parents=True, exist_ok=True)
     Path("static").mkdir(parents=True, exist_ok=True)
     init_db()
-    logger.info("ScholarBot v4 started")
+    logger.info("ScholarBot v4 started — Phase 1 security hardening active")
+    logger.info("Rate limiting: ON | CORS: restricted | SHA256: removed | Sanitisation: ON")
 
 def _hash_pw(pw):
     pw_bytes = pw.encode('utf-8')[:72]
     return _bcrypt.hashpw(pw_bytes, _bcrypt.gensalt(12)).decode('utf-8')
 
 def _check_pw(pw, hashed):
-    if ":" in hashed and len(hashed.split(":")[0]) == 32:
-        import hashlib
-        try:
-            salt, h = hashed.split(":", 1)
-            return hashlib.sha256((salt+pw).encode()).hexdigest() == h
-        except: return False
+    # Task 5: SHA-256 backward compat REMOVED — bcrypt only
+    # Any remaining SHA-256 hashes are rejected; users must reset password
     try:
         pw_bytes = pw.encode('utf-8')[:72]
         return _bcrypt.checkpw(pw_bytes, hashed.encode('utf-8'))
-    except: return False
+    except Exception:
+        return False
 
 def _make_token(uid):
     exp = datetime.utcnow() + timedelta(days=_JWT_DAYS)
@@ -280,6 +295,49 @@ def optional_user(
     uid = _decode_jwt(creds.credentials)
     if not uid: return None
     return db.query(User).filter(User.id == uid).first()
+
+# Task 4: Input sanitisation before LLM prompts
+import re as _re
+
+def _sanitise(text: str, max_len: int = 8000) -> str:
+    """Strip control chars, limit length, block prompt injection."""
+    if not text:
+        return ""
+    # Remove control characters
+    text = _re.sub(r'[-
+-]', '', str(text))
+    # Block common prompt injection patterns
+    injection_patterns = [
+        r'ignore\s+(?:all\s+)?(?:previous|above|prior)',
+        r'disregard\s+(?:all\s+)?(?:previous|above|prior)',
+        r'forget\s+(?:all\s+)?(?:previous|above)',
+        r'new\s+instructions?:',
+        r'system\s*prompt',
+        r'you\s+are\s+now',
+    ]
+    for pattern in injection_patterns:
+        text = _re.sub(pattern, '[REMOVED]', text, flags=_re.IGNORECASE)
+    return text[:max_len]
+
+
+def _safe_profile(profile: dict) -> dict:
+    """Return a sanitised copy of profile for use in LLM prompts."""
+    safe = {}
+    str_fields = ['name','major','school','nationality','personal_statement','degree_level']
+    list_fields = ['skills','extracurriculars','languages']
+    for f in str_fields:
+        safe[f] = _sanitise(str(profile.get(f, '')), 500)
+    for f in list_fields:
+        raw = profile.get(f, [])
+        if isinstance(raw, list):
+            safe[f] = [_sanitise(str(x), 100) for x in raw[:20]]
+        else:
+            safe[f] = [_sanitise(str(raw), 500)]
+    safe['gpa'] = float(profile.get('gpa', 0) or 0)
+    safe['financial_need'] = bool(profile.get('financial_need', False))
+    safe['id'] = str(profile.get('id', ''))
+    return safe
+
 
 def _get_llm():
     import requests as req
@@ -346,7 +404,8 @@ class RecStatusUp(BaseModel):
     status: str
 
 @app.post("/api/auth/register")
-async def register(req: RegisterReq, db: Session = Depends(get_db)):
+@limiter.limit("10/hour")
+async def register(request: Request, req: RegisterReq, db: Session = Depends(get_db)):
     try:
         existing = db.query(User).filter(User.email == req.email).first()
         if existing:
@@ -373,7 +432,11 @@ async def register(req: RegisterReq, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(u)
         token = _make_token(u.id)
-        return {"token": token, "user": u.to_dict()}
+        from fastapi.responses import JSONResponse
+        resp = JSONResponse({"token": token, "user": u.to_dict()})
+        resp.set_cookie(key="sb_token", value=token, httponly=True,
+            secure=True, samesite="strict", max_age=604800, path="/api")
+        return resp
     except HTTPException:
         raise
     except Exception as e:
@@ -383,11 +446,17 @@ async def register(req: RegisterReq, db: Session = Depends(get_db)):
         raise HTTPException(400, "Registration error: " + str(e))
 
 @app.post("/api/auth/login")
-async def login(req: LoginReq, db: Session = Depends(get_db)):
+@limiter.limit("20/hour")
+async def login(request: Request, req: LoginReq, db: Session = Depends(get_db)):
     u = db.query(User).filter(User.email == req.email).first()
     if not u or not _check_pw(req.password, u.password_hash):
         raise HTTPException(401, "Invalid email or password")
-    return {"token": _make_token(u.id), "user": u.to_dict()}
+    token = _make_token(u.id)
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse({"token": token, "user": u.to_dict()})
+    resp.set_cookie(key="sb_token", value=token, httponly=True,
+        secure=True, samesite="strict", max_age=604800, path="/api")
+    return resp
 
 @app.get("/api/auth/me")
 async def me(user: User = Depends(get_current_user)):
@@ -611,7 +680,8 @@ async def matched_scholarships(user: User = Depends(get_current_user)):
             "total_potential_usd":sum(o["amount_usd"] for o in opps)}
 
 @app.post("/api/essays/generate")
-async def gen_essay(req: dict, bt: BackgroundTasks,
+@limiter.limit("10/hour")
+async def gen_essay(request: Request, req: dict, bt: BackgroundTasks,
     user: User = Depends(get_current_user)):
     from engine.opportunity_db import load_all_opportunities
     opp = next((o for o in load_all_opportunities()
@@ -628,7 +698,8 @@ async def gen_essay(req: dict, bt: BackgroundTasks,
             "message":"Essay generation started"}
 
 @app.post("/api/packages/prepare")
-async def prep_packages(req: dict, bt: BackgroundTasks,
+@limiter.limit("5/hour")
+async def prep_packages(request: Request, req: dict, bt: BackgroundTasks,
     user: User = Depends(get_current_user)):
     db = SessionLocal()
     job = Job(id="job_"+uuid.uuid4().hex[:8], user_id=user.id,
@@ -917,6 +988,14 @@ async def dashboard(user: User = Depends(get_current_user),
             "total_won_usd":sum(a.amount_usd for a in won),
             "upcoming_deadlines":upcoming[:5]}
 
+@app.post("/api/auth/logout")
+async def logout():
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse({"message": "Logged out"})
+    resp.delete_cookie(key="sb_token", path="/api")
+    return resp
+
+
 @app.get("/api/health")
 async def health(db: Session = Depends(get_db)):
     try:
@@ -976,7 +1055,8 @@ def _update_job(jid, status, result=None, error=None):
 def _essay_job(jid, opp, profile, tone, max_words):
     try:
         from engine.scholarship_engine import generate_essay_for
-        essay = generate_essay_for(opp, profile, tone, max_words)
+        safe = _safe_profile(profile)
+        essay = generate_essay_for(opp, safe, tone, max_words)
         _update_job(jid,"done",
                     result={"essay":essay,
                             "word_count":len(essay.split())})
