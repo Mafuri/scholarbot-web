@@ -182,8 +182,10 @@ function useAuth() {
   }
 
   function logout() {
+    api('POST', '/auth/logout').catch(function() {});
     _tok = '';
     localStorage.removeItem('sb_tok');
+    document.cookie = 'sb_token=; path=/api; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     setUser(null);
   }
 
@@ -388,6 +390,11 @@ function HomePage(props) {
 
       <footer style={{background:'#1a1a2e',color:'rgba(255,255,255,.5)',textAlign:'center',padding:'2rem 1rem',fontSize:13}}>
         ScholarBot © {new Date().getFullYear()} · AI-powered scholarship applications · Built for students worldwide
+        <br/>
+        <span style={{fontSize:11,opacity:.6}}>
+          All AI-generated content must be reviewed and personalised before submission.
+          Your data is protected with bcrypt encryption and JWT authentication.
+        </span>
       </footer>
     </div>
   );
@@ -970,7 +977,27 @@ function PackagesPage(props) {
 
   useEffect(function() { load(); }, []);
 
+  const [pledgeShown, setPledgeShown] = useState(false);
+  const [pledgeAccepted, setPledgeAccepted] = useState(
+    localStorage.getItem('sb_pledge') === 'accepted'
+  );
+
   function prepTop() {
+    if (!pledgeAccepted) {
+      setPledgeShown(true);
+      return;
+    }
+    doPrepTop();
+  }
+
+  function acceptPledge() {
+    localStorage.setItem('sb_pledge', 'accepted');
+    setPledgeAccepted(true);
+    setPledgeShown(false);
+    doPrepTop();
+  }
+
+  function doPrepTop() {
     setPreparing(true);
     api('POST', '/packages/prepare', {top_n: 5})
       .then(function() {
@@ -983,6 +1010,43 @@ function PackagesPage(props) {
 
   return (
     <div className="page pb-safe">
+      {pledgeShown && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:500,
+          display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}>
+          <div className="card" style={{maxWidth:520,width:'100%',padding:'2rem'}}>
+            <div style={{fontSize:22,marginBottom:'.5rem'}}>📜</div>
+            <h3 style={{fontSize:18,fontWeight:700,marginBottom:'1rem',color:'#1a1a2e'}}>
+              Scholar's Pledge
+            </h3>
+            <p style={{fontSize:14,color:'#555',marginBottom:'1rem',lineHeight:1.6}}>
+              ScholarBot generates first-draft essays using AI. Before proceeding, please confirm:
+            </p>
+            <ul style={{listStyle:'none',marginBottom:'1.5rem'}}>
+              {['I will read and personalise every AI-generated essay before submitting',
+                'I will ensure all facts in the essay accurately reflect my own experience',
+                'I understand submitting an unreviewed AI essay may violate scholarship rules',
+                'I take full responsibility for my application content'
+              ].map(function(item) {
+                return (
+                  <li key={item} style={{display:'flex',gap:10,fontSize:13,
+                    color:'#333',marginBottom:8,alignItems:'flex-start'}}>
+                    <span style={{color:'#059669',fontWeight:700,flexShrink:0}}>✓</span>
+                    {item}
+                  </li>
+                );
+              })}
+            </ul>
+            <div style={{display:'flex',gap:10}}>
+              <button className="btn btn-primary" style={{flex:1}} onClick={acceptPledge}>
+                I agree — generate my packages
+              </button>
+              <button className="btn btn-outline" onClick={function() { setPledgeShown(false); }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem',flexWrap:'wrap',gap:10}}>
         <div>
           <h2 className="section-title">Application Packages</h2>
