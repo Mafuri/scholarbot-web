@@ -32,6 +32,47 @@ async def service_worker():
     return JSONResponse({})
 
 
+@router.post("/migrate")
+async def run_migrations():
+    """
+    One-time migration endpoint.
+    Call this once after deployment to add missing columns.
+    Safe to call multiple times — uses IF NOT EXISTS.
+    """
+    from app.database import get_engine
+    import sqlalchemy as sa
+
+    engine = get_engine()
+    results = []
+
+    migrations = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS gpa_original FLOAT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS gpa_scale FLOAT DEFAULT 4.0",
+        "ALTER TABLE applications ADD COLUMN IF NOT EXISTS essay_used BOOLEAN",
+        "ALTER TABLE applications ADD COLUMN IF NOT EXISTS essay_helpfulness INTEGER",
+        "ALTER TABLE applications ADD COLUMN IF NOT EXISTS feedback_text TEXT",
+        "ALTER TABLE applications ADD COLUMN IF NOT EXISTS feedback_submitted_at TIMESTAMP",
+        "ALTER TABLE packages ADD COLUMN IF NOT EXISTS essay_version INTEGER DEFAULT 1",
+        "ALTER TABLE packages ADD COLUMN IF NOT EXISTS parent_package_id VARCHAR(32)",
+    ]
+
+    raw = engine.raw_connection()
+    try:
+        raw.set_isolation_level(0)  # AUTOCOMMIT
+        cur = raw.cursor()
+        for sql in migrations:
+            try:
+                cur.execute(sql)
+                results.append({"sql": sql[:60], "status": "ok"})
+            except Exception as e:
+                results.append({"sql": sql[:60], "status": "skipped", "reason": str(e)[:80]})
+        cur.close()
+    finally:
+        raw.close()
+
+    return {"message": "Migrations complete", "results": results}
+
+
 @router.get("/health")
 async def health(db: Session = Depends(get_db)):
     db_error_msg = None
