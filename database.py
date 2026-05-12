@@ -320,13 +320,16 @@ def _run_migrations(engine, db_type: str):
             "ALTER TABLE packages ADD COLUMN IF NOT EXISTS essay_version INTEGER DEFAULT 1",
             "ALTER TABLE packages ADD COLUMN IF NOT EXISTS parent_package_id VARCHAR(32)",
         ]
-        with engine.connect() as conn:
-            for sql in pg_migrations:
-                try:
-                    conn.execute(sa.text(sql))
-                    conn.commit()
-                except Exception as e:
-                    logger.warning("Migration skipped: %s", e)
+        # Use AUTOCOMMIT isolation — DDL must not run inside a transaction
+        raw_conn = engine.raw_connection()
+        raw_conn.set_isolation_level(0)  # AUTOCOMMIT
+        cursor = raw_conn.cursor()
+        for sql in pg_migrations:
+            try:
+                cursor.execute(sql)
+                logger.info("Migration OK: %s", sql[:60])
+            except Exception as e:
+                logger.warning("Migration skipped (%s): %s", sql[:40], e)
+        cursor.close()
+        raw_conn.close()
         logger.info("Migrations complete (%s)", db_type)
-
-
