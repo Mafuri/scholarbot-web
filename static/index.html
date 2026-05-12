@@ -852,50 +852,34 @@ function ScholarshipsPage(props) {
                           Apply →
                         </a>
                         <button className="btn btn-outline btn-sm"
-                          onClick={function(e) {
-                            e.stopPropagation();
-                            setExplaining(s.id);
-                            api('GET', '/scholarships/' + s.id + '/explain')
-                              .then(function(r) { setExplanation(r); setExplaining(null); })
-                              .catch(function() { setExplaining(null); });
-                          }}>
-                          {explaining === s.id ? '...' : '🔍 Why this match?'}
-                        </button>
+                          onClick={function(e){
+                            e.stopPropagation();setExplaining(s.id);
+                            api('GET','/scholarships/'+s.id+'/explain')
+                              .then(function(r){setExplanation(r);setExplaining(null);})
+                              .catch(function(){setExplaining(null);});
+                          }}>{explaining===s.id?'...':'🔍 Why this match?'}</button>
                       </div>
-                      {explanation && explanation.scholarship_id === s.id && (
-                        <div style={{marginTop:'1rem',padding:'1rem',background:'#f8f8ff',borderRadius:8,border:'1px solid #e0e0f0'}}
-                          onClick={function(e) { e.stopPropagation(); }}>
-                          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                            <span style={{fontWeight:600,fontSize:14}}>Match Analysis</span>
-                            <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                              <span style={{fontSize:22,fontWeight:800,color:explanation.grade==='A'?'#059669':explanation.grade==='B'?'#2563eb':'#d97706'}}>{explanation.grade}</span>
-                              <span style={{fontSize:13,color:'#555'}}>{Math.round(explanation.match_score*100)}% match</span>
-                              <button onClick={function(e){e.stopPropagation();setExplanation(null);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:16}}>✕</button>
-                            </div>
+                      {explanation&&explanation.scholarship_id===s.id&&(
+                        <div style={{marginTop:'1rem',padding:'1rem',background:'#f8f8ff',borderRadius:8,border:'1px solid #e0e0f0'}} onClick={function(e){e.stopPropagation();}}>
+                          <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
+                            <span style={{fontWeight:600}}>Match Analysis — <span style={{color:explanation.grade==='A'?'#059669':explanation.grade==='B'?'#2563eb':'#d97706'}}>{explanation.grade} ({Math.round(explanation.match_score*100)}%)</span></span>
+                            <button onClick={function(e){e.stopPropagation();setExplanation(null);}} style={{background:'none',border:'none',cursor:'pointer'}}>✕</button>
                           </div>
-                          {explanation.factors && explanation.factors.map(function(f) {
-                            return (
-                              <div key={f.factor} style={{display:'flex',gap:8,alignItems:'flex-start',marginBottom:6,fontSize:13}}>
-                                <span>{f.icon}</span>
-                                <span style={{color:f.met?'#059669':'#dc2626',fontWeight:600,minWidth:16}}>{f.met?'✓':'✗'}</span>
-                                <span style={{color:'#333'}}>{f.detail}</span>
-                              </div>
-                            );
-                          })}
-                          {explanation.gaps && explanation.gaps.length > 0 && (
-                            <div style={{marginTop:10,padding:'8px 10px',background:'#fff8e1',borderRadius:6,fontSize:12}}>
-                              <strong>To improve your match:</strong> {explanation.gaps[0].action}
+                          {(explanation.factors||[]).map(function(f){return(
+                            <div key={f.factor} style={{display:'flex',gap:8,marginBottom:6,fontSize:13}}>
+                              <span>{f.icon}</span>
+                              <span style={{color:f.met?'#059669':'#dc2626',fontWeight:600}}>{f.met?'✓':'✗'}</span>
+                              <span>{f.detail}</span>
+                            </div>
+                          );})}
+                          {explanation.gaps&&explanation.gaps[0]&&(
+                            <div style={{marginTop:8,padding:'6px 10px',background:'#fff8e1',borderRadius:6,fontSize:12}}>
+                              💡 {explanation.gaps[0].action}
                             </div>
                           )}
-                          <div style={{marginTop:10,padding:'8px 10px',background:'#e8f5e9',borderRadius:6,fontSize:12,color:'#1b5e20'}}>
-                            💡 {explanation.recommendation}
+                          <div style={{marginTop:8,padding:'6px 10px',background:'#e8f5e9',borderRadius:6,fontSize:12}}>
+                            {explanation.recommendation}
                           </div>
-                          {explanation.expected_value_usd > 0 && (
-                            <div style={{marginTop:8,fontSize:12,color:'#666'}}>
-                              Expected value: <strong>${explanation.expected_value_usd.toLocaleString()}</strong>
-                              <span style={{marginLeft:8,color:'#888'}}>({explanation.competitiveness})</span>
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
@@ -1511,38 +1495,27 @@ function ProfilePage(props) {
         </div>
         {uploadResult && (
           <div style={{marginTop:'1rem',paddingTop:'1rem',borderTop:'1px solid #bfdbfe'}}>
-            <div style={{fontWeight:600,color:'#15803d',marginBottom:8}}>
-              Profile updated from your document
-            </div>
-            {uploadResult.updated_fields && uploadResult.updated_fields.length > 0 && (
-              <div style={{fontSize:13,marginBottom:8}}>
-                Updated: <strong>{uploadResult.updated_fields.join(', ')}</strong>
+            <div style={{fontWeight:600,color:'#15803d',marginBottom:8}}>✅ Document scanned</div>
+            {uploadResult.updated_fields&&uploadResult.updated_fields.length>0&&(
+              <div style={{marginBottom:8}}>
+                {uploadResult.updated_fields.map(function(f){return(
+                  <span key={f} style={{background:'#1e3a8a',color:'#fff',padding:'1px 8px',borderRadius:20,fontSize:11,marginRight:4}}>{f.replace(/_/g,' ')}</span>
+                );})}
               </div>
             )}
-            {uploadResult.top_matches && uploadResult.top_matches.length > 0 && (
+            {uploadResult.top_matches&&uploadResult.top_matches.length>0&&(
               <div>
-                <div style={{fontWeight:500,fontSize:13,marginBottom:6}}>
-                  Top matches for your profile:
-                </div>
-                {uploadResult.top_matches.map(function(m) {
-                  return (
-                    <div key={m.name} style={{display:'flex',justifyContent:'space-between',
-                      padding:'5px 0',borderBottom:'.5px solid #bfdbfe',fontSize:13}}>
-                      <span>{(m.name||'').slice(0,44)}</span>
-                      <span style={{fontWeight:600,color:'#1e3a8a',marginLeft:8}}>
-                        {'$'+(m.amount_usd||0).toLocaleString()}
-                      </span>
-                    </div>
-                  );
-                })}
-                <p style={{fontSize:12,color:'#555',marginTop:8}}>
-                  {uploadResult.matched_count} total matches — go to Scholarships to see all
-                </p>
+                <p style={{fontSize:12,fontWeight:600,color:'#1e3a8a',marginBottom:6}}>Top matches:</p>
+                {uploadResult.top_matches.map(function(m,i){return(
+                  <div key={m.name} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',borderBottom:'.5px solid #bfdbfe',fontSize:13}}>
+                    <span>{i+1}. {(m.name||'').slice(0,40)}</span>
+                    <span style={{fontWeight:700}}>{'$'+(m.amount_usd||0).toLocaleString()}</span>
+                  </div>
+                );})}
               </div>
             )}
           </div>
-        )}
-      </div>
+        )}      </div>
 
       <form onSubmit={save}>
         <div className="card" style={{marginBottom:'1rem'}}>
@@ -1640,64 +1613,41 @@ function ProfilePage(props) {
         </button>
       </form>
 
-      <div className="card" style={{marginTop:'1.25rem',border:'1px solid #e8e8e0'}}>
-        <div style={{fontWeight:600,fontSize:15,marginBottom:'1rem'}}>Your data rights</div>
-        <p style={{fontSize:13,color:'#555',marginBottom:'1rem',lineHeight:1.6}}>
-          Under GDPR you have the right to access, export, and delete your data at any time.
-          ScholarBot stores your profile, applications, generated essays, and uploaded documents.
-        </p>
+      <div className="card" style={{marginTop:'1.25rem'}}>
+        <div style={{fontWeight:600,marginBottom:8}}>Your data rights (GDPR)</div>
+        <p style={{fontSize:13,color:'#555',marginBottom:'1rem'}}>Export or delete all your ScholarBot data at any time.</p>
         <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
           <button className="btn btn-outline btn-sm" onClick={function() {
-            api('GET', '/account/export').then(function(data) {
-              const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
-              const a = document.createElement('a');
-              a.href = URL.createObjectURL(blob);
-              a.download = 'scholarbot_my_data.json';
-              a.click();
-              toast('Your data has been exported', 'success');
-            }).catch(function(e) { toast(e.message, 'error'); });
-          }}>
-            📥 Export my data
-          </button>
-          <button className="btn btn-outline btn-sm" style={{color:'#dc2626',borderColor:'#dc2626'}} onClick={function() {
-            if (window.confirm('This will permanently delete your account and ALL your data. This cannot be undone.
-
-Type DELETE MY ACCOUNT to confirm.') ) {
-              const pw = window.prompt('Enter your password to confirm:');
-              if (pw) {
-                api('DELETE', '/account/delete', {password: pw, confirm: 'DELETE MY ACCOUNT'})
-                  .then(function() { toast('Account deleted', 'success'); props.logout && props.logout(); })
-                  .catch(function(e) { toast(e.message, 'error'); });
-              }
+            api('GET','/account/export').then(function(d){
+              const a=document.createElement('a');
+              a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));
+              a.download='scholarbot_data.json'; a.click();
+              toast('Data exported','success');
+            }).catch(function(e){toast(e.message,'error');});
+          }}>📥 Export my data</button>
+          <button className="btn btn-outline btn-sm" style={{color:'#dc2626',borderColor:'#dc2626'}} onClick={function(){
+            if(window.confirm('Permanently delete account and ALL data?')){
+              const pw=window.prompt('Enter password:');
+              if(pw) api('DELETE','/account/delete',{password:pw,confirm:'DELETE MY ACCOUNT'})
+                .then(function(){toast('Deleted','success');props.logout&&props.logout();})
+                .catch(function(e){toast(e.message,'error');});
             }
-          }}>
-            🗑️ Delete my account
-          </button>
+          }}>🗑️ Delete account</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Legal Pages ──────────────────────────────────────────────
-function TosPage(props) {
+// ── Legal Pages (lightweight) ───────────────────────────────
+function LegalPage(props) {
+  const title = props.title;
   const go = props.go;
-  const sections = [
-    ["1. Acceptance of Terms", "By creating a ScholarBot account you agree to these Terms of Service. If you do not agree, do not use the platform."],
-    ["2. Service Description", "ScholarBot provides AI-assisted scholarship discovery, essay generation, and application tracking. All AI-generated content is a first draft and must be reviewed and personalised by you before submission."],
-    ["3. Scholar's Pledge — Your Responsibility", "You agree to: (a) review every AI-generated essay before submitting; (b) ensure all facts in your application accurately reflect your own experience; (c) never submit an unreviewed AI essay; (d) take full personal responsibility for all application content submitted under your name."],
-    ["4. Acceptable Use", "You may not use ScholarBot to: create fake applications, impersonate others, submit fabricated academic credentials, circumvent scholarship portal security, or violate any scholarship programme's terms and conditions."],
-    ["5. AI-Generated Content", "ScholarBot uses Claude AI (Anthropic) to generate essay drafts. These drafts are provided as starting points only. ScholarBot makes no warranty that AI-generated content will result in scholarship awards. The quality and accuracy of outputs depends on the completeness of your profile."],
-    ["6. Data and Privacy", "Your data is handled according to our Privacy Policy. You retain ownership of all content you submit. ScholarBot uses your data only to provide the service described."],
-    ["7. Intellectual Property", "ScholarBot's matching algorithms, software, and platform design are proprietary. The scholarship database is curated from publicly available information. Generated essays, once downloaded, belong to you."],
-    ["8. Limitation of Liability", "ScholarBot is provided 'as is'. We are not liable for scholarship application outcomes, portal downtime, AI output inaccuracies, or data loss beyond our reasonable control."],
-    ["9. Changes to Terms", "We may update these terms with notice. Continued use after changes constitutes acceptance."],
-    ["10. Contact", "For questions about these terms, contact us through the platform."],
-  ];
+  const sections = props.sections;
   return (
     <div className="page-narrow pb-safe" style={{paddingTop:'2rem'}}>
       <button className="btn btn-outline btn-sm" onClick={function(){go('home');}} style={{marginBottom:'1.5rem'}}>← Back</button>
-      <h1 style={{fontSize:24,fontWeight:800,color:'#1a1a2e',marginBottom:'.5rem'}}>Terms of Service</h1>
+      <h1 style={{fontSize:24,fontWeight:800,color:'#1a1a2e',marginBottom:'.5rem'}}>{title}</h1>
       <p style={{color:'#888',fontSize:13,marginBottom:'2rem'}}>Last updated: May 2026</p>
       {sections.map(function(s) {
         return (
@@ -1709,82 +1659,40 @@ function TosPage(props) {
       })}
     </div>
   );
+}
+
+function TosPage(props) {
+  return <LegalPage go={props.go} title="Terms of Service" sections={[
+    ["1. Acceptance","By creating a ScholarBot account you agree to these Terms. If you do not agree, do not use the platform."],
+    ["2. Service","ScholarBot provides AI-assisted scholarship discovery and essay generation. All AI content is a first draft and must be reviewed before submission."],
+    ["3. Scholar's Pledge","You agree to: review every AI essay before submitting; ensure all facts reflect your own experience; never submit an unreviewed AI essay; take full responsibility for your application content."],
+    ["4. Acceptable Use","Do not use ScholarBot to create fake applications, impersonate others, or circumvent scholarship portal security."],
+    ["5. AI Content","Generated essays are starting points only. ScholarBot makes no warranty that AI content will result in scholarship awards."],
+    ["6. Liability","ScholarBot is provided as-is. We are not liable for application outcomes, AI inaccuracies, or data loss beyond our control."],
+    ["7. Contact","For questions about these terms, contact us through the platform."],
+  ]}/>;
 }
 
 function PrivacyPage(props) {
-  const go = props.go;
-  const sections = [
-    ["Data We Collect", "Profile information (name, email, GPA, major, nationality), uploaded documents (CV, transcripts, certificates), application history, generated essays, usage patterns."],
-    ["How We Use Your Data", "To match you with scholarships, generate personalised essays, track your applications, and improve our AI models. We do not sell your data to third parties."],
-    ["Third-Party Services", "We use Anthropic's Claude API for AI processing. Your profile data and document text are sent to Anthropic when generating essays or performing OCR. Anthropic's privacy policy applies. We use Render.com for hosting and database storage."],
-    ["Data Retention", "Your data is retained while your account is active. Packages and essays are kept for 2 years. You may export or delete your data at any time from your Profile page."],
-    ["Your Rights (GDPR)", "You have the right to: access your data (Profile → Export my data), correct inaccurate data (edit your profile), delete your data (Profile → Delete my account), restrict processing (contact us), and data portability (JSON export available)."],
-    ["Security", "Passwords are hashed with bcrypt. Authentication uses JWT tokens with httpOnly cookies. All connections use HTTPS. Input sanitisation protects against injection attacks."],
-    ["Cookies", "We use one session cookie (sb_token) for authentication. No advertising or tracking cookies are used."],
-    ["Children", "ScholarBot is intended for users 16 and older. We do not knowingly collect data from children under 16."],
-    ["Contact", "For privacy questions or to exercise your rights, use the data export and deletion tools in your Profile, or contact us through the platform."],
-  ];
-  return (
-    <div className="page-narrow pb-safe" style={{paddingTop:'2rem'}}>
-      <button className="btn btn-outline btn-sm" onClick={function(){go('home');}} style={{marginBottom:'1.5rem'}}>← Back</button>
-      <h1 style={{fontSize:24,fontWeight:800,color:'#1a1a2e',marginBottom:'.5rem'}}>Privacy Policy</h1>
-      <p style={{color:'#888',fontSize:13,marginBottom:'2rem'}}>Last updated: May 2026</p>
-      {sections.map(function(s) {
-        return (
-          <div key={s[0]} className="card" style={{marginBottom:'1rem'}}>
-            <h3 style={{fontSize:15,fontWeight:700,marginBottom:8,color:'#1a1a2e'}}>{s[0]}</h3>
-            <p style={{fontSize:14,color:'#555',lineHeight:1.7}}>{s[1]}</p>
-          </div>
-        );
-      })}
-    </div>
-  );
+  return <LegalPage go={props.go} title="Privacy Policy" sections={[
+    ["Data We Collect","Profile information, uploaded documents, application history, generated essays, usage patterns."],
+    ["How We Use It","To match scholarships, generate essays, track applications. We do not sell your data."],
+    ["Third Parties","Anthropic Claude API processes your profile for essay generation. Render.com hosts data. No advertising partners."],
+    ["Data Retention","Data kept while account active. Export or delete anytime from your Profile page."],
+    ["Your GDPR Rights","Access (export), correct (edit profile), delete (Profile → Delete account), portability (JSON export)."],
+    ["Security","bcrypt passwords, JWT auth, httpOnly cookies, HTTPS, input sanitisation."],
+    ["Cookies","One session cookie (sb_token) for authentication only. No tracking or advertising cookies."],
+  ]}/>;
 }
 
 function AccessibilityPage(props) {
-  const go = props.go;
-  return (
-    <div className="page-narrow pb-safe" style={{paddingTop:'2rem'}}>
-      <button className="btn btn-outline btn-sm" onClick={function(){go('home');}} style={{marginBottom:'1.5rem'}}>← Back</button>
-      <h1 style={{fontSize:24,fontWeight:800,color:'#1a1a2e',marginBottom:'.5rem'}}>Accessibility</h1>
-      <p style={{color:'#888',fontSize:13,marginBottom:'2rem'}}>Last updated: May 2026</p>
-      <div className="card" style={{marginBottom:'1rem'}}>
-        <h3 style={{fontSize:15,fontWeight:700,marginBottom:8}}>Our commitment</h3>
-        <p style={{fontSize:14,color:'#555',lineHeight:1.7}}>
-          ScholarBot is committed to making scholarship access available to all students, including those with disabilities.
-          We are working toward WCAG 2.1 Level AA compliance.
-        </p>
-      </div>
-      <div className="card" style={{marginBottom:'1rem'}}>
-        <h3 style={{fontSize:15,fontWeight:700,marginBottom:8}}>Current status</h3>
-        {[
-          ['✅', 'Keyboard navigation supported throughout the application'],
-          ['✅', 'ARIA labels on all interactive elements'],
-          ['✅', 'Sufficient colour contrast on primary text and buttons'],
-          ['✅', 'Responsive design for mobile and tablet'],
-          ['✅', 'No auto-playing media or flashing content'],
-          ['⚠️', 'Kanban pipeline board: limited screen reader support (in progress)'],
-          ['⚠️', 'Some colour-coded deadline indicators rely on colour alone (labels being added)'],
-        ].map(function(item) {
-          return (
-            <div key={item[1]} style={{display:'flex',gap:10,marginBottom:8,fontSize:14,alignItems:'flex-start'}}>
-              <span>{item[0]}</span>
-              <span style={{color:'#555'}}>{item[1]}</span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="card">
-        <h3 style={{fontSize:15,fontWeight:700,marginBottom:8}}>Report an issue</h3>
-        <p style={{fontSize:14,color:'#555',lineHeight:1.7}}>
-          If you encounter accessibility barriers, please report them through the platform.
-          We aim to address reported issues within 14 days.
-        </p>
-      </div>
-    </div>
-  );
+  return <LegalPage go={props.go} title="Accessibility" sections={[
+    ["Commitment","ScholarBot targets WCAG 2.1 Level AA compliance to ensure scholarship access for all students."],
+    ["What works","Keyboard navigation, ARIA labels, colour contrast on primary text, responsive design, no auto-playing media."],
+    ["In progress","Kanban board screen reader support, colour-only deadline indicators being updated with text labels."],
+    ["Report an issue","Report accessibility barriers through the platform. We aim to respond within 14 days."],
+  ]}/>;
 }
-
 
 // ── App ───────────────────────────────────────────────────────
 function App() {
