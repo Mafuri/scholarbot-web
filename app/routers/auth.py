@@ -50,10 +50,10 @@ async def register(request: Request, req: RegisterReq,
         if db.query(User).filter(User.email == req.email).first():
             raise HTTPException(400, "Email already registered")
 
-        # Normalise GPA
+        # Normalise GPA to 4.0 scale
         from app.services.gpa import normalise_gpa
         gpa_info = normalise_gpa(
-            req.gpa if req.gpa else req.gpa_original,
+            req.gpa_original or req.gpa,
             scale=req.gpa_scale,
             country=req.nationality,
         )
@@ -66,8 +66,6 @@ async def register(request: Request, req: RegisterReq,
             major=req.major, school=req.school,
             nationality=req.nationality,
             gpa=gpa_info["gpa_4"],
-            gpa_original=req.gpa_original or req.gpa,
-            gpa_scale=gpa_info["scale"],
             financial_need=req.financial_need,
             languages=["English"], skills=[],
             extracurriculars=[], demographic_tags=[],
