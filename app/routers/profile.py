@@ -40,15 +40,11 @@ async def update_profile(
     db: Session = Depends(get_db),
 ):
     for field, value in upd.dict(exclude_none=True).items():
-        # Normalise GPA if provided with scale
-        if field == "gpa" and value is not None:
+        if field in ('gpa_original', 'gpa_scale'): continue
+        if field == 'gpa' and value is not None:
             from app.services.gpa import normalise_gpa
-            scale = upd.gpa_scale or user.gpa_scale or 4.0
-            country = upd.nationality or user.nationality or ""
-            info = normalise_gpa(value, scale=scale, country=country)
-            user.gpa = info["gpa_4"]
-            user.gpa_original = value
-            user.gpa_scale = info["scale"]
+            info = normalise_gpa(value, country=upd.nationality or user.nationality or '')
+            user.gpa = info['gpa_4']
             continue
         setattr(user, field, value)
     user.updated_at = datetime.utcnow()
