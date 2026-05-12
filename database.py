@@ -76,8 +76,6 @@ class User(Base):
     school                  = Column(String(200), default="")
     nationality             = Column(String(100), default="Kenya")
     gpa                     = Column(Float, default=0.0)
-    gpa_original            = Column(Float, nullable=True)
-    gpa_scale               = Column(Float, default=4.0)
     financial_need          = Column(Boolean, default=False)
     languages               = Column(JSON, default=list)
     skills                  = Column(JSON, default=list)
@@ -102,8 +100,8 @@ class User(Base):
             "degree_level": self.degree_level, "major": self.major,
             "school": self.school, "nationality": self.nationality,
             "gpa": self.gpa,
-            "gpa_original": getattr(self, "gpa_original", None),
-            "gpa_scale": getattr(self, "gpa_scale", 4.0),
+            "gpa_original": self.gpa,
+            "gpa_scale": 4.0,
             "financial_need": self.financial_need,
             "languages": self.languages or [], "skills": self.skills or [],
             "extracurriculars": self.extracurriculars or [],
@@ -289,8 +287,6 @@ def _run_migrations(engine, db_type: str):
     import sqlalchemy as sa
     if db_type == "sqlite":
         migrations = [
-            ("users", "gpa_original", "ALTER TABLE users ADD COLUMN gpa_original FLOAT"),
-            ("users", "gpa_scale", "ALTER TABLE users ADD COLUMN gpa_scale FLOAT DEFAULT 4.0"),
             ("applications", "essay_used", "ALTER TABLE applications ADD COLUMN essay_used BOOLEAN"),
             ("applications", "essay_helpfulness", "ALTER TABLE applications ADD COLUMN essay_helpfulness INTEGER"),
             ("applications", "feedback_text", "ALTER TABLE applications ADD COLUMN feedback_text TEXT"),
@@ -311,8 +307,6 @@ def _run_migrations(engine, db_type: str):
                     logger.warning("Migration %s.%s: %s", table, column, e)
     else:
         pg_migrations = [
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS gpa_original FLOAT",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS gpa_scale FLOAT DEFAULT 4.0",
             "ALTER TABLE applications ADD COLUMN IF NOT EXISTS essay_used BOOLEAN",
             "ALTER TABLE applications ADD COLUMN IF NOT EXISTS essay_helpfulness INTEGER",
             "ALTER TABLE applications ADD COLUMN IF NOT EXISTS feedback_text TEXT",
@@ -333,3 +327,5 @@ def _run_migrations(engine, db_type: str):
         cursor.close()
         raw_conn.close()
         logger.info("Migrations complete (%s)", db_type)
+
+
