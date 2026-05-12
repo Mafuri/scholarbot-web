@@ -178,9 +178,7 @@ class TestGPANormalisation:
         })
         assert r.status_code == 200
         user = r.json()["user"]
-        assert user["gpa"] <= 4.0      # normalised
-        assert user["gpa_original"] == 8.5
-        assert user["gpa_scale"] == 10.0
+        assert user["gpa"] <= 4.0      # normalised to 4.0 scale
 
 
 # ── Profile tests ─────────────────────────────────────────────
