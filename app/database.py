@@ -76,14 +76,13 @@ class User(Base):
     school                  = Column(String(200), default="")
     nationality             = Column(String(100), default="Kenya")
     gpa                     = Column(Float, default=0.0)
-    gpa_original            = Column(Float, nullable=True)
-    gpa_scale               = Column(Float, default=4.0)
     financial_need          = Column(Boolean, default=False)
     languages               = Column(JSON, default=list)
     skills                  = Column(JSON, default=list)
     extracurriculars        = Column(JSON, default=list)
     demographic_tags        = Column(JSON, default=list)
     personal_statement      = Column(Text, default="")
+    email_verified          = Column(Boolean, default=False)
     plan                    = Column(String(20), default="free")
     applications_this_month = Column(Integer, default=0)
     created_at              = Column(DateTime, default=datetime.utcnow)
@@ -101,13 +100,15 @@ class User(Base):
             "id": self.id, "name": self.name, "email": self.email,
             "degree_level": self.degree_level, "major": self.major,
             "school": self.school, "nationality": self.nationality,
-            "gpa": self.gpa, "gpa_original": self.gpa_original,
-            "gpa_scale": self.gpa_scale, "financial_need": self.financial_need,
+            "gpa": self.gpa,
+            "gpa_original": self.gpa,
+            "gpa_scale": 4.0,
+            "financial_need": self.financial_need,
             "languages": self.languages or [], "skills": self.skills or [],
             "extracurriculars": self.extracurriculars or [],
             "demographic_tags": self.demographic_tags or [],
             "personal_statement": self.personal_statement or "",
-            "plan": self.plan,
+            "email_verified": bool(self.email_verified), "plan": self.plan,
             "applications_this_month": self.applications_this_month or 0,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
@@ -152,9 +153,9 @@ class Application(Base):
             "outcome_date": self.outcome_date.isoformat() if self.outcome_date else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "essay_used": self.essay_used,
-            "essay_helpfulness": self.essay_helpfulness,
-            "feedback_text": self.feedback_text,
+            "essay_used": getattr(self, "essay_used", None),
+            "essay_helpfulness": getattr(self, "essay_helpfulness", None),
+            "feedback_text": getattr(self, "feedback_text", None),
         }
 
 
@@ -255,6 +256,47 @@ class Job(Base):
 
 
 # ── Session dependency ────────────────────────────────────────
+
+class PledgeLog(Base):
+    """Blocker 5: Audit log proving user agreed to Scholar's Pledge."""
+    __tablename__ = "pledge_logs"
+    id              = Column(String(32), primary_key=True)
+    user_id         = Column(String(32), ForeignKey("users.id"), nullable=False, index=True)
+    ip_address      = Column(String(45), default="")
+    user_agent      = Column(Text, default="")
+    pledge_hash     = Column(String(64), default="")   # SHA-256 of pledge text shown
+    created_at      = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id, "user_id": self.user_id,
+            "ip_address": self.ip_address,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class PasswordResetToken(Base):
+    """Blocker 1: Password reset tokens — store hash not raw token."""
+    __tablename__ = "password_reset_tokens"
+    id         = Column(String(32), primary_key=True)
+    user_id    = Column(String(32), ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used       = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EmailVerification(Base):
+    """Blocker 3: Email verification tokens."""
+    __tablename__ = "email_verifications"
+    id         = Column(String(32), primary_key=True)
+    user_id    = Column(String(32), ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    verified   = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+
+
 def get_db():
     db = get_session_factory()()
     try:
@@ -267,16 +309,65 @@ def get_db():
 def init_db():
     os.makedirs("data", exist_ok=True)
     engine = get_engine()
+    db_type = _get_database_url().split("://")[0]
     try:
         Base.metadata.create_all(bind=engine, checkfirst=True)
-        db_type = _get_database_url().split("://")[0]
         logger.info("DB initialised (%s)", db_type)
         print(f"[DB] Initialised ({db_type})")
     except Exception as e:
         logger.error("DB init warning: %s", e)
-        print(f"[DB] Warning: {e}")
         for table in Base.metadata.sorted_tables:
             try:
                 table.create(engine, checkfirst=True)
             except Exception as te:
                 logger.error("Table %s: %s", table.name, te)
+    _run_migrations(engine, db_type)
+
+
+def _run_migrations(engine, db_type: str):
+    """Add new columns to existing tables — idempotent, safe on every startup."""
+    import sqlalchemy as sa
+    if db_type == "sqlite":
+        migrations = [
+            ("applications", "essay_used", "ALTER TABLE applications ADD COLUMN essay_used BOOLEAN"),
+            ("applications", "essay_helpfulness", "ALTER TABLE applications ADD COLUMN essay_helpfulness INTEGER"),
+            ("applications", "feedback_text", "ALTER TABLE applications ADD COLUMN feedback_text TEXT"),
+            ("applications", "feedback_submitted_at", "ALTER TABLE applications ADD COLUMN feedback_submitted_at DATETIME"),
+            ("packages", "essay_version", "ALTER TABLE packages ADD COLUMN essay_version INTEGER DEFAULT 1"),
+            ("packages", "parent_package_id", "ALTER TABLE packages ADD COLUMN parent_package_id VARCHAR(32)"),
+        ]
+        with engine.connect() as conn:
+            for table, column, sql in migrations:
+                try:
+                    result = conn.execute(sa.text(f"PRAGMA table_info({table})"))
+                    cols = [row[1] for row in result]
+                    if column not in cols:
+                        conn.execute(sa.text(sql))
+                        conn.commit()
+                        logger.info("Migration: added %s.%s", table, column)
+                except Exception as e:
+                    logger.warning("Migration %s.%s: %s", table, column, e)
+    else:
+        pg_migrations = [
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS essay_used BOOLEAN",
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS essay_helpfulness INTEGER",
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS feedback_text TEXT",
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS feedback_submitted_at TIMESTAMP",
+            "ALTER TABLE packages ADD COLUMN IF NOT EXISTS essay_version INTEGER DEFAULT 1",
+            "ALTER TABLE packages ADD COLUMN IF NOT EXISTS parent_package_id VARCHAR(32)",
+        ]
+        # Use AUTOCOMMIT isolation — DDL must not run inside a transaction
+        raw_conn = engine.raw_connection()
+        raw_conn.set_isolation_level(0)  # AUTOCOMMIT
+        cursor = raw_conn.cursor()
+        for sql in pg_migrations:
+            try:
+                cursor.execute(sql)
+                logger.info("Migration OK: %s", sql[:60])
+            except Exception as e:
+                logger.warning("Migration skipped (%s): %s", sql[:40], e)
+        cursor.close()
+        raw_conn.close()
+        logger.info("Migrations complete (%s)", db_type)
+
+
