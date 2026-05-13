@@ -11,6 +11,16 @@ from app.services import jobs as job_service
 router = APIRouter(prefix="/api", tags=["packages"])
 
 
+# Pledge text hash (must match auth.py PLEDGE_HASH)
+import hashlib as _hl
+_PLEDGE_TEXT = (
+    "I will read and personalise every AI-generated essay before submitting. "
+    "I will ensure all facts accurately reflect my own experience. "
+    "I take full personal responsibility for all application content."
+)
+_PLEDGE_HASH = _hl.sha256(_PLEDGE_TEXT.encode()).hexdigest()
+
+
 @router.post("/packages/prepare")
 async def prepare_packages(
     request: Request,
@@ -21,6 +31,19 @@ async def prepare_packages(
 ):
     ip = request.client.host if request.client else "unknown"
     check_rate_limit(ip, "/api/packages")
+
+    # Blocker 5: Log Scholar's Pledge agreement with IP + user agent
+    from app.database import PledgeLog
+    import uuid as _uuid
+    pledge = PledgeLog(
+        id=f"pl_{_uuid.uuid4().hex[:8]}",
+        user_id=user.id,
+        ip_address=ip,
+        user_agent=request.headers.get("user-agent", "")[:300],
+        pledge_hash=_PLEDGE_HASH,
+    )
+    db.add(pledge); db.commit()
+
     job = job_service.create_job(db, user.id, "packages")
     top_n = int(req.get("top_n", 5))
     bt.add_task(
@@ -71,6 +94,38 @@ async def get_essay(
     if not pkg:
         raise HTTPException(404, "Package not found")
     return {"essay": pkg.essay_text or "", "version": pkg.essay_version}
+
+
+@router.get("/packages/{uid}/{oid}/versions")
+async def get_essay_versions(
+    uid: str, oid: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List all essay versions for a given scholarship opportunity."""
+    if user.id != uid:
+        raise HTTPException(403, "Access denied")
+    versions = (
+        db.query(Package)
+        .filter(Package.user_id == uid, Package.opportunity_id == oid)
+        .order_by(Package.essay_version.desc())
+        .all()
+    )
+    return {
+        "opportunity_id": oid,
+        "versions": [
+            {
+                "id": p.id,
+                "version": p.essay_version,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "preview": (p.essay_text or "")[:120] + "...",
+                "essay_url": f"/api/packages/{uid}/{p.id}/essay",
+                "briefing_url": f"/api/packages/{uid}/{p.id}/briefing",
+            }
+            for p in versions
+        ],
+        "total": len(versions),
+    }
 
 
 @router.post("/essays/generate")

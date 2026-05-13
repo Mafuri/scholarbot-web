@@ -59,19 +59,46 @@ async def readiness(user: User = Depends(get_current_user)):
     return compute_readiness_score(user.to_dict())
 
 
+def _validate_upload(filename: str, content: bytes) -> str:
+    """Validate file by magic bytes — blocks executables renamed as docs."""
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(400,
+            f"Unsupported type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(400, "File exceeds 10MB limit.")
+    head = content[:8]
+    pdf_magic  = bytes([0x25, 0x50, 0x44, 0x46])          # %PDF
+    zip_magic  = bytes([0x50, 0x4B, 0x03, 0x04])          # PK.. (docx)
+    jpg_magic  = bytes([0xFF, 0xD8, 0xFF])                 # JPEG
+    png_magic  = bytes([0x89, 0x50, 0x4E, 0x47])           # PNG
+    tif_le     = bytes([0x49, 0x49, 0x2A, 0x00])          # TIFF LE
+    tif_be     = bytes([0x4D, 0x4D, 0x00, 0x2A])          # TIFF BE
+    if ext == ".pdf" and head[:4] == pdf_magic:
+        return ext
+    if ext in (".docx", ".doc") and head[:4] == zip_magic:
+        return ext
+    if ext in (".jpg", ".jpeg") and head[:3] == jpg_magic:
+        return ext
+    if ext == ".png" and head[:4] == png_magic:
+        return ext
+    if ext in (".tiff", ".tif") and (head[:4] == tif_le or head[:4] == tif_be):
+        return ext
+    if ext in (".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp", ".webp"):
+        # Allow images without strict magic check (various formats)
+        return ext
+    raise HTTPException(400,
+        "File content does not match its extension. Upload a valid document.")
+
+
 @router.post("/profile/upload-doc")
 async def upload_doc(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    ext = Path(file.filename).suffix.lower()
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            400,
-            f"Unsupported file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
-        )
     content_bytes = await file.read()
+    ext = _validate_upload(file.filename or "upload.bin", content_bytes)
     d = Path(f"{UPLOAD_DIR}/{user.id}")
     d.mkdir(parents=True, exist_ok=True)
     p = d / f"{uuid.uuid4().hex[:8]}_{file.filename}"
