@@ -8,5 +8,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 RUN mkdir -p data/uploads data/packages static
 EXPOSE 8000
-# Phase 2: 4 workers now safe - modular architecture avoids Pydantic spawn issues
-CMD ["sh", "-c", "uvicorn web_app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 4"]
+# Blocker 2: app/main.py is now the ONLY entry point — web_app.py is deleted
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
