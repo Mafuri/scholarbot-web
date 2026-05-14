@@ -306,59 +306,31 @@ def _init_db():
 
 
 def _safe_migrations(engine):
-    """Run all schema migrations safely — skips if already applied."""
+    """SQLAlchemy 2.0 compatible migrations. Runs every startup — idempotent."""
+    from sqlalchemy import text as _text
     sqls = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE",
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0",
-        """CREATE TABLE IF NOT EXISTS user_events (
-            id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32),
-            event_type VARCHAR(50), opp_id VARCHAR(32),
-            opp_name VARCHAR(300), metadata_ JSON,
-            created_at TIMESTAMP DEFAULT NOW())""",
-        """CREATE TABLE IF NOT EXISTS institutions (
-            id VARCHAR(32) PRIMARY KEY, name VARCHAR(200),
-            domain VARCHAR(100) UNIQUE, admin_email VARCHAR(200),
-            plan VARCHAR(20) DEFAULT 'partner', student_count INTEGER DEFAULT 0,
-            active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT NOW())""",
-        """CREATE TABLE IF NOT EXISTS experiments (
-            id VARCHAR(32) PRIMARY KEY, name VARCHAR(100),
-            variant VARCHAR(50), user_id VARCHAR(32),
-            converted BOOLEAN DEFAULT FALSE, conversion_event VARCHAR(50),
-            metadata_ JSON, created_at TIMESTAMP DEFAULT NOW())""",
-        """CREATE TABLE IF NOT EXISTS expert_reviews (
-            id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32),
-            package_id VARCHAR(32), scholarship_name VARCHAR(300),
-            essay_text TEXT, rubric VARCHAR(50) DEFAULT 'general',
-            status VARCHAR(30) DEFAULT 'pending', reviewer_notes TEXT,
-            score FLOAT, grade VARCHAR(5), feedback TEXT,
-            requested_at TIMESTAMP DEFAULT NOW(), completed_at TIMESTAMP)""",
-        """CREATE TABLE IF NOT EXISTS pledge_logs (
-            id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32),
-            ip_address VARCHAR(45), user_agent TEXT,
-            pledge_hash VARCHAR(64), created_at TIMESTAMP DEFAULT NOW())""",
+        "CREATE TABLE IF NOT EXISTS user_events (id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32), event_type VARCHAR(50), opp_id VARCHAR(32), opp_name VARCHAR(300), metadata_ JSON, created_at TIMESTAMP DEFAULT NOW())",
+        "CREATE TABLE IF NOT EXISTS institutions (id VARCHAR(32) PRIMARY KEY, name VARCHAR(200), domain VARCHAR(100) UNIQUE, admin_email VARCHAR(200), plan VARCHAR(20) DEFAULT 'partner', student_count INTEGER DEFAULT 0, active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT NOW())",
+        "CREATE TABLE IF NOT EXISTS experiments (id VARCHAR(32) PRIMARY KEY, name VARCHAR(100), variant VARCHAR(50), user_id VARCHAR(32), converted BOOLEAN DEFAULT FALSE, conversion_event VARCHAR(50), metadata_ JSON, created_at TIMESTAMP DEFAULT NOW())",
+        "CREATE TABLE IF NOT EXISTS expert_reviews (id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32), package_id VARCHAR(32), scholarship_name VARCHAR(300), essay_text TEXT, rubric VARCHAR(50) DEFAULT 'general', status VARCHAR(30) DEFAULT 'pending', reviewer_notes TEXT, score FLOAT, grade VARCHAR(5), feedback TEXT, requested_at TIMESTAMP DEFAULT NOW(), completed_at TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS pledge_logs (id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32), ip_address VARCHAR(45), user_agent TEXT, pledge_hash VARCHAR(64), created_at TIMESTAMP DEFAULT NOW())",
     ]
-    raw = engine.raw_connection()
+    ok = 0
     try:
-        raw.set_isolation_level(0)
-        cur = raw.cursor()
-        for sql in sqls:
-            try:
-                cur.execute(sql)
-                logger.debug("Migration OK: %s", sql[:60])
-            except Exception as e:
-                logger.debug("Migration skip: %s", str(e)[:60])
-        cur.close()
-    finally:
-        raw.close()
-    print("[DB] Migrations applied")
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            for sql in sqls:
+                try:
+                    conn.execute(_text(sql))
+                    ok += 1
+                except Exception as e:
+                    logger.debug("Migration skipped: %s — %s", sql[:50], str(e)[:60])
+        print(f"[DB] Migrations: {ok}/{len(sqls)} applied")
+    except Exception as e:
+        logger.warning("Migration block failed (non-critical): %s", e)
 
-# ── Security ──────────────────────────────────────────────────
-import bcrypt as _bcrypt
-from jose import JWTError, jwt as _jwt
-
-_SECRET = os.environ.get("SECRET_KEY", secrets.token_hex(32))
-_ALG = "HS256"
 
 def _hash_pw(pw):
     return _bcrypt.hashpw(pw.encode()[:72], _bcrypt.gensalt(12)).decode()
@@ -1430,6 +1402,35 @@ async def dashboard(user: User = Depends(_get_user), db: Session = Depends(get_d
             "upcoming_deadlines":upcoming[:5]}
 
 # ── System ────────────────────────────────────────────────────
+@app.get("/api/debug")
+async def debug_info():
+    """Diagnostic endpoint — shows exact version and startup status."""
+    import sys
+    db_ok = False
+    db_error = ""
+    table_count = 0
+    try:
+        from sqlalchemy import text as _t
+        with _get_engine().connect() as conn:
+            result = conn.execute(_t(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                "WHERE table_schema='public'"
+            ))
+            table_count = result.scalar()
+            db_ok = True
+    except Exception as e:
+        db_error = str(e)[:200]
+    return {
+        "version": "4.2.0",
+        "python": sys.version[:20],
+        "db_connected": db_ok,
+        "db_error": db_error,
+        "tables_in_db": table_count,
+        "extra_opps": len(EXTRA_OPPORTUNITIES),
+        "status": "ok" if db_ok else "db_error",
+    }
+
+
 @app.get("/api/health")
 async def health(db: Session = Depends(get_db)):
     try: users=db.query(User).count(); ok=True
