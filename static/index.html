@@ -869,6 +869,7 @@ function ScholarshipsPage(props) {
                           onClick={function(e) { e.stopPropagation(); }}>
                           Apply →
                         </a>
+
                         <button className="btn btn-outline btn-sm"
                           onClick={function(e){
                             e.stopPropagation();setExplaining(s.id);
@@ -1712,6 +1713,41 @@ function AccessibilityPage(props) {
   ]}/>;
 }
 
+// ── Plans Page ───────────────────────────────────────────────
+function PlansPage(props) {
+  const plans=[
+    {id:'free',name:'Free',price:'$0/mo',color:'#6b7280',
+     features:['3 essays/day','1 package/day','87 scholarships','Interview coaching']},
+    {id:'pro',name:'Pro',price:'$9/mo',color:'#2563eb',popular:true,
+     features:['20 essays/day','5 packages/day','Expert reviews (3/mo)','Analytics']},
+    {id:'enterprise',name:'Enterprise',price:'$49/mo',color:'#7c3aed',
+     features:['Unlimited everything','University dashboard','API access','Support']},
+  ];
+  return (
+    <div className="page pb-safe">
+      <h2 className="section-title">Plans</h2>
+      <p className="section-sub" style={{marginBottom:'1.5rem'}}>Start free. Upgrade anytime.</p>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:'1rem'}}>
+        {plans.map(function(p) { return (
+          <div key={p.id} className="card" style={{border:`2px solid ${p.popular?p.color:'#e8e8e0'}`,padding:'1.25rem',position:'relative'}}>
+            {p.popular&&<div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:'#2563eb',color:'#fff',padding:'1px 12px',borderRadius:20,fontSize:11,fontWeight:700}}>POPULAR</div>}
+            <div style={{fontWeight:800,fontSize:18,color:p.color}}>{p.name}</div>
+            <div style={{fontWeight:800,fontSize:24,color:'#1a1a2e',margin:'4px 0 12px'}}>{p.price}</div>
+            {p.features.map(function(f){return <div key={f} style={{display:'flex',gap:6,marginBottom:5,fontSize:13}}><span style={{color:'#059669'}}>✓</span><span>{f}</span></div>;})}
+            <button className="btn btn-primary" style={{width:'100%',marginTop:12,justifyContent:'center',background:p.color}}>{p.id==='free'?'Current plan':'Upgrade'}</button>
+          </div>
+        );})}
+      </div>
+      <div className="card" style={{marginTop:'1rem',background:'#f5f5f0'}}>
+        <strong>🏛️ University Partnerships</strong>
+        <p style={{fontSize:13,color:'#555',margin:'6px 0'}}>Register your institution for a university dashboard and bulk student access.</p>
+        <button className="btn btn-outline btn-sm" onClick={function(){window.open('mailto:partnerships@scholarbot.app','_blank');}}>Contact us</button>
+      </div>
+    </div>
+  );
+}
+
+
 // ── App ───────────────────────────────────────────────────────
 function App() {
   const auth = useAuth();
@@ -1753,6 +1789,7 @@ function App() {
     if (page === 'packages' && user) return <PackagesPage user={user}/>;
     if (page === 'interview') return <InterviewPage/>;
     if (page === 'profile' && user) return <ProfilePage user={user} setUser={setUser} logout={logout}/>;
+    if (page === 'plans') return <PlansPage go={go}/>;
     if (page === 'tos') return <TosPage go={go}/>;
     if (page === 'privacy') return <PrivacyPage go={go}/>;
     if (page === 'accessibility') return <AccessibilityPage go={go}/>;
