@@ -509,10 +509,17 @@ async def register(req: RegisterReq, db: Session = Depends(get_db)):
     try:
         if db.query(User).filter(User.email==req.email).first():
             raise HTTPException(400, "Email already registered")
+        # Normalise GPA from any international scale
+        from engine.scholarship_engine import normalise_gpa as _ngpa
+        try:
+            gpa_result = _ngpa(float(req.gpa or 0), country=req.nationality)
+            gpa_normalised = gpa_result.get("gpa_4", float(req.gpa or 0))
+        except Exception:
+            gpa_normalised = float(req.gpa or 0)
         u = User(id=f"user_{uuid.uuid4().hex[:10]}", name=req.name, email=req.email,
                  password_hash=_hash_pw(req.password), degree_level=req.degree_level,
                  major=req.major, school=req.school, nationality=req.nationality,
-                 gpa=float(req.gpa), financial_need=bool(req.financial_need),
+                 gpa=min(4.0, gpa_normalised), financial_need=bool(req.financial_need),
                  languages=["English"], skills=[], extracurriculars=[],
                  demographic_tags=[], personal_statement="")
         db.add(u); db.commit(); db.refresh(u)
@@ -658,6 +665,56 @@ async def matched(user: User = Depends(_get_user)):
     return {"scholarships":opps,"count":len(opps),
             "total_potential_usd":sum(o["amount_usd"] for o in opps)}
 
+
+@app.post("/api/gpa/detect")
+async def detect_gpa(req: dict):
+    """
+    T3: GPA scale auto-detection for onboarding confirmation.
+    Frontend calls this as user types their GPA to show:
+    'Detected: Nigerian 4.2/5.0 → 3.36/4.0. Correct?'
+    """
+    gpa_raw = float(req.get("gpa", 0) or 0)
+    country = req.get("nationality", "")
+    if gpa_raw <= 0:
+        return {"gpa_4": 0.0, "scale": 4.0, "label": "Enter your GPA", "confidence": "low"}
+
+    # Scale detection thresholds
+    breakpoints = [(4.5,4.0),(5.5,5.0),(6.5,6.0),(7.5,7.0),(10.5,10.0),(21.0,20.0),(float("inf"),100.0)]
+    country_scales = {
+        "kenya":4.0,"usa":4.0,"united states":4.0,"canada":4.0,
+        "nigeria":5.0,"ghana":4.0,"tanzania":4.0,"uganda":4.0,"rwanda":4.0,
+        "south africa":7.0,"australia":7.0,"new zealand":7.0,
+        "india":10.0,"france":20.0,"lebanon":20.0,"senegal":20.0,
+        "egypt":100.0,"china":100.0,"uk":100.0,"united kingdom":100.0,
+        "germany":4.0,  # German scale handled separately
+    }
+    cl = country.lower().strip()
+    is_german = cl == "germany"
+
+    if is_german:
+        # German 1-5 inverted scale
+        german_map = {1.0:4.0,1.3:3.7,1.7:3.3,2.0:3.0,2.3:2.7,2.7:2.3,
+                      3.0:2.0,3.3:1.7,3.7:1.3,4.0:1.0,5.0:0.0}
+        nearest = min(german_map.keys(), key=lambda x: abs(x-gpa_raw))
+        gpa_4 = german_map[nearest]
+        return {"gpa_4": gpa_4, "scale": 5.0, "original": gpa_raw,
+                "label": f"{gpa_raw}/5.0 (German) → {gpa_4}/4.0",
+                "confidence": "high", "country": country}
+
+    if cl in country_scales:
+        scale = country_scales[cl]
+        confidence = "high"
+    else:
+        scale = next(s for t,s in breakpoints if gpa_raw < t)
+        confidence = "medium" if gpa_raw > 4.0 else "low"
+
+    gpa_4 = round(min(4.0, (gpa_raw / scale) * 4.0), 2) if scale != 4.0 else min(4.0, gpa_raw)
+    label = f"{gpa_raw}/{scale}"
+    if cl: label += f" ({country.title()})"
+    label += f" → {gpa_4}/4.0"
+    return {"gpa_4": gpa_4, "scale": scale, "original": gpa_raw,
+            "label": label, "confidence": confidence, "country": country}
+
 @app.get("/api/scholarships/{sid}/explain")
 async def explain(sid: str, user: User = Depends(_opt_user)):
     from engine.opportunity_db import load_all_opportunities
@@ -731,6 +788,92 @@ async def explain(sid: str, user: User = Depends(_opt_user)):
         "competitiveness": f"{int(acceptance*100)}% acceptance rate",
         "factors": factors, "gaps": gaps, "strengths": [f["detail"] for f in factors if f["met"]],
         "recommendation": rec, "factors_met": met_count, "factors_total": len(factors),
+    }
+
+
+@app.get("/api/scholarships/recommended")
+async def recommended_scholarships(user: User = Depends(_get_user),
+                                    db: Session = Depends(get_db)):
+    """
+    Collaborative filtering: find scholarships that students similar to
+    this user have added to their pipeline or submitted.
+    Similar = same degree_level + nationality + financial_need.
+    Returns up to 10 recommended opportunities not yet in user's pipeline.
+    """
+    from engine.opportunity_db import load_all_opportunities
+
+    # Find similar users (same degree + nationality)
+    similar_users = db.query(User).filter(
+        User.id != user.id,
+        User.degree_level == user.degree_level,
+        User.nationality == user.nationality,
+    ).limit(200).all()
+
+    if not similar_users:
+        # Fallback: just return top matches
+        opps = _match_opps(user.to_dict())[:10]
+        return {"recommended": opps, "method": "fallback_match",
+                "similar_users_found": 0}
+
+    similar_ids = [u.id for u in similar_users]
+
+    # Find what those users added to pipeline / submitted / won
+    events = db.query(UserEvent).filter(
+        UserEvent.user_id.in_(similar_ids),
+        UserEvent.event_type.in_(["pipeline_add", "submitted", "won"]),
+        UserEvent.opp_id != None,
+        UserEvent.opp_id != "",
+    ).all()
+
+    if not events:
+        opps = _match_opps(user.to_dict())[:10]
+        return {"recommended": opps, "method": "fallback_match",
+                "similar_users_found": len(similar_ids)}
+
+    # Score opportunities by how many similar users interacted with them
+    from collections import Counter
+    # Weight: won=3, submitted=2, pipeline_add=1
+    weights = {"won": 3, "submitted": 2, "pipeline_add": 1}
+    opp_scores: dict = Counter()
+    opp_names: dict = {}
+    for ev in events:
+        opp_scores[ev.opp_id] += weights.get(ev.event_type, 1)
+        if ev.opp_name:
+            opp_names[ev.opp_id] = ev.opp_name
+
+    # Get user's existing pipeline to exclude already-added items
+    user_apps = db.query(Application).filter(
+        Application.user_id == user.id
+    ).all()
+    already_added = {a.opportunity_id for a in user_apps}
+
+    # Load full opportunity details for top recommendations
+    all_opps = {o["id"]: o for o in load_all_opportunities()}
+    recommendations = []
+    for opp_id, score in opp_scores.most_common(20):
+        if opp_id in already_added:
+            continue
+        opp = all_opps.get(opp_id)
+        if opp:
+            recommendations.append({**opp, "collab_score": score})
+        if len(recommendations) >= 10:
+            break
+
+    # If fewer than 5, top up with regular matching
+    if len(recommendations) < 5:
+        matched = _match_opps(user.to_dict())
+        matched_ids = {r["id"] for r in recommendations}
+        for o in matched:
+            if o["id"] not in matched_ids and o["id"] not in already_added:
+                recommendations.append({**o, "collab_score": 0})
+            if len(recommendations) >= 10:
+                break
+
+    return {
+        "recommended": recommendations,
+        "method": "collaborative_filtering",
+        "similar_users_found": len(similar_ids),
+        "based_on_events": len(events),
     }
 
 # ── Pipeline ──────────────────────────────────────────────────
@@ -1072,6 +1215,96 @@ async def sw():
     return JSONResponse({}, status_code=404)
 
 # ── GDPR ─────────────────────────────────────────────────────
+
+@app.get("/api/analytics")
+async def analytics(user: User = Depends(_get_user),
+                     db: Session = Depends(get_db)):
+    """
+    Product analytics — funnel metrics for the platform.
+    Registration → profile → match → pipeline → submission → win.
+    """
+    from sqlalchemy import func
+
+    total_users = db.query(User).count()
+    users_with_gpa = db.query(User).filter(User.gpa > 0).count()
+    users_with_skills = db.query(User).filter(
+        User.skills != None, User.skills != "[]"
+    ).count()
+
+    total_apps = db.query(Application).count()
+    submitted = db.query(Application).filter(
+        Application.stage == "submitted"
+    ).count()
+    won = db.query(Application).filter(
+        Application.stage == "won"
+    ).count()
+    total_won_usd = db.query(
+        func.sum(Application.amount_usd)
+    ).filter(Application.stage == "won").scalar() or 0
+
+    total_packages = db.query(Package).count()
+    users_with_packages = db.query(
+        func.count(func.distinct(Package.user_id))
+    ).scalar() or 0
+
+    # Event funnel
+    views = db.query(UserEvent).filter(
+        UserEvent.event_type == "view"
+    ).count()
+    pipeline_adds = db.query(UserEvent).filter(
+        UserEvent.event_type == "pipeline_add"
+    ).count()
+    submissions = db.query(UserEvent).filter(
+        UserEvent.event_type == "submitted"
+    ).count()
+    wins = db.query(UserEvent).filter(
+        UserEvent.event_type == "won"
+    ).count()
+
+    # Top scholarships by pipeline additions
+    top_opps = db.query(
+        UserEvent.opp_name,
+        func.count(UserEvent.id).label("count")
+    ).filter(
+        UserEvent.event_type == "pipeline_add",
+        UserEvent.opp_name != None,
+    ).group_by(UserEvent.opp_name).order_by(
+        func.count(UserEvent.id).desc()
+    ).limit(10).all()
+
+    return {
+        "users": {
+            "total": total_users,
+            "profile_complete_pct": round(users_with_gpa / max(total_users, 1) * 100, 1),
+            "with_skills_pct": round(users_with_skills / max(total_users, 1) * 100, 1),
+        },
+        "funnel": {
+            "registered": total_users,
+            "viewed_scholarship": views,
+            "added_to_pipeline": pipeline_adds,
+            "submitted": submissions,
+            "won": wins,
+            "view_to_pipeline_pct": round(pipeline_adds / max(views, 1) * 100, 1),
+            "pipeline_to_submit_pct": round(submissions / max(pipeline_adds, 1) * 100, 1),
+            "submit_to_win_pct": round(wins / max(submissions, 1) * 100, 1),
+        },
+        "packages": {
+            "total_generated": total_packages,
+            "users_with_packages": users_with_packages,
+        },
+        "outcomes": {
+            "total_applications": total_apps,
+            "submitted": submitted,
+            "won": won,
+            "total_won_usd": round(total_won_usd, 2),
+            "win_rate_pct": round(won / max(submitted, 1) * 100, 1),
+        },
+        "top_scholarships": [
+            {"name": row.opp_name, "pipeline_additions": row.count}
+            for row in top_opps
+        ],
+    }
+
 @app.get("/api/account/export")
 async def export_data(user: User = Depends(_get_user), db: Session = Depends(get_db)):
     apps = db.query(Application).filter(Application.user_id==user.id).all()
