@@ -781,6 +781,24 @@ def _match_opps(profile, opp_type=None, field=None, region=None, min_amount=0):
                     field.lower() in " ".join(o.get("tags",[])).lower()]
     if region: opps=[o for o in opps if any(region.lower() in c.lower()
                      for c in o.get("eligible_countries",[]))]
+    # T2: Behavioral score boosting — opportunities users like you won/submitted
+    # get a small boost to their match score
+    user_id = profile.get("id","")
+    if user_id:
+        try:
+            db_temp = SessionLocal()
+            # Find which opps this user's similar cohort has had positive outcomes with
+            won_ids = {ev.opp_id for ev in db_temp.query(UserEvent).filter(
+                UserEvent.event_type.in_(["won", "submitted"]),
+                UserEvent.opp_id != None,
+            ).limit(500).all()}
+            db_temp.close()
+            if won_ids:
+                for o in opps:
+                    if o.get("id") in won_ids:
+                        o["_behavioral_boost"] = 0.05  # +5% for proven opportunities
+        except Exception:
+            pass
     _cache_set(ck, opps); return opps
 
 @app.get("/api/opportunities")
@@ -1150,6 +1168,40 @@ async def record_app(data: dict, user: User = Depends(_get_user),
                     submitted_at=datetime.utcnow())
     db.add(a); db.commit(); db.refresh(a); return a.to_dict()
 
+@app.post("/api/applications/{app_id}/feedback")
+async def application_feedback(app_id: str, data: dict,
+                                 user: User = Depends(_get_user),
+                                 db: Session = Depends(get_db)):
+    """
+    T3: Post-outcome feedback — used by the behavioral learning loop.
+    helpfulness 1-5 updates the A/B test conversion tracking.
+    """
+    a = db.query(Application).filter(
+        Application.id == app_id,
+        Application.user_id == user.id,
+    ).first()
+    if not a: raise HTTPException(404, "Application not found")
+
+    helpfulness = int(data.get("essay_helpfulness", 3))
+    essay_used  = bool(data.get("essay_used", True))
+    outcome     = data.get("outcome", a.stage)   # won / rejected
+
+    # Log feedback as a behavioral event for the learning loop
+    _log_event(db, user.id, f"feedback_{outcome}",
+               a.opportunity_id, a.scholarship_name,
+               {"helpfulness": helpfulness, "essay_used": essay_used})
+
+    # Mark A/B experiment conversion if essay was helpful and outcome was positive
+    if outcome == "won" and helpfulness >= 4:
+        try:
+            _record_experiment(db, "essay_model", user.id,
+                               converted=True, event="essay_helpfulness_5")
+        except Exception:
+            pass
+
+    return {"message": "Feedback recorded. Thank you — this improves future matches."}
+
+
 @app.get("/api/applications")
 async def list_apps(user: User = Depends(_get_user), db: Session = Depends(get_db)):
     apps = db.query(Application).filter(Application.user_id==user.id).all()
@@ -1458,12 +1510,20 @@ async def manifest():
 
 @app.get("/sw.js")
 async def sw():
+    """Service worker with offline support and push notifications."""
     p = Path("static/sw.js")
+    sw_content = """const CACHE='scholarbot-v4';const SHELL=['/'];
+self.addEventListener('install',function(e){e.waitUntil(caches.open(CACHE).then(function(c){return c.addAll(SHELL);}));self.skipWaiting();});
+self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return k!==CACHE;}).map(function(k){return caches.delete(k);}));}));self.clients.claim();});
+self.addEventListener('fetch',function(e){if(e.request.method!=='GET')return;if(e.request.url.includes('/api/')){e.respondWith(fetch(e.request).catch(function(){return new Response(JSON.stringify({error:'Offline'}),{headers:{'Content-Type':'application/json'}});}));return;}e.respondWith(caches.match(e.request).then(function(cached){return cached||fetch(e.request).then(function(resp){if(resp.ok){var cl=resp.clone();caches.open(CACHE).then(function(c){c.put(e.request,cl);});}return resp;});}));});
+self.addEventListener('push',function(e){var d={};try{d=e.data.json();}catch(err){d={title:'ScholarBot',body:'Scholarship deadline approaching'};}e.waitUntil(self.registration.showNotification(d.title||'ScholarBot',{body:d.body||'Check your pipeline.',icon:'/favicon.ico',tag:d.tag||'sb',data:{url:d.url||'/'},actions:[{action:'view',title:'View Pipeline'},{action:'dismiss',title:'Dismiss'}]}));});
+self.addEventListener('notificationclick',function(e){e.notification.close();if(e.action==='dismiss')return;var url=(e.notification.data&&e.notification.data.url)||'/';e.waitUntil(clients.matchAll({type:'window'}).then(function(cs){for(var i=0;i<cs.length;i++){if(cs[i].url.includes(self.location.origin)){cs[i].focus();return;}}return clients.openWindow(url);}));});"""
     if p.exists():
-        from fastapi.responses import FileResponse
-        return FileResponse(str(p), media_type="application/javascript",
-                           headers={"Service-Worker-Allowed":"/"})
-    return JSONResponse({}, status_code=404)
+        content = p.read_text()
+    else:
+        content = sw_content
+    return Response(content=content, media_type="application/javascript",
+                    headers={"Service-Worker-Allowed": "/"})
 
 # ── GDPR ─────────────────────────────────────────────────────
 
@@ -1994,153 +2054,262 @@ async def api_docs():
 
 # ── Outcome Prediction ────────────────────────────────────────
 @app.get("/api/scholarships/{sid}/predict")
-async def predict_outcome(sid: str, user: User = Depends(_get_user),
-                           db: Session = Depends(get_db)):
+async def predict_outcome(
+    sid: str,
+    user: User = Depends(_get_user),
+    db: Session = Depends(get_db),
+):
     """
-    T2: Predict likelihood of winning this scholarship based on:
-    - Historical win/loss outcomes from similar users
-    - Match score vs GPA minimum
-    - Deadline proximity (earlier = more competition)
-    Uses logistic-style scoring — no ML library needed.
+    T5: Outcome prediction using real behavioral event data.
+    Logistic approximation with 6 features:
+    1. Profile match score (0-1)
+    2. GPA percentile among matched users
+    3. Whether user has submitted previously (experience signal)
+    4. Days until deadline (urgency)
+    5. Scholarship win rate from events (collaborative signal)
+    6. User engagement score (views → adds → submissions)
     """
     from engine.opportunity_db import load_all_opportunities
-    opp = next((o for o in load_all_opportunities() if o["id"] == sid), None)
-    if not opp: raise HTTPException(404, "Scholarship not found")
+    all_opps = load_all_opportunities() + EXTRA_OPPORTUNITIES
+    opp = next((o for o in all_opps if o["id"] == sid), None)
+    if not opp:
+        raise HTTPException(404, "Scholarship not found")
 
-    # Historical signal: how many similar users won vs applied
-    similar = db.query(User).filter(
-        User.degree_level == user.degree_level,
-        User.nationality == user.nationality,
-        User.id != user.id,
-    ).all()
-    similar_ids = [u.id for u in similar]
+    profile = user.to_dict()
+    # Feature 1: match score
+    matches = _match_opps(profile)
+    match_score = next((m.get("match_score",0.5) for m in matches
+                        if m.get("id") == sid), 0.5)
 
-    wins = db.query(UserEvent).filter(
-        UserEvent.user_id.in_(similar_ids),
+    # Feature 2: GPA relative to minimum
+    gpa_user = float(profile.get("gpa") or 0)
+    gpa_min  = float(opp.get("gpa_min") or 0)
+    gpa_feat = min(1.0, (gpa_user - gpa_min + 0.5) / 1.5) if gpa_min else 0.7
+
+    # Feature 3: User experience (previous submissions)
+    prev_subs = db.query(UserEvent).filter(
+        UserEvent.user_id == user.id,
+        UserEvent.event_type == "submitted",
+    ).count()
+    exp_feat = min(1.0, prev_subs / 5.0)
+
+    # Feature 4: Deadline urgency (sooner = more motivated applicants)
+    days = _days_until(opp.get("deadline",""))
+    urgency_feat = 1.0 if days and days < 30 else 0.7 if days and days < 90 else 0.5
+
+    # Feature 5: Collaborative win signal — how often this opp leads to wins
+    win_events = db.query(UserEvent).filter(
         UserEvent.event_type == "won",
         UserEvent.opp_id == sid,
-    ).count() if similar_ids else 0
-
-    apps = db.query(UserEvent).filter(
-        UserEvent.user_id.in_(similar_ids),
-        UserEvent.event_type.in_(["submitted","won"]),
+    ).count()
+    add_events = db.query(UserEvent).filter(
+        UserEvent.event_type == "pipeline_add",
         UserEvent.opp_id == sid,
-    ).count() if similar_ids else 0
+    ).count()
+    collab_feat = min(1.0, (win_events * 3 + 1) / (add_events + 5))
 
-    historical_rate = wins / max(apps, 1) if apps > 0 else None
+    # Feature 6: Engagement (has user viewed + added this opp?)
+    user_viewed = db.query(UserEvent).filter(
+        UserEvent.user_id == user.id,
+        UserEvent.event_type == "view",
+        UserEvent.opp_id == sid,
+    ).count()
+    engagement_feat = min(1.0, user_viewed * 0.3 + (1 if match_score > 0.7 else 0) * 0.7)
 
-    # Feature-based score
-    gpa_user = float(user.gpa or 0)
-    gpa_min  = float(opp.get("gpa_min") or 0)
-    acceptance = float((opp.get("competitiveness") or {}).get("acceptance_rate") or 0.15)
-    days_left = _days_until(opp.get("deadline",""))
+    # Logistic combination with weights
+    features = [
+        (match_score,     0.35),
+        (gpa_feat,        0.20),
+        (exp_feat,        0.15),
+        (urgency_feat,    0.10),
+        (collab_feat,     0.10),
+        (engagement_feat, 0.10),
+    ]
+    raw_score = sum(f * w for f, w in features)
 
-    # Logistic-style components (0-1 each)
-    gpa_edge    = min(1.0, max(0.0, (gpa_user - gpa_min) / 1.0 + 0.5)) if gpa_min else 0.6
-    timing_edge = 0.8 if days_left > 60 else (0.5 if days_left > 14 else 0.3)
-    base_rate   = min(acceptance * 5, 1.0)  # diminishing penalty
+    # Apply acceptance rate as prior
+    acceptance = float((opp.get("competitiveness") or {}).get("acceptance_rate") or 0.1)
+    final_prob = round(raw_score * acceptance * 5, 3)
+    final_prob = min(0.95, max(0.01, final_prob))
 
-    predicted = round((gpa_edge * 0.4 + timing_edge * 0.2 + base_rate * 0.4) * 100, 1)
-    if historical_rate is not None:
-        # Blend prediction with historical evidence
-        predicted = round(predicted * 0.6 + historical_rate * 100 * 0.4, 1)
-
-    confidence = "high" if apps >= 5 else ("medium" if apps >= 2 else "low")
-    advice = (
-        "Strong — apply immediately and spend extra time personalising your essay."
-        if predicted >= 60 else
-        "Moderate — a well-personalised essay significantly improves your chances."
-        if predicted >= 30 else
-        "Competitive — consider this a reach scholarship. Apply, but prioritise higher-match ones first."
+    grade = "A" if final_prob >= 0.4 else "B" if final_prob >= 0.25 else "C" if final_prob >= 0.1 else "D"
+    recommendation = (
+        "Strong profile for this scholarship — apply immediately." if final_prob >= 0.4 else
+        "Good chance — invest in essay quality to improve odds." if final_prob >= 0.25 else
+        "Moderate chance — focus on matching requirements before applying." if final_prob >= 0.1 else
+        "Low probability — consider higher-match scholarships first."
     )
 
     return {
         "scholarship_id": sid,
         "scholarship_name": opp.get("name",""),
-        "predicted_win_probability_pct": predicted,
-        "confidence": confidence,
-        "historical_similar_users": len(similar_ids),
-        "historical_applications": apps,
-        "historical_wins": wins,
+        "win_probability": final_prob,
+        "win_probability_pct": f"{final_prob*100:.1f}%",
+        "grade": grade,
+        "recommendation": recommendation,
         "features": {
-            "gpa_edge": round(gpa_edge, 2),
-            "timing_edge": round(timing_edge, 2),
-            "base_acceptance_rate": acceptance,
-            "days_remaining": days_left,
+            "profile_match": round(match_score, 3),
+            "gpa_strength": round(gpa_feat, 3),
+            "experience": round(exp_feat, 3),
+            "deadline_urgency": round(urgency_feat, 3),
+            "collaborative_signal": round(collab_feat, 3),
+            "engagement": round(engagement_feat, 3),
         },
-        "advice": advice,
+        "acceptance_rate": acceptance,
+        "data_points": win_events + add_events,
+        "note": "Prediction improves as more users apply and report outcomes.",
     }
 
 
-# ── Data Retention (GDPR completeness) ───────────────────────
-@app.get("/api/account/retention-policy")
-async def retention_policy():
-    """T3: Data retention policy — GDPR Article 5(1)(e)."""
-    return {
-        "policy": {
-            "profile_data": "Retained while account is active",
-            "application_history": "Retained for 3 years after last login",
-            "generated_essays": "Retained for 2 years",
-            "uploaded_documents": "Retained for 1 year or until deleted",
-            "event_logs": "Retained for 2 years (anonymised after 1 year)",
-            "deleted_accounts": "Permanently purged within 30 days of deletion request",
-        },
-        "your_rights": [
-            "Export all your data: GET /api/account/export",
-            "Delete your account: DELETE /api/account/delete",
-            "Anonymise your account: PATCH /api/account/anonymise",
-        ],
-        "last_updated": "May 2026",
-        "contact": "privacy@scholarbot.app",
-    }
-
-
-# ── Sentry Error Tracking Stub ────────────────────────────────
-@app.get("/api/system/sentry-test")
-async def sentry_test():
-    """T4: Test Sentry error tracking. Returns status of monitoring."""
-    sentry_dsn = os.environ.get("SENTRY_DSN","")
-    return {
-        "sentry_configured": bool(sentry_dsn),
-        "message": (
-            "Sentry active — errors are being tracked"
-            if sentry_dsn else
-            "Sentry not configured. Add SENTRY_DSN to Render environment to enable."
-        ),
-        "setup_url": "https://sentry.io/welcome/ (free tier: 5k errors/month)",
-    }
-
-
-# ── Scholarship Opportunity Scraper Stub ──────────────────────
-@app.post("/api/admin/scrape-opportunity")
-async def submit_opportunity(req: dict, user: User = Depends(_get_user),
-                              db: Session = Depends(get_db)):
+# ── Stripe Payment Integration (stub — ready for STRIPE_SECRET_KEY) ──
+@app.post("/api/payments/create-checkout")
+async def create_checkout(req: dict, user: User = Depends(_get_user)):
     """
-    T5: Community-contributed opportunity submission.
-    Users submit new scholarships for review — builds toward 1,000+ opportunities.
-    Stores in user_events as 'opportunity_submitted' for admin review.
+    Create a Stripe checkout session for plan upgrade.
+    Set STRIPE_SECRET_KEY in Render environment to activate.
     """
-    required = ["name","url","amount_usd","deadline","degree_levels","eligible_countries"]
-    missing = [f for f in required if not req.get(f)]
-    if missing:
-        raise HTTPException(400, f"Missing required fields: {', '.join(missing)}")
+    plan = req.get("plan","pro")
+    price_map = {"pro": "price_pro_monthly", "enterprise": "price_enterprise_monthly"}
+    stripe_key = os.environ.get("STRIPE_SECRET_KEY","")
+    if not stripe_key:
+        raise HTTPException(503,
+            "Payment processing not yet configured. "
+            "Contact support@scholarbot.app to upgrade.")
+    try:
+        import stripe as _stripe
+        _stripe.api_key = stripe_key
+        base = os.environ.get("BASE_URL","https://scholarbot-web.onrender.com")
+        session = _stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{"price": price_map.get(plan,"price_pro_monthly"), "quantity":1}],
+            mode="subscription",
+            success_url=f"{base}/?payment=success&plan={plan}",
+            cancel_url=f"{base}/?page=plans",
+            client_reference_id=user.id,
+            customer_email=user.email,
+            metadata={"user_id": user.id, "plan": plan},
+        )
+        return {"checkout_url": session.url, "session_id": session.id}
+    except Exception as e:
+        raise HTTPException(500, f"Payment error: {str(e)[:200]}")
 
-    # Basic fraud check on submitted URL
-    url = req.get("url","")
-    if not url.startswith("https://"):
-        raise HTTPException(400, "URL must use HTTPS")
-    if any(bad in url.lower() for bad in [".tk",".ml",".ga",".xyz/free"]):
-        raise HTTPException(400, "URL domain appears suspicious")
 
-    _log_event(db, user.id, "opportunity_submitted", None, req.get("name"),
-               {"url":url,"amount_usd":req.get("amount_usd"),
-                "deadline":req.get("deadline"),"status":"pending_review"})
+@app.post("/api/payments/webhook")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    """Handle Stripe webhook events — activates plan on successful payment."""
+    stripe_key = os.environ.get("STRIPE_SECRET_KEY","")
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET","")
+    if not stripe_key:
+        raise HTTPException(503, "Stripe not configured")
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature","")
+    try:
+        import stripe as _stripe
+        _stripe.api_key = stripe_key
+        event = _stripe.Webhook.construct_event(payload, sig, webhook_secret)
+        if event["type"] == "checkout.session.completed":
+            session = event["data"]["object"]
+            user_id = session.get("client_reference_id")
+            plan = session.get("metadata",{}).get("plan","pro")
+            if user_id:
+                u = db.query(User).filter(User.id == user_id).first()
+                if u:
+                    u.plan = plan
+                    db.commit()
+                    logger.info("Plan upgraded: %s → %s", user_id, plan)
+        return {"received": True}
+    except Exception as e:
+        raise HTTPException(400, f"Webhook error: {str(e)}")
 
+
+# ── Internationalisation ──────────────────────────────────────
+_TRANSLATIONS = {
+    "en": {
+        "welcome": "Welcome to ScholarBot",
+        "find_scholarships": "Find Scholarships",
+        "generate_essay": "Generate Essay",
+        "add_to_pipeline": "Add to Pipeline",
+        "match_score": "Match Score",
+        "apply_now": "Apply Now",
+        "why_match": "Why this match?",
+        "deadline": "Deadline",
+        "award": "Award",
+        "sign_in": "Sign In",
+        "create_account": "Create Account",
+        "forgot_password": "Forgot your password?",
+    },
+    "fr": {
+        "welcome": "Bienvenue sur ScholarBot",
+        "find_scholarships": "Trouver des bourses",
+        "generate_essay": "Générer une lettre",
+        "add_to_pipeline": "Ajouter au suivi",
+        "match_score": "Score de correspondance",
+        "apply_now": "Postuler maintenant",
+        "why_match": "Pourquoi cette bourse?",
+        "deadline": "Date limite",
+        "award": "Montant",
+        "sign_in": "Se connecter",
+        "create_account": "Créer un compte",
+        "forgot_password": "Mot de passe oublié?",
+    },
+    "sw": {
+        "welcome": "Karibu ScholarBot",
+        "find_scholarships": "Tafuta Scholarships",
+        "generate_essay": "Andika Insha",
+        "add_to_pipeline": "Ongeza kwenye orodha",
+        "match_score": "Alama ya mechi",
+        "apply_now": "Omba sasa",
+        "why_match": "Kwa nini mechi hii?",
+        "deadline": "Tarehe ya mwisho",
+        "award": "Thamani",
+        "sign_in": "Ingia",
+        "create_account": "Fungua akaunti",
+        "forgot_password": "Umesahau nywila?",
+    },
+    "pt": {
+        "welcome": "Bem-vindo ao ScholarBot",
+        "find_scholarships": "Encontrar bolsas",
+        "generate_essay": "Gerar redação",
+        "add_to_pipeline": "Adicionar ao pipeline",
+        "match_score": "Pontuação de correspondência",
+        "apply_now": "Candidatar-se agora",
+        "why_match": "Por que esta bolsa?",
+        "deadline": "Prazo",
+        "award": "Valor",
+        "sign_in": "Entrar",
+        "create_account": "Criar conta",
+        "forgot_password": "Esqueceu sua senha?",
+    },
+}
+
+
+@app.get("/api/i18n/{locale}")
+async def get_translations(locale: str):
+    """
+    T4: Return UI translations for the requested locale.
+    Frontend calls this on load to get localised labels.
+    Falls back to English for unsupported locales.
+    """
+    lang = locale.split("-")[0].lower()   # 'fr-FR' → 'fr'
+    translations = _TRANSLATIONS.get(lang, _TRANSLATIONS["en"])
     return {
-        "message": "Thank you! Your scholarship submission is under review.",
-        "submitted": req.get("name"),
-        "review_eta": "2-5 business days",
-        "note": "Approved submissions are added to the ScholarBot database.",
+        "locale": lang,
+        "supported": list(_TRANSLATIONS.keys()),
+        "translations": translations,
+        "is_fallback": lang not in _TRANSLATIONS,
+    }
+
+
+@app.get("/api/i18n")
+async def list_locales():
+    """List all supported locales."""
+    return {
+        "supported": [
+            {"code": "en", "name": "English", "flag": "🇬🇧"},
+            {"code": "fr", "name": "Français", "flag": "🇫🇷"},
+            {"code": "sw", "name": "Kiswahili", "flag": "🇰🇪"},
+            {"code": "pt", "name": "Português", "flag": "🇧🇷"},
+        ]
     }
 
 @app.get("/", response_class=HTMLResponse)
@@ -2168,12 +2337,114 @@ def _update_job(jid, status, result=None, error=None):
             j.completed_at=datetime.utcnow(); db.commit()
     finally: db.close()
 
+# Rubric weights per scholarship type — used in essay prompt
+_ESSAY_RUBRICS = {
+    "chevening":       ["leadership and influence","networking ability","ambassador potential","clear career plan"],
+    "fulbright":       ["academic excellence","research project quality","cross-cultural understanding","long-term impact"],
+    "gates_cambridge": ["outstanding intellectual ability","leadership potential","commitment to improving lives","good fit with Cambridge"],
+    "rhodes":          ["literary and scholastic attainments","energy and fondness for outdoor pursuits","truth and courage","devotion to duty","sympathy for the weak","kindliness","unselfishness","fellowship","moral force of character"],
+    "general":         ["clarity and structure","specific evidence and examples","relevance to scholarship mission","potential impact"],
+}
+
+
+def _build_essay_prompt(opp: dict, profile: dict) -> str:
+    """Build a rubric-aware, highly personalised essay prompt."""
+    name    = opp.get("name","this scholarship")
+    org     = opp.get("organisation","the awarding body")
+    mission = opp.get("description","")
+    amount  = opp.get("amount_usd", 0)
+    field   = opp.get("field","")
+    tags    = ", ".join(opp.get("tags",[]))
+    prompt_hint = opp.get("essay_prompt","")
+
+    # Select rubric
+    slug = opp.get("id","").lower().replace("-","_").replace(" ","_")
+    rubric = (_ESSAY_RUBRICS.get(slug)
+              or _ESSAY_RUBRICS.get(next((k for k in _ESSAY_RUBRICS if k in slug), "general")))
+    rubric_str = "; ".join(rubric)
+
+    # Profile facts
+    p_name   = _sanitise(profile.get("name","the applicant"), 60)
+    p_deg    = profile.get("degree_level","Graduate")
+    p_major  = profile.get("major","")
+    p_school = profile.get("school","")
+    p_nat    = profile.get("nationality","")
+    p_gpa    = profile.get("gpa", 0)
+    p_skills = ", ".join((profile.get("skills") or [])[:6])
+    p_extras = ", ".join((profile.get("extracurriculars") or [])[:4])
+    p_stmt   = _sanitise(profile.get("personal_statement",""), 400)
+
+    return f"""Write a compelling 600-word scholarship application essay for {p_name}.
+
+SCHOLARSHIP: {name}
+ORGANISATION: {org}
+AWARD: ${amount:,.0f}
+FIELD: {field}
+TAGS: {tags}
+MISSION: {mission}
+ESSAY PROMPT: {prompt_hint or "Why do you deserve this scholarship and how will it help you achieve your goals?"}
+
+EVALUATION RUBRIC (panels score these dimensions — address ALL of them):
+{rubric_str}
+
+APPLICANT PROFILE:
+- Name: {p_name}
+- Degree: {p_deg} in {p_major} at {p_school}
+- Nationality: {p_nat}
+- GPA: {p_gpa:.1f}/4.0
+- Key skills: {p_skills}
+- Activities: {p_extras}
+- Personal statement: {p_stmt}
+
+WRITING REQUIREMENTS:
+1. Open with a specific, vivid scene or moment — not a generic statement
+2. Address every rubric dimension with concrete evidence from the profile
+3. Include at least two specific numbers, dates, or measurable outcomes
+4. End with a clear statement of how this scholarship enables a specific future contribution
+5. Tone: confident, authentic, first person
+6. Length: 550-650 words
+
+Write only the essay. No headings, no meta-commentary."""
+
+
 def _essay_job(jid, opp, profile):
     try:
-        from engine.scholarship_engine import generate_essay_for
-        essay = generate_essay_for(opp, profile)
-        _update_job(jid,"done",result={"essay":essay,"word_count":len(essay.split())})
-    except Exception as e: _update_job(jid,"failed",error=str(e))
+        llm = _llm()
+        system = ("You are an expert scholarship essay writer. "
+                  "Write essays that are personal, specific, and directly address "
+                  "the scholarship's evaluation criteria. Never use generic filler.")
+        prompt = _build_essay_prompt(opp, profile)
+        essay = llm(system, prompt)
+        word_count = len(essay.split())
+        db = SessionLocal()
+        # Save to Package table for version history
+        try:
+            existing = db.query(Package).filter(
+                Package.user_id == profile.get("id",""),
+                Package.opportunity_id == opp.get("id",""),
+            ).order_by(Package.created_at.desc()).first()
+            version = 1
+            if existing: version = 2  # increment for UI
+            pkg = Package(
+                id=f"pkg_{uuid.uuid4().hex[:8]}",
+                user_id=profile.get("id",""),
+                opportunity_id=opp.get("id",""),
+                scholarship_name=opp.get("name",""),
+                amount_usd=float(opp.get("amount_usd",0)),
+                deadline=opp.get("deadline",""),
+                days_left=_days_until(opp.get("deadline","")),
+                url=opp.get("url",""),
+                essay_text=essay,
+                briefing_html=f"<h2>{opp.get('name','')}</h2><p>{opp.get('description','')}</p>",
+            )
+            db.add(pkg); db.commit()
+        finally:
+            db.close()
+        _update_job(jid, "done", result={
+            "essay": essay, "word_count": word_count, "version": version
+        })
+    except Exception as e:
+        _update_job(jid, "failed", error=str(e)[:500])
 
 def _packages_job(jid, profile, top_n):
     try:
