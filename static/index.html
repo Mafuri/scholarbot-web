@@ -298,6 +298,13 @@ function Nav(props) {
 
 function HomePage(props) {
   const go = props.go;
+  const [cookieConsent, setCookieConsent] = useState(
+    localStorage.getItem('sb_cookie_consent') === 'true'
+  );
+  function acceptCookies() {
+    localStorage.setItem('sb_cookie_consent', 'true');
+    setCookieConsent(true);
+  }
   const plans = [
     {name:'Free', price:0, features:['3 packages/month','Scholarship matching','Essay generation','Deadline alerts']},
     {name:'Pro', price:9, features:['Unlimited packages','Interview coach','Pipeline tracker','Portfolio builder','Priority support'], featured:true},
@@ -397,7 +404,7 @@ function HomePage(props) {
           </span>
           <div style={{display:'flex',gap:8}}>
             <button className="btn btn-primary btn-sm" onClick={function(){
-              localStorage.setItem('sb_cookie_consent','accepted');setCookieConsent(true);
+              localStorage.setItem('sb_cookie_consent','true');setCookieConsent(true);
             }}>Accept</button>
             <button className="btn btn-outline btn-sm" style={{color:'#fff',borderColor:'rgba(255,255,255,0.5)'}}
               onClick={function(){
