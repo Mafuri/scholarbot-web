@@ -1769,11 +1769,12 @@ function PlansPage() {
   const P=[{id:'free',n:'Free',p:'$0',c:'#6b7280',f:['3 essays/day','1 package/day','87+ scholarships']},
     {id:'pro',n:'Pro',p:'$9/mo',c:'#2563eb',hot:true,f:['20 essays/day','5 packages/day','Expert reviews']},
     {id:'ent',n:'Enterprise',p:'$49/mo',c:'#7c3aed',f:['Unlimited','University dashboard','API']}];
-  return <div className="page pb-safe">
+  return (
+    <div className="page pb-safe">
     <h2 className="section-title">Plans</h2>
     <p className="section-sub" style={{marginBottom:'1.5rem'}}>Start free. Upgrade anytime.</p>
     <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'1rem'}}>
-      {P.map(function(p){return <div key={p.id} className="card" style={{border:`2px solid ${p.hot?p.c:'#e8e8e0'}`,padding:'1.25rem',position:'relative'}}>
+      {P.map(function(p){return <div key={p.id} className="card" style={{border:'2px solid '+(p.hot?p.c:'#e8e8e0'),padding:'1.25rem',position:'relative'}}>
         {p.hot&&<div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:p.c,color:'#fff',padding:'1px 10px',borderRadius:20,fontSize:10,fontWeight:700}}>POPULAR</div>}
         <div style={{fontWeight:800,fontSize:18,color:p.c}}>{p.n}</div>
         <div style={{fontWeight:800,fontSize:22,color:'#1a1a2e',margin:'4px 0 10px'}}>{p.p}</div>
@@ -1786,8 +1787,36 @@ function PlansPage() {
       <p style={{fontSize:12,color:'#555',margin:'4px 0'}}>Register your institution for a dashboard and bulk student access.</p>
       <button className="btn btn-outline btn-sm" onClick={function(){window.open('mailto:partnerships@scholarbot.app','_blank');}}>Contact us</button>
     </div>
-  </div>;
+  </div>
+  );
 }
+
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {error: null};
+  }
+  componentDidCatch(err, info) {
+    this.setState({error: err.message + ' | ' + (info.componentStack||'').split('\n')[1]});
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{padding:'2rem',maxWidth:600,margin:'2rem auto'}}>
+          <div style={{background:'#fef2f2',border:'1px solid #fca5a5',borderRadius:8,padding:'1.5rem'}}>
+            <h3 style={{color:'#dc2626',marginBottom:'0.5rem'}}>Something went wrong</h3>
+            <p style={{fontSize:13,color:'#666',fontFamily:'monospace'}}>{this.state.error}</p>
+            <button className="btn btn-primary" style={{marginTop:'1rem'}}
+              onClick={function(){window.location.reload();}}>Reload page</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 
 function App() {
   const auth = useAuth();
@@ -1851,7 +1880,7 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App/></ErrorBoundary>);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
