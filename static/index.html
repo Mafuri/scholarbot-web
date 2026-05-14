@@ -393,6 +393,25 @@ function HomePage(props) {
         </div>
       </div>
 
+      {!cookieConsent && (
+        <div style={{position:'fixed',bottom:0,left:0,right:0,background:'#1a1a2e',
+          color:'#fff',padding:'12px 16px',display:'flex',flexWrap:'wrap',
+          gap:10,alignItems:'center',justifyContent:'space-between',zIndex:1000,fontSize:13}}>
+          <span>We use one session cookie for authentication only. No tracking.
+            <span style={{cursor:'pointer',color:'#93c5fd',marginLeft:8}}
+              onClick={function(){go('privacy');}}>Privacy Policy</span>
+          </span>
+          <div style={{display:'flex',gap:8}}>
+            <button className="btn btn-primary btn-sm" onClick={function(){
+              localStorage.setItem('sb_cookie_consent','accepted');setCookieConsent(true);
+            }}>Accept</button>
+            <button className="btn btn-outline btn-sm" style={{color:'#fff',borderColor:'rgba(255,255,255,0.5)'}}
+              onClick={function(){
+                localStorage.setItem('sb_cookie_consent','declined');setCookieConsent(true);
+              }}>Decline</button>
+          </div>
+        </div>
+      )}
       <footer style={{background:'#1a1a2e',color:'rgba(255,255,255,.5)',textAlign:'center',padding:'2rem 1rem',fontSize:13}}>
         ScholarBot © {new Date().getFullYear()} · AI-powered scholarship applications · Built for students worldwide
       </footer>
@@ -416,6 +435,17 @@ function AuthPage(props) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [gpaInfo, setGpaInfo] = useState(null);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+
+  function handleForgot(e) {
+    e.preventDefault(); setLoading(true);
+    fetch('/api/auth/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:forgotEmail})})
+      .then(function(){setForgotSent(true);setLoading(false);})
+      .catch(function(){setForgotSent(true);setLoading(false);});
+  }
 
   function setField(key, val) {
     setForm(function(f) {
@@ -457,6 +487,35 @@ function AuthPage(props) {
         .catch(function(e) { setErr(e.message); setLoading(false); });
     }
   }
+
+  if (forgotMode) return (
+    <div className="page-narrow">
+      <div className="card" style={{marginTop:'2rem',padding:'2rem'}}>
+        <h2 style={{marginBottom:'1rem',fontSize:22,fontWeight:700}}>Reset your password</h2>
+        {forgotSent ? (
+          <div>
+            <div style={{background:'#d1fae5',borderRadius:8,padding:'1rem',marginBottom:'1rem',color:'#065f46',fontSize:14}}>
+              ✅ If an account with that email exists, a reset link has been sent. Check your inbox and spam folder.
+            </div>
+            <button className="btn btn-outline" onClick={function(){setForgotMode(false);setForgotSent(false);}}>Back to login</button>
+          </div>
+        ) : (
+          <form onSubmit={handleForgot}>
+            <div className="form-group">
+              <label>Email address *</label>
+              <input type="email" value={forgotEmail} onChange={function(e){setForgotEmail(e.target.value);}} placeholder="you@example.com" required/>
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={loading} style={{width:'100%',justifyContent:'center'}}>
+              {loading?'Sending...':'Send reset link'}
+            </button>
+            <p style={{textAlign:'center',marginTop:12,fontSize:13}}>
+              <span style={{color:'#2563eb',cursor:'pointer'}} onClick={function(){setForgotMode(false);}}>Back to login</span>
+            </p>
+          </form>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="page-narrow">
@@ -569,6 +628,12 @@ function AuthPage(props) {
               isLogin ? 'Sign in' : 'Create account'
             )}
           </button>
+          {isLogin && (
+            <p style={{textAlign:'center',marginTop:10,fontSize:13}}>
+              <span style={{color:'#2563eb',cursor:'pointer',textDecoration:'underline'}}
+                onClick={function(){setForgotMode(true);}}>Forgot your password?</span>
+            </p>
+          )}
         </form>
 
         <p style={{marginTop:'1rem',textAlign:'center',fontSize:13,color:'#555'}}>
@@ -716,6 +781,15 @@ function ScholarshipsPage(props) {
   const [adding, setAdding] = useState(null);
   const [explaining, setExplaining] = useState(null);
   const [explanation, setExplanation] = useState(null);
+  const [searchQ, setSearchQ] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+
+  function doSearch() {
+    if (!searchQ.trim()) { setSearchResults(null); return; }
+    api('GET','/scholarships/search?q='+encodeURIComponent(searchQ))
+      .then(function(d){setSearchResults(d.results||[]);})
+      .catch(function(e){toast(e.message,'error');});
+  }
 
   function load() {
     setLoading(true);
@@ -763,6 +837,16 @@ function ScholarshipsPage(props) {
   return (
     <div className="page pb-safe">
       <h2 className="section-title">Scholarships</h2>
+      <div style={{display:'flex',gap:8,marginBottom:'1rem',flexWrap:'wrap'}}>
+        <input className="form-control" placeholder="Search scholarships, countries, fields..."
+          style={{flex:1,minWidth:200}}
+          value={searchQ} onChange={function(e){setSearchQ(e.target.value);}}
+          onKeyDown={function(e){if(e.key==='Enter')doSearch();}}/>
+        <button className="btn btn-primary" onClick={doSearch}
+          style={{whiteSpace:'nowrap'}}>Search</button>
+        {searchQ&&<button className="btn btn-outline" onClick={function(){
+          setSearchQ('');setSearchResults(null);}}>Clear</button>}
+      </div>
       <p className="section-sub">
         {user ? 'Matched and ranked for your profile' : 'All verified direct-portal scholarships — no aggregators'}
       </p>
