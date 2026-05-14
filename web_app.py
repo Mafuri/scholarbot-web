@@ -290,11 +290,68 @@ def get_db():
 
 def _init_db():
     os.makedirs("data", exist_ok=True)
+    engine = _get_engine()
+    db_type = _DB_URL.split("://")[0]
     try:
-        Base.metadata.create_all(bind=_get_engine(), checkfirst=True)
-        print(f"[DB] Initialised ({_DB_URL.split('://')[0]})")
+        Base.metadata.create_all(bind=engine, checkfirst=True)
+        print(f"[DB] Initialised ({db_type})")
     except Exception as e:
         print(f"[DB] Warning: {e}")
+        for t in Base.metadata.sorted_tables:
+            try: t.create(engine, checkfirst=True)
+            except: pass
+    # Idempotent migrations — safe to run every startup
+    if "postgres" in db_type:
+        _safe_migrations(engine)
+
+
+def _safe_migrations(engine):
+    """Run all schema migrations safely — skips if already applied."""
+    sqls = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0",
+        """CREATE TABLE IF NOT EXISTS user_events (
+            id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32),
+            event_type VARCHAR(50), opp_id VARCHAR(32),
+            opp_name VARCHAR(300), metadata_ JSON,
+            created_at TIMESTAMP DEFAULT NOW())""",
+        """CREATE TABLE IF NOT EXISTS institutions (
+            id VARCHAR(32) PRIMARY KEY, name VARCHAR(200),
+            domain VARCHAR(100) UNIQUE, admin_email VARCHAR(200),
+            plan VARCHAR(20) DEFAULT 'partner', student_count INTEGER DEFAULT 0,
+            active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT NOW())""",
+        """CREATE TABLE IF NOT EXISTS experiments (
+            id VARCHAR(32) PRIMARY KEY, name VARCHAR(100),
+            variant VARCHAR(50), user_id VARCHAR(32),
+            converted BOOLEAN DEFAULT FALSE, conversion_event VARCHAR(50),
+            metadata_ JSON, created_at TIMESTAMP DEFAULT NOW())""",
+        """CREATE TABLE IF NOT EXISTS expert_reviews (
+            id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32),
+            package_id VARCHAR(32), scholarship_name VARCHAR(300),
+            essay_text TEXT, rubric VARCHAR(50) DEFAULT 'general',
+            status VARCHAR(30) DEFAULT 'pending', reviewer_notes TEXT,
+            score FLOAT, grade VARCHAR(5), feedback TEXT,
+            requested_at TIMESTAMP DEFAULT NOW(), completed_at TIMESTAMP)""",
+        """CREATE TABLE IF NOT EXISTS pledge_logs (
+            id VARCHAR(32) PRIMARY KEY, user_id VARCHAR(32),
+            ip_address VARCHAR(45), user_agent TEXT,
+            pledge_hash VARCHAR(64), created_at TIMESTAMP DEFAULT NOW())""",
+    ]
+    raw = engine.raw_connection()
+    try:
+        raw.set_isolation_level(0)
+        cur = raw.cursor()
+        for sql in sqls:
+            try:
+                cur.execute(sql)
+                logger.debug("Migration OK: %s", sql[:60])
+            except Exception as e:
+                logger.debug("Migration skip: %s", str(e)[:60])
+        cur.close()
+    finally:
+        raw.close()
+    print("[DB] Migrations applied")
 
 # ── Security ──────────────────────────────────────────────────
 import bcrypt as _bcrypt
