@@ -111,7 +111,6 @@ input[type="number"]{-webkit-appearance:none;appearance:none}
 <script type="text/babel">
 const {useState, useEffect, useCallback, useRef} = React;
 
-// ── API ───────────────────────────────────────────────────────
 const BASE = window.location.origin;
 let _tok = localStorage.getItem('sb_tok') || '';
 
@@ -138,7 +137,6 @@ async function api(method, path, body, isForm) {
   }
 }
 
-// ── Toast ─────────────────────────────────────────────────────
 let _addToast = function() {};
 function useToasts() {
   const [toasts, setToasts] = useState([]);
@@ -153,7 +151,6 @@ function useToasts() {
 }
 function toast(msg, type) { _addToast(msg, type); }
 
-// ── Auth ──────────────────────────────────────────────────────
 function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -197,7 +194,6 @@ function useAuth() {
   return {user: user, loading: loading, login: login, register: register, logout: logout, setUser: setUser};
 }
 
-// ── ReadinessRing ─────────────────────────────────────────────
 function ReadinessRing(props) {
   const score = props.score || 0;
   const r = 36;
@@ -220,7 +216,6 @@ function ReadinessRing(props) {
   );
 }
 
-// ── Nav ───────────────────────────────────────────────────────
 function Nav(props) {
   const user = props.user;
   const page = props.page;
@@ -301,7 +296,6 @@ function Nav(props) {
   );
 }
 
-// ── Home Page ─────────────────────────────────────────────────
 function HomePage(props) {
   const go = props.go;
   const plans = [
@@ -419,7 +413,6 @@ function HomePage(props) {
   );
 }
 
-// ── Auth Pages ────────────────────────────────────────────────
 function AuthPage(props) {
   const mode = props.mode;
   const loginFn = props.login;
@@ -489,32 +482,15 @@ function AuthPage(props) {
   }
 
   if (forgotMode) return (
-    <div className="page-narrow">
-      <div className="card" style={{marginTop:'2rem',padding:'2rem'}}>
-        <h2 style={{marginBottom:'1rem',fontSize:22,fontWeight:700}}>Reset your password</h2>
-        {forgotSent ? (
-          <div>
-            <div style={{background:'#d1fae5',borderRadius:8,padding:'1rem',marginBottom:'1rem',color:'#065f46',fontSize:14}}>
-              ✅ If an account with that email exists, a reset link has been sent. Check your inbox and spam folder.
-            </div>
-            <button className="btn btn-outline" onClick={function(){setForgotMode(false);setForgotSent(false);}}>Back to login</button>
-          </div>
-        ) : (
-          <form onSubmit={handleForgot}>
-            <div className="form-group">
-              <label>Email address *</label>
-              <input type="email" value={forgotEmail} onChange={function(e){setForgotEmail(e.target.value);}} placeholder="you@example.com" required/>
-            </div>
-            <button className="btn btn-primary" type="submit" disabled={loading} style={{width:'100%',justifyContent:'center'}}>
-              {loading?'Sending...':'Send reset link'}
-            </button>
-            <p style={{textAlign:'center',marginTop:12,fontSize:13}}>
-              <span style={{color:'#2563eb',cursor:'pointer'}} onClick={function(){setForgotMode(false);}}>Back to login</span>
-            </p>
-          </form>
-        )}
-      </div>
-    </div>
+    <div className="page-narrow"><div className="card" style={{marginTop:'2rem',padding:'2rem'}}>
+      <h2 style={{marginBottom:'1rem',fontSize:22,fontWeight:700}}>Reset password</h2>
+      {forgotSent?(<div><div style={{background:'#d1fae5',borderRadius:8,padding:'1rem',marginBottom:'1rem',color:'#065f46',fontSize:14}}>✅ If that email exists, a reset link has been sent. Check your inbox and spam folder.</div><button className="btn btn-outline" onClick={function(){setForgotMode(false);setForgotSent(false);}}>Back to login</button></div>):(
+      <form onSubmit={handleForgot}>
+        <div className="form-group"><label>Email *</label><input type="email" value={forgotEmail} onChange={function(e){setForgotEmail(e.target.value);}} placeholder="you@example.com" required/></div>
+        <button className="btn btn-primary" type="submit" disabled={loading} style={{width:'100%',justifyContent:'center'}}>{loading?'Sending...':'Send reset link'}</button>
+        <p style={{textAlign:'center',marginTop:10,fontSize:13}}><span style={{color:'#2563eb',cursor:'pointer'}} onClick={function(){setForgotMode(false);}}>Back to login</span></p>
+      </form>)}
+    </div></div>
   );
 
   return (
@@ -654,7 +630,6 @@ function AuthPage(props) {
   );
 }
 
-// ── Dashboard ─────────────────────────────────────────────────
 function DashboardPage(props) {
   const user = props.user;
   const go = props.go;
@@ -768,7 +743,6 @@ function DashboardPage(props) {
   );
 }
 
-// ── Scholarships ──────────────────────────────────────────────
 function ScholarshipsPage(props) {
   const user = props.user;
   const go = props.go;
@@ -997,7 +971,6 @@ function ScholarshipsPage(props) {
   );
 }
 
-// ── Pipeline ──────────────────────────────────────────────────
 const STAGES = [
   {id:'researching', label:'Researching', color:'#6366f1'},
   {id:'essay_ready', label:'Essay Ready', color:'#d97706'},
@@ -1161,7 +1134,6 @@ function PipelinePage() {
   );
 }
 
-// ── Packages ──────────────────────────────────────────────────
 function PackagesPage(props) {
   const user = props.user;
   const [packages, setPackages] = useState([]);
@@ -1256,7 +1228,6 @@ function PackagesPage(props) {
   );
 }
 
-// ── Interview ─────────────────────────────────────────────────
 const RUBRICS = {
   chevening: {
     name: 'Chevening Official Rubric',
@@ -1451,7 +1422,6 @@ function InterviewPage() {
   );
 }
 
-// ── Profile ───────────────────────────────────────────────────
 function ProfilePage(props) {
   const user = props.user;
   const setUser = props.setUser;
@@ -1742,7 +1712,6 @@ function ProfilePage(props) {
   );
 }
 
-// ── Legal Pages (lightweight) ───────────────────────────────
 function LegalPage(props) {
   const title = props.title;
   const go = props.go;
@@ -1764,28 +1733,27 @@ function LegalPage(props) {
   );
 }
 
-function TosPage(props) {
-  return <LegalPage go={props.go} title="Terms of Service" sections={[
-    ["1. Acceptance","By creating a ScholarBot account you agree to these Terms. If you do not agree, do not use the platform."],
-    ["2. Service","ScholarBot provides AI-assisted scholarship discovery and essay generation. All AI content is a first draft and must be reviewed before submission."],
-    ["3. Scholar's Pledge","You agree to: review every AI essay before submitting; ensure all facts reflect your own experience; never submit an unreviewed AI essay; take full responsibility for your application content."],
-    ["4. Acceptable Use","Do not use ScholarBot to create fake applications, impersonate others, or circumvent scholarship portal security."],
-    ["5. AI Content","Generated essays are starting points only. ScholarBot makes no warranty that AI content will result in scholarship awards."],
-    ["6. Liability","ScholarBot is provided as-is. We are not liable for application outcomes, AI inaccuracies, or data loss beyond our control."],
-    ["7. Contact","For questions about these terms, contact us through the platform."],
-  ]}/>;
+function TosPage() {
+  return <div className="page pb-safe"><h2 className="section-title">Terms of Service</h2>
+    <div className="card"><p style={{fontSize:14,color:'#555',lineHeight:1.7}}>
+      By using ScholarBot you agree to use AI-generated essays as starting points only, personalise all content before submission, and take full responsibility for your applications.
+      ScholarBot is provided "as is" without warranties. We are not liable for scholarship decisions.
+      We may update these terms at any time. Continued use constitutes acceptance.
+      Contact: support@scholarbot.app
+    </p></div>
+  </div>;
 }
 
-function PrivacyPage(props) {
-  return <LegalPage go={props.go} title="Privacy Policy" sections={[
-    ["Data We Collect","Profile information, uploaded documents, application history, generated essays, usage patterns."],
-    ["How We Use It","To match scholarships, generate essays, track applications. We do not sell your data."],
-    ["Third Parties","Anthropic Claude API processes your profile for essay generation. Render.com hosts data. No advertising partners."],
-    ["Data Retention","Data kept while account active. Export or delete anytime from your Profile page."],
-    ["Your GDPR Rights","Access (export), correct (edit profile), delete (Profile → Delete account), portability (JSON export)."],
-    ["Security","bcrypt passwords, JWT auth, httpOnly cookies, HTTPS, input sanitisation."],
-    ["Cookies","One session cookie (sb_token) for authentication only. No tracking or advertising cookies."],
-  ]}/>;
+function PrivacyPage() {
+  return <div className="page pb-safe"><h2 className="section-title">Privacy Policy</h2>
+    <div className="card"><p style={{fontSize:14,color:'#555',lineHeight:1.7}}>
+      We collect only what you provide: name, email, academic profile, and uploaded documents.
+      Your data is used solely to match scholarships and generate application materials.
+      We never sell your data. You can export or delete your data from your Profile page at any time.
+      We use cookies only for authentication (httpOnly, secure, SameSite=strict).
+      Contact: privacy@scholarbot.app
+    </p></div>
+  </div>;
 }
 
 function AccessibilityPage(props) {
@@ -1797,42 +1765,30 @@ function AccessibilityPage(props) {
   ]}/>;
 }
 
-// ── Plans Page ───────────────────────────────────────────────
-function PlansPage(props) {
-  const plans=[
-    {id:'free',name:'Free',price:'$0/mo',color:'#6b7280',
-     features:['3 essays/day','1 package/day','87 scholarships','Interview coaching']},
-    {id:'pro',name:'Pro',price:'$9/mo',color:'#2563eb',popular:true,
-     features:['20 essays/day','5 packages/day','Expert reviews (3/mo)','Analytics']},
-    {id:'enterprise',name:'Enterprise',price:'$49/mo',color:'#7c3aed',
-     features:['Unlimited everything','University dashboard','API access','Support']},
-  ];
-  return (
-    <div className="page pb-safe">
-      <h2 className="section-title">Plans</h2>
-      <p className="section-sub" style={{marginBottom:'1.5rem'}}>Start free. Upgrade anytime.</p>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:'1rem'}}>
-        {plans.map(function(p) { return (
-          <div key={p.id} className="card" style={{border:`2px solid ${p.popular?p.color:'#e8e8e0'}`,padding:'1.25rem',position:'relative'}}>
-            {p.popular&&<div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:'#2563eb',color:'#fff',padding:'1px 12px',borderRadius:20,fontSize:11,fontWeight:700}}>POPULAR</div>}
-            <div style={{fontWeight:800,fontSize:18,color:p.color}}>{p.name}</div>
-            <div style={{fontWeight:800,fontSize:24,color:'#1a1a2e',margin:'4px 0 12px'}}>{p.price}</div>
-            {p.features.map(function(f){return <div key={f} style={{display:'flex',gap:6,marginBottom:5,fontSize:13}}><span style={{color:'#059669'}}>✓</span><span>{f}</span></div>;})}
-            <button className="btn btn-primary" style={{width:'100%',marginTop:12,justifyContent:'center',background:p.color}}>{p.id==='free'?'Current plan':'Upgrade'}</button>
-          </div>
-        );})}
-      </div>
-      <div className="card" style={{marginTop:'1rem',background:'#f5f5f0'}}>
-        <strong>🏛️ University Partnerships</strong>
-        <p style={{fontSize:13,color:'#555',margin:'6px 0'}}>Register your institution for a university dashboard and bulk student access.</p>
-        <button className="btn btn-outline btn-sm" onClick={function(){window.open('mailto:partnerships@scholarbot.app','_blank');}}>Contact us</button>
-      </div>
+function PlansPage() {
+  const P=[{id:'free',n:'Free',p:'$0',c:'#6b7280',f:['3 essays/day','1 package/day','87+ scholarships']},
+    {id:'pro',n:'Pro',p:'$9/mo',c:'#2563eb',hot:true,f:['20 essays/day','5 packages/day','Expert reviews']},
+    {id:'ent',n:'Enterprise',p:'$49/mo',c:'#7c3aed',f:['Unlimited','University dashboard','API']}];
+  return <div className="page pb-safe">
+    <h2 className="section-title">Plans</h2>
+    <p className="section-sub" style={{marginBottom:'1.5rem'}}>Start free. Upgrade anytime.</p>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'1rem'}}>
+      {P.map(function(p){return <div key={p.id} className="card" style={{border:`2px solid ${p.hot?p.c:'#e8e8e0'}`,padding:'1.25rem',position:'relative'}}>
+        {p.hot&&<div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:p.c,color:'#fff',padding:'1px 10px',borderRadius:20,fontSize:10,fontWeight:700}}>POPULAR</div>}
+        <div style={{fontWeight:800,fontSize:18,color:p.c}}>{p.n}</div>
+        <div style={{fontWeight:800,fontSize:22,color:'#1a1a2e',margin:'4px 0 10px'}}>{p.p}</div>
+        {p.f.map(function(f){return <div key={f} style={{display:'flex',gap:6,marginBottom:4,fontSize:12}}><span style={{color:'#059669'}}>✓</span><span>{f}</span></div>;})}
+        <button className="btn btn-primary" style={{width:'100%',marginTop:10,justifyContent:'center',background:p.c}}>{p.id==='free'?'Current':'Upgrade'}</button>
+      </div>;})}
     </div>
-  );
+    <div className="card" style={{marginTop:'1rem',background:'#f5f5f0'}}>
+      <strong>🏛️ University Partnerships</strong>
+      <p style={{fontSize:12,color:'#555',margin:'4px 0'}}>Register your institution for a dashboard and bulk student access.</p>
+      <button className="btn btn-outline btn-sm" onClick={function(){window.open('mailto:partnerships@scholarbot.app','_blank');}}>Contact us</button>
+    </div>
+  </div>;
 }
 
-
-// ── App ───────────────────────────────────────────────────────
 function App() {
   const auth = useAuth();
   const user = auth.user;
@@ -1897,7 +1853,6 @@ function App() {
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 
-// Register service worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
