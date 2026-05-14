@@ -107,7 +107,8 @@ input[type="number"]{-webkit-appearance:none;appearance:none}
 </style>
 </head>
 <body>
-<div id="root"></div>
+<a href="#main-content" style="position:absolute;top:-100px;left:0;background:#2563eb;color:#fff;padding:8px 16px;z-index:9999;border-radius:0 0 8px 0;font-size:14px;font-weight:600" onfocus="this.style.top='0'">Skip to main content</a>
+<div id="root" role="application" aria-label="ScholarBot Application"></div>
 <script type="text/babel">
 const {useState, useEffect, useCallback, useRef} = React;
 
@@ -138,6 +139,85 @@ async function api(method, path, body, isForm) {
 }
 
 let _addToast = function() {};
+// ── i18n: Multi-language support ─────────────────────────────
+const TRANSLATIONS = {
+  en: {
+    find_scholarships: 'Find scholarships',
+    match_score: 'Match Score',
+    apply_now: 'Apply Now',
+    add_to_pipeline: 'Add to pipeline',
+    why_match: 'Why this match?',
+    generate_packages: 'Prepare packages',
+    sign_in: 'Sign in',
+    create_account: 'Create account',
+    dashboard: 'Dashboard',
+    scholarships: 'Scholarships',
+    pipeline: 'Pipeline',
+    packages: 'Packages',
+    profile: 'Profile',
+    interview: 'Interview',
+    days_left: 'days left',
+    deadline: 'Deadline',
+    amount: 'Amount',
+    loading: 'Loading...',
+    welcome: 'Welcome to ScholarBot',
+    tagline: 'Your AI-powered scholarship assistant',
+  },
+  sw: {
+    find_scholarships: 'Tafuta ufadhili',
+    match_score: 'Alama ya Mechi',
+    apply_now: 'Omba Sasa',
+    add_to_pipeline: 'Ongeza kwenye orodha',
+    why_match: 'Kwa nini inafanana?',
+    generate_packages: 'Andaa vifurushi',
+    sign_in: 'Ingia',
+    create_account: 'Fungua akaunti',
+    dashboard: 'Dashibodi',
+    scholarships: 'Ufadhili',
+    pipeline: 'Mchakato',
+    packages: 'Vifurushi',
+    profile: 'Wasifu',
+    interview: 'Mahojiano',
+    days_left: 'siku zimebaki',
+    deadline: 'Tarehe ya mwisho',
+    amount: 'Kiasi',
+    loading: 'Inapakia...',
+    welcome: 'Karibu ScholarBot',
+    tagline: 'Msaidizi wako wa AI wa ufadhili',
+  },
+  fr: {
+    find_scholarships: 'Trouver des bourses',
+    match_score: 'Score de correspondance',
+    apply_now: 'Postuler maintenant',
+    add_to_pipeline: 'Ajouter au pipeline',
+    why_match: 'Pourquoi ce résultat?',
+    generate_packages: 'Préparer les dossiers',
+    sign_in: 'Se connecter',
+    create_account: 'Créer un compte',
+    dashboard: 'Tableau de bord',
+    scholarships: 'Bourses',
+    pipeline: 'Suivi',
+    packages: 'Dossiers',
+    profile: 'Profil',
+    interview: 'Entretien',
+    days_left: 'jours restants',
+    deadline: 'Date limite',
+    amount: 'Montant',
+    loading: 'Chargement...',
+    welcome: 'Bienvenue sur ScholarBot',
+    tagline: 'Votre assistant IA pour les bourses',
+  },
+};
+
+const DEFAULT_LANG = (navigator.language || 'en').startsWith('sw') ? 'sw' :
+                     (navigator.language || 'en').startsWith('fr') ? 'fr' : 'en';
+
+function useTranslation(lang) {
+  var l = lang || DEFAULT_LANG;
+  var dict = TRANSLATIONS[l] || TRANSLATIONS.en;
+  return function(key) { return dict[key] || TRANSLATIONS.en[key] || key; };
+}
+
 function useToasts() {
   const [toasts, setToasts] = useState([]);
   _addToast = function(msg, type) {
@@ -222,6 +302,8 @@ function Nav(props) {
   const go = props.go;
   const logout = props.logout;
 
+  const [lang, setLang] = useState(DEFAULT_LANG);
+  const t = useTranslation(lang);
   const authedLinks = [
     {id:'home', label:'Home', icon:'🏠'},
     {id:'dashboard', label:'Dashboard', icon:'📊'},
@@ -230,6 +312,7 @@ function Nav(props) {
     {id:'packages', label:'Packages', icon:'📦'},
     {id:'interview', label:'Interview', icon:'🎤'},
     {id:'profile', label:'Profile', icon:'👤'},
+    {id:'plans', label:'Plans', icon:'⭐'},
   ];
 
   const mobileLinks = [
@@ -493,7 +576,7 @@ function AuthPage(props) {
       <h2 style={{marginBottom:'1rem',fontSize:22,fontWeight:700}}>Reset password</h2>
       {forgotSent?(<div><div style={{background:'#d1fae5',borderRadius:8,padding:'1rem',marginBottom:'1rem',color:'#065f46',fontSize:14}}>✅ If that email exists, a reset link has been sent. Check your inbox and spam folder.</div><button className="btn btn-outline" onClick={function(){setForgotMode(false);setForgotSent(false);}}>Back to login</button></div>):(
       <form onSubmit={handleForgot}>
-        <div className="form-group"><label>Email *</label><input type="email" value={forgotEmail} onChange={function(e){setForgotEmail(e.target.value);}} placeholder="you@example.com" required/></div>
+        <div className="form-group"><label>Email *</label><input type="email" value={forgotEmail} onChange={function(e){setForgotEmail(e.target.value);}} placeholder="you@example.com" required aria-label="Email address" autocomplete="email"/></div>
         <button className="btn btn-primary" type="submit" disabled={loading} style={{width:'100%',justifyContent:'center'}}>{loading?'Sending...':'Send reset link'}</button>
         <p style={{textAlign:'center',marginTop:10,fontSize:13}}><span style={{color:'#2563eb',cursor:'pointer'}} onClick={function(){setForgotMode(false);}}>Back to login</span></p>
       </form>)}
@@ -525,7 +608,7 @@ function AuthPage(props) {
             <label>Password *</label>
             <input type="password" value={form.password}
               onChange={function(e) { setField('password', e.target.value); }}
-              placeholder="At least 8 characters" required/>
+              placeholder="At least 8 characters" required aria-label="Password" autocomplete="current-password"/>
           </div>
 
           {!isLogin && (
@@ -555,7 +638,7 @@ function AuthPage(props) {
                           .catch(function(){});
                       }
                     }}
-                    placeholder="e.g. 3.7 or 8.5 or 16"/>
+                    placeholder="e.g. 3.7 or 8.5 or 16" aria-label="Enter your GPA"/>
                   {gpaInfo&&gpaInfo.gpa_4>0&&(
                     <div style={{marginTop:4,padding:'4px 8px',background:
                       gpaInfo.confidence==='high'?'#d1fae5':'#fef3c7',
@@ -644,6 +727,10 @@ function DashboardPage(props) {
   const [readiness, setReadiness] = useState(null);
 
   useEffect(function() {
+    // Request push notification permission for deadline reminders
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
     Promise.all([api('GET', '/dashboard'), api('GET', '/readiness')])
       .then(function(results) { setData(results[0]); setReadiness(results[1]); })
       .catch(function(e) { console.error(e); });
@@ -1825,6 +1912,26 @@ class ErrorBoundary extends React.Component {
 }
 
 
+function useLocale() {
+  const [locale, setLocale] = React.useState(
+    localStorage.getItem('sb_locale') || navigator.language.split('-')[0] || 'en'
+  );
+  const [t, setT] = React.useState({});
+  React.useEffect(function() {
+    fetch('/api/i18n/' + locale)
+      .then(function(r){return r.json();})
+      .then(function(d){setT(d.translations||{});})
+      .catch(function(){});
+  }, [locale]);
+  function switchLocale(l) {
+    localStorage.setItem('sb_locale', l);
+    setLocale(l);
+  }
+  return {locale, t, switchLocale};
+}
+
+
+
 function App() {
   const auth = useAuth();
   const user = auth.user;
@@ -1875,7 +1982,7 @@ function App() {
   return (
     <React.Fragment>
       <Nav user={user} page={page} go={go} logout={logout}/>
-      <div>{renderPage()}</div>
+      <div><main id="main-content" tabIndex="-1">{renderPage()}</main></div>
       <div className="toast-wrap">
         {toasts.map(function(t) {
           return (
