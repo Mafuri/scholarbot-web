@@ -415,6 +415,7 @@ function AuthPage(props) {
   });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
+  const [gpaInfo, setGpaInfo] = useState(null);
 
   function setField(key, val) {
     setForm(function(f) {
@@ -499,10 +500,27 @@ function AuthPage(props) {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>GPA (0 – 4.0)</label>
-                  <input type="number" step="0.01" min="0" max="4" value={form.gpa}
-                    onChange={function(e) { setField('gpa', e.target.value); }}
-                    placeholder="e.g. 3.5"/>
+                  <label>GPA <span style={{fontSize:11,color:'#888'}}>(any scale)</span></label>
+                  <input type="number" step="0.01" min="0" max="100" value={form.gpa}
+                    onChange={function(e) {
+                      setField('gpa', e.target.value);
+                      if (e.target.value && form.nationality) {
+                        fetch('/api/gpa/detect', {method:'POST',
+                          headers:{'Content-Type':'application/json'},
+                          body:JSON.stringify({gpa:parseFloat(e.target.value),nationality:form.nationality})})
+                          .then(function(r){return r.json();})
+                          .then(function(d){if(d.gpa_4>0)setGpaInfo(d);})
+                          .catch(function(){});
+                      }
+                    }}
+                    placeholder="e.g. 3.7 or 8.5 or 16"/>
+                  {gpaInfo&&gpaInfo.gpa_4>0&&(
+                    <div style={{marginTop:4,padding:'4px 8px',background:
+                      gpaInfo.confidence==='high'?'#d1fae5':'#fef3c7',
+                      borderRadius:4,fontSize:11,color:gpaInfo.confidence==='high'?'#065f46':'#92400e'}}>
+                      {gpaInfo.confidence==='high'?'✓':'?'} {gpaInfo.label}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="grid2">
