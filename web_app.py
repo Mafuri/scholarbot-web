@@ -199,6 +199,65 @@ class UserEvent(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class Institution(Base):
+    """T1: University/organisation for B2B partnerships."""
+    __tablename__ = "institutions"
+    id          = Column(String(32), primary_key=True)
+    name        = Column(String(200), nullable=False)
+    domain      = Column(String(100), unique=True, nullable=False, index=True)
+    admin_email = Column(String(200), nullable=False)
+    plan        = Column(String(20), default="partner")  # partner / enterprise
+    student_count = Column(Integer, default=0)
+    active      = Column(Boolean, default=True)
+    created_at  = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {"id":self.id,"name":self.name,"domain":self.domain,
+                "admin_email":self.admin_email,"plan":self.plan,
+                "student_count":self.student_count,"active":self.active,
+                "created_at":self.created_at.isoformat() if self.created_at else None}
+
+
+class Experiment(Base):
+    """T2: A/B testing — tracks which variant each user sees."""
+    __tablename__ = "experiments"
+    id           = Column(String(32), primary_key=True)
+    name         = Column(String(100), nullable=False, index=True)
+    variant      = Column(String(50), nullable=False)   # control / treatment_a / treatment_b
+    user_id      = Column(String(32), nullable=True, index=True)
+    converted    = Column(Boolean, default=False)        # did the user achieve the goal?
+    conversion_event = Column(String(50), nullable=True) # what counts as conversion
+    metadata_    = Column(JSON, nullable=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+
+class ExpertReview(Base):
+    """T3: Human expert essay review queue."""
+    __tablename__ = "expert_reviews"
+    id           = Column(String(32), primary_key=True)
+    user_id      = Column(String(32), ForeignKey("users.id"), nullable=False, index=True)
+    package_id   = Column(String(32), nullable=True)
+    scholarship_name = Column(String(300), default="")
+    essay_text   = Column(Text, nullable=False)
+    rubric       = Column(String(50), default="general")
+    status       = Column(String(30), default="pending")  # pending/in_review/completed
+    reviewer_notes = Column(Text, nullable=True)
+    score        = Column(Float, nullable=True)
+    grade        = Column(String(5), nullable=True)
+    feedback     = Column(Text, nullable=True)
+    requested_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+    def to_dict(self):
+        return {"id":self.id,"user_id":self.user_id,"package_id":self.package_id,
+                "scholarship_name":self.scholarship_name,"rubric":self.rubric,
+                "status":self.status,"score":self.score,"grade":self.grade,
+                "feedback":self.feedback or "",
+                "reviewer_notes":self.reviewer_notes or "",
+                "requested_at":self.requested_at.isoformat() if self.requested_at else None,
+                "completed_at":self.completed_at.isoformat() if self.completed_at else None}
+
+
 def get_db():
     db = _get_sf()()
     try: yield db
@@ -1331,6 +1390,340 @@ async def delete_account(req: dict, user: User = Depends(_get_user),
     return {"message":"Account permanently deleted"}
 
 # ── SPA ───────────────────────────────────────────────────────
+
+# ── University Partnerships ───────────────────────────────────
+@app.post("/api/institutions")
+async def create_institution(req: dict, db: Session = Depends(get_db)):
+    """
+    T1: Register a university or organisation as a ScholarBot partner.
+    Students with matching email domain are automatically linked.
+    """
+    name   = req.get("name","").strip()
+    domain = req.get("domain","").strip().lower().lstrip("@")
+    email  = req.get("admin_email","").strip()
+    if not name or not domain or not email:
+        raise HTTPException(400, "name, domain, and admin_email are required")
+    if db.query(Institution).filter(Institution.domain == domain).first():
+        raise HTTPException(400, f"Domain @{domain} is already registered")
+    inst = Institution(
+        id=f"inst_{uuid.uuid4().hex[:8]}",
+        name=name, domain=domain, admin_email=email,
+    )
+    db.add(inst); db.commit(); db.refresh(inst)
+    # Count existing users with this domain
+    count = db.query(User).filter(User.email.like(f"%@{domain}")).count()
+    inst.student_count = count
+    db.commit()
+    return {**inst.to_dict(),
+            "message": f"Partnership created. {count} existing students with @{domain} linked."}
+
+
+@app.get("/api/institutions/{domain}/dashboard")
+async def institution_dashboard(domain: str, db: Session = Depends(get_db)):
+    """
+    T1: Aggregate dashboard for a university — see how their students are doing.
+    No individual PII exposed — aggregate stats only.
+    """
+    inst = db.query(Institution).filter(Institution.domain == domain).first()
+    if not inst or not inst.active:
+        raise HTTPException(404, "Institution not found")
+
+    # Find all students with this email domain
+    students = db.query(User).filter(User.email.like(f"%@{domain}")).all()
+    student_ids = [s.id for s in students]
+
+    if not student_ids:
+        return {**inst.to_dict(), "students": 0, "stats": {}}
+
+    # Aggregate stats — no individual data exposed
+    apps = db.query(Application).filter(
+        Application.user_id.in_(student_ids)
+    ).all()
+    won = [a for a in apps if a.stage == "won"]
+    submitted = [a for a in apps if a.stage == "submitted"]
+
+    # Degree level breakdown
+    from collections import Counter
+    degree_dist = dict(Counter(s.degree_level for s in students))
+    nationality_dist = dict(Counter(s.nationality for s in students).most_common(10))
+    avg_gpa = round(sum(s.gpa for s in students if s.gpa) / max(len([s for s in students if s.gpa]), 1), 2)
+
+    # Update student count
+    inst.student_count = len(students)
+    db.commit()
+
+    return {
+        **inst.to_dict(),
+        "students": len(students),
+        "avg_gpa": avg_gpa,
+        "degree_distribution": degree_dist,
+        "top_nationalities": nationality_dist,
+        "applications": {
+            "total": len(apps),
+            "submitted": len(submitted),
+            "won": len(won),
+            "total_won_usd": sum(a.amount_usd for a in won),
+            "win_rate_pct": round(len(won) / max(len(submitted), 1) * 100, 1),
+        },
+    }
+
+
+@app.get("/api/institutions")
+async def list_institutions(db: Session = Depends(get_db)):
+    """List all active partner institutions."""
+    insts = db.query(Institution).filter(Institution.active == True).all()
+    return {"institutions": [i.to_dict() for i in insts], "total": len(insts)}
+
+
+# ── A/B Testing Framework ─────────────────────────────────────
+import hashlib as _abhl
+
+# Active experiments — add new ones here
+ACTIVE_EXPERIMENTS = {
+    "essay_model": {
+        "variants": ["haiku", "sonnet"],
+        "weights": [0.7, 0.3],   # 70% haiku, 30% sonnet
+        "description": "Test Claude Haiku vs Sonnet for essay quality",
+        "conversion_event": "essay_helpfulness_5",
+    },
+    "match_algorithm": {
+        "variants": ["weighted", "collaborative"],
+        "weights": [0.5, 0.5],
+        "description": "Compare static vs collaborative filtering",
+        "conversion_event": "pipeline_add",
+    },
+}
+
+
+def _get_variant(experiment_name: str, user_id: str) -> str:
+    """
+    Deterministic assignment — same user always gets same variant.
+    Uses hash so no DB lookup needed for assignment.
+    """
+    exp = ACTIVE_EXPERIMENTS.get(experiment_name)
+    if not exp: return "control"
+    key = f"{experiment_name}:{user_id}"
+    bucket = int(_abhl.md5(key.encode()).hexdigest(), 16) % 100
+    cumulative = 0
+    for variant, weight in zip(exp["variants"], exp["weights"]):
+        cumulative += weight * 100
+        if bucket < cumulative:
+            return variant
+    return exp["variants"][-1]
+
+
+def _record_experiment(db, experiment: str, user_id: str,
+                        converted: bool = False, event: str = None):
+    """Record experiment exposure or conversion."""
+    variant = _get_variant(experiment, user_id)
+    existing = db.query(Experiment).filter(
+        Experiment.name == experiment,
+        Experiment.user_id == user_id,
+    ).first()
+    if existing:
+        if converted:
+            existing.converted = True
+            existing.conversion_event = event
+            db.commit()
+        return variant
+    rec = Experiment(
+        id=f"exp_{uuid.uuid4().hex[:8]}",
+        name=experiment, variant=variant,
+        user_id=user_id, converted=converted,
+        conversion_event=event,
+    )
+    db.add(rec); db.commit()
+    return variant
+
+
+@app.get("/api/experiments/{name}/results")
+async def experiment_results(name: str, db: Session = Depends(get_db)):
+    """T2: Get A/B test results for an experiment."""
+    exp = ACTIVE_EXPERIMENTS.get(name)
+    if not exp:
+        raise HTTPException(404, f"Experiment '{name}' not found")
+    rows = db.query(Experiment).filter(Experiment.name == name).all()
+    from collections import defaultdict
+    stats: dict = defaultdict(lambda: {"exposures":0,"conversions":0})
+    for r in rows:
+        stats[r.variant]["exposures"] += 1
+        if r.converted:
+            stats[r.variant]["conversions"] += 1
+    results = {}
+    for variant, s in stats.items():
+        exp_count = max(s["exposures"], 1)
+        results[variant] = {
+            "exposures": s["exposures"],
+            "conversions": s["conversions"],
+            "conversion_rate_pct": round(s["conversions"] / exp_count * 100, 1),
+        }
+    return {
+        "experiment": name,
+        "description": exp["description"],
+        "conversion_event": exp["conversion_event"],
+        "variants": results,
+        "total_exposures": sum(s["exposures"] for s in stats.values()),
+    }
+
+
+@app.get("/api/experiments")
+async def list_experiments():
+    """T2: List all active experiments."""
+    return {"experiments": [
+        {"name": k, "description": v["description"],
+         "variants": v["variants"], "conversion_event": v["conversion_event"]}
+        for k,v in ACTIVE_EXPERIMENTS.items()
+    ]}
+
+
+# ── Human Expert Review ───────────────────────────────────────
+@app.post("/api/expert-review/request")
+async def request_expert_review(
+    req: dict,
+    user: User = Depends(_get_user),
+    db: Session = Depends(get_db),
+):
+    """
+    T3: Submit essay for human expert review ($19/review).
+    Expert reviews go into a queue and are processed within 48 hours.
+    """
+    essay = req.get("essay","").strip()
+    if len(essay.split()) < 100:
+        raise HTTPException(400, "Essay must be at least 100 words for expert review")
+
+    # Check if user already has a pending review for this essay
+    existing = db.query(ExpertReview).filter(
+        ExpertReview.user_id == user.id,
+        ExpertReview.status == "pending",
+    ).count()
+    if existing >= 3:
+        raise HTTPException(400, "Maximum 3 pending reviews at a time")
+
+    review = ExpertReview(
+        id=f"rev_{uuid.uuid4().hex[:8]}",
+        user_id=user.id,
+        package_id=req.get("package_id"),
+        scholarship_name=req.get("scholarship_name",""),
+        essay_text=essay,
+        rubric=req.get("rubric","general"),
+        status="pending",
+    )
+    db.add(review); db.commit(); db.refresh(review)
+    _log_event(db, user.id, "expert_review_requested",
+               req.get("package_id"), req.get("scholarship_name"))
+    return {
+        **review.to_dict(),
+        "message": "Review request submitted. An expert will review your essay within 48 hours.",
+        "estimated_turnaround": "24-48 hours",
+    }
+
+
+@app.get("/api/expert-review/my-reviews")
+async def my_expert_reviews(user: User = Depends(_get_user),
+                              db: Session = Depends(get_db)):
+    """Get all expert reviews for the current user."""
+    reviews = db.query(ExpertReview).filter(
+        ExpertReview.user_id == user.id
+    ).order_by(ExpertReview.requested_at.desc()).all()
+    return {
+        "reviews": [r.to_dict() for r in reviews],
+        "pending": sum(1 for r in reviews if r.status == "pending"),
+        "completed": sum(1 for r in reviews if r.status == "completed"),
+    }
+
+
+@app.get("/api/expert-review/queue")
+async def expert_review_queue(db: Session = Depends(get_db)):
+    """
+    Expert reviewer endpoint — see the queue of pending reviews.
+    In production, restrict to expert role. Currently open for MVP.
+    """
+    pending = db.query(ExpertReview).filter(
+        ExpertReview.status.in_(["pending","in_review"])
+    ).order_by(ExpertReview.requested_at.asc()).all()
+    return {
+        "queue": [r.to_dict() for r in pending],
+        "total_pending": len(pending),
+    }
+
+
+@app.patch("/api/expert-review/{review_id}/complete")
+async def complete_expert_review(
+    review_id: str,
+    req: dict,
+    db: Session = Depends(get_db),
+):
+    """Expert submits their review."""
+    review = db.query(ExpertReview).filter(ExpertReview.id == review_id).first()
+    if not review:
+        raise HTTPException(404, "Review not found")
+    review.status = "completed"
+    review.score = float(req.get("score", 0.7))
+    review.grade = req.get("grade","B")
+    review.feedback = _sanitise(req.get("feedback",""), 3000)
+    review.reviewer_notes = _sanitise(req.get("reviewer_notes",""), 1000)
+    review.completed_at = datetime.utcnow()
+    db.commit()
+    return review.to_dict()
+
+
+# ── Plan-based rate limits ────────────────────────────────────
+PLAN_LIMITS = {
+    "free":       {"essays_per_day": 3,  "packages_per_day": 1, "reviews_per_month": 0},
+    "pro":        {"essays_per_day": 20, "packages_per_day": 5, "reviews_per_month": 3},
+    "enterprise": {"essays_per_day": -1, "packages_per_day": -1, "reviews_per_month": -1},
+    "partner":    {"essays_per_day": 10, "packages_per_day": 3, "reviews_per_month": 1},
+}
+
+
+@app.get("/api/plans")
+async def get_plans():
+    """T4: Available subscription plans."""
+    return {
+        "plans": [
+            {"id":"free",       "name":"Free",       "price_usd":0,
+             "essays_per_day":3,  "packages_per_day":1,
+             "features":["3 essays/day","1 package/day","87 scholarships","Interview coaching"]},
+            {"id":"pro",        "name":"Pro",        "price_usd":9,
+             "essays_per_day":20, "packages_per_day":5,
+             "features":["20 essays/day","5 packages/day","Priority matching",
+                         "Expert review credits","Advanced analytics"]},
+            {"id":"enterprise", "name":"Enterprise", "price_usd":49,
+             "essays_per_day":-1, "packages_per_day":-1,
+             "features":["Unlimited essays","Unlimited packages","University dashboard",
+                         "API access","SIS integration","Dedicated support"]},
+        ]
+    }
+
+
+@app.get("/api/my-plan")
+async def my_plan(user: User = Depends(_get_user), db: Session = Depends(get_db)):
+    """T4: Current user's plan and usage."""
+    plan = user.plan or "free"
+    limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
+    # Count today's usage from events
+    from datetime import date
+    today_start = datetime.combine(date.today(), datetime.min.time())
+    essays_today = db.query(UserEvent).filter(
+        UserEvent.user_id == user.id,
+        UserEvent.event_type == "essay_critique",
+        UserEvent.created_at >= today_start,
+    ).count()
+    packages_today = db.query(UserEvent).filter(
+        UserEvent.user_id == user.id,
+        UserEvent.event_type == "pipeline_add",
+        UserEvent.created_at >= today_start,
+    ).count()
+    return {
+        "plan": plan,
+        "limits": limits,
+        "usage_today": {
+            "essays": essays_today,
+            "packages": packages_today,
+        },
+        "upgrade_url": "https://scholarbot-web.onrender.com/?page=plans",
+    }
+
 @app.get("/", response_class=HTMLResponse)
 async def spa():
     p = Path("static/index.html")
