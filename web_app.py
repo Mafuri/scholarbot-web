@@ -62,6 +62,7 @@ class User(Base):
     extracurriculars        = Column(JSON, default=list)
     demographic_tags        = Column(JSON, default=list)
     personal_statement      = Column(Text, default="")
+    password_changed_at     = Column(DateTime, nullable=True)
     plan                    = Column(String(20), default="free")
     applications_this_month = Column(Integer, default=0)
     created_at              = Column(DateTime, default=datetime.utcnow)
@@ -176,11 +177,12 @@ class Job(Base):
     status       = Column(String(20), default="running")
     result       = Column(JSON, nullable=True)
     error        = Column(Text, nullable=True)
+    retry_count  = Column(Integer, default=0)
     started_at   = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     def to_dict(self):
         return {"id":self.id,"status":self.status,"result":self.result,
-                "error":self.error,
+                "error":self.error, "retry_count": self.retry_count or 0,
                 "started_at":self.started_at.isoformat() if self.started_at else None,
                 "completed_at":self.completed_at.isoformat() if self.completed_at else None}
 
@@ -218,6 +220,25 @@ def _make_token(uid):
 def _decode_token(tok):
     try: return _jwt.decode(tok, _SECRET, algorithms=[_ALG]).get("sub")
     except JWTError: return None
+
+
+def _validate_token_session(tok, db):
+    """Phase 6: Checks password_changed_at to invalidate old tokens."""
+    from jose import JWTError as _JWTError
+    try:
+        payload = _jwt.decode(tok, _SECRET, algorithms=[_ALG])
+        uid = payload.get("sub")
+        iat = payload.get("iat", 0)
+        if not uid: raise HTTPException(401, "Invalid token")
+        u = db.query(User).filter(User.id == uid).first()
+        if not u: raise HTTPException(401, "User not found")
+        if u.password_changed_at:
+            issued_at = datetime.utcfromtimestamp(iat)
+            if u.password_changed_at > issued_at:
+                raise HTTPException(401, "Password changed — please log in again.")
+        return u
+    except HTTPException: raise
+    except _JWTError: raise HTTPException(401, "Invalid or expired token")
 
 _INJECTION = [
     r"ignore\s+(?:all\s+)?(?:previous|above|prior)",
@@ -316,6 +337,61 @@ async def startup():
     Path("static").mkdir(parents=True, exist_ok=True)
     _init_db()
     logger.info("ScholarBot v4.2.0 started")
+    # Phase 6: Start deadline reminder scheduler
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        import os as _os
+        _email_key = _os.environ.get("SENDER_API_KEY","")
+
+        def _send_dl(to, name, scholarships):
+            import requests as _req
+            from_email = _os.environ.get("FROM_EMAIL","noreply@scholarbot.app")
+            base = _os.environ.get("BASE_URL","https://scholarbot-web.onrender.com")
+            rows = "".join(f"<tr><td>{s['name'][:50]}</td><td>{s['days_left']}d</td>"
+                           f"<td>${s.get('amount_usd',0):,.0f}</td></tr>" for s in scholarships[:5])
+            html = (f"<p>Hi {name}, you have {len(scholarships)} upcoming deadline(s):</p>"
+                    f"<table>{rows}</table>"
+                    f"<p><a href='{base}/?page=pipeline'>View pipeline</a></p>")
+            _req.post("https://api.sender.net/v2/message/send",
+                headers={"Authorization":f"Bearer {_email_key}","Content-Type":"application/json"},
+                json={"from":{"email":from_email,"name":"ScholarBot"},
+                      "to":{"email":to,"name":name},
+                      "subject":f"⏰ {len(scholarships)} deadline(s) approaching","html":html},
+                timeout=15)
+        scheduler = AsyncIOScheduler()
+
+        def _send_reminders():
+            if not _email_key: return
+            db = SessionLocal()
+            try:
+                apps = db.query(Application).filter(
+                    Application.stage.in_(["researching","essay_ready","submitted"])
+                ).all()
+                # Group by user and find deadlines in 1 or 7 days
+                from datetime import datetime as _dt
+                user_deadlines = {}
+                for a in apps:
+                    days = _days_until(a.deadline)
+                    if days in (1, 7):
+                        user_deadlines.setdefault(a.user_id, []).append({
+                            "name": a.scholarship_name, "deadline": a.deadline,
+                            "days_left": days, "amount_usd": a.amount_usd, "url": a.url
+                        })
+                for uid, deadlines in user_deadlines.items():
+                    u = db.query(User).filter(User.id == uid).first()
+                    if u and u.email:
+                        _send_dl(u.email, u.name, deadlines)
+                        logger.info("Reminder sent to %s (%d deadlines)", u.email, len(deadlines))
+            except Exception as e:
+                logger.error("Reminder job failed: %s", e)
+            finally:
+                db.close()
+
+        scheduler.add_job(_send_reminders, "cron", hour=8, minute=0)
+        scheduler.start()
+        logger.info("APScheduler started — deadline reminders at 08:00 daily")
+    except ImportError:
+        logger.info("APScheduler not installed — deadline reminders disabled")
 
 def _get_user(creds: HTTPAuthorizationCredentials = Depends(security),
               db: Session = Depends(get_db)):
@@ -482,7 +558,67 @@ async def explain(sid: str, user: User = Depends(_opt_user)):
     if not opp: raise HTTPException(404, "Not found")
     profile = user.to_dict() if user else {"degree_level":"Graduate",
         "nationality":"Kenya","financial_need":False,"gpa":0,"major":""}
-    return explain_match(opp, profile)
+
+    # Inline explainability with Phase 6 fixed EV formula
+    gpa_min = float(opp.get("gpa_min") or 0)
+    gpa_user = float(profile.get("gpa") or 0)
+    nationality = (profile.get("nationality") or "").lower()
+    eligible = [c.lower() for c in (opp.get("eligible_countries") or [])]
+    degree_levels = [d.lower() for d in (opp.get("degree_levels") or [])]
+    degree_user = (profile.get("degree_level") or "Graduate").lower()
+    amount = float(opp.get("amount_usd") or 0)
+    acceptance = float((opp.get("competitiveness") or {}).get("acceptance_rate") or 0.15)
+
+    factors = []
+    # GPA
+    if gpa_min:
+        met = gpa_user >= gpa_min
+        factors.append({"factor":"GPA","met":met,"icon":"📊",
+            "detail": f"Your GPA {gpa_user:.1f} {'meets' if met else 'below'} minimum {gpa_min:.1f}"})
+    else:
+        factors.append({"factor":"GPA","met":True,"icon":"📊","detail":"No minimum GPA required"})
+    # Country
+    is_global = any(c in ("global","worldwide","all","international") for c in eligible)
+    country_met = is_global or any(nationality in c or c in nationality for c in eligible)
+    factors.append({"factor":"Country","met":country_met,"icon":"🌍",
+        "detail": "Open to all countries" if is_global else
+                  f"{nationality.title()} is {'eligible' if country_met else 'not listed'}"})
+    # Degree
+    degree_met = not degree_levels or any(degree_user in d or d in degree_user for d in degree_levels)
+    factors.append({"factor":"Degree","met":degree_met,"icon":"🎓",
+        "detail": f"{profile.get('degree_level','Graduate')} {'matches' if degree_met else 'does not match'}"})
+    # Field
+    opp_tags = " ".join(opp.get("tags") or []) + " " + (opp.get("field") or "")
+    major = (profile.get("major") or "").lower()
+    field_met = not opp_tags.strip() or any(w in opp_tags.lower() for w in major.split() if len(w) > 2)
+    factors.append({"factor":"Field","met":field_met,"icon":"📚",
+        "detail": f"Your major '{profile.get('major','')}' {'aligns' if field_met else 'may not align'}"})
+
+    met_count = sum(1 for f in factors if f["met"])
+    score = round(met_count / len(factors), 2) if factors else 0.5
+    grade = "A" if score >= 0.85 else "B" if score >= 0.70 else "C" if score >= 0.55 else "D"
+
+    # Phase 6: Fixed EV formula — diminishing penalty on competitive scholarships
+    ev_penalty = min(acceptance * 5, 1.0)
+    expected_value = round(amount * score * ev_penalty)
+
+    gaps = [{"factor":f["factor"],"action":f"Improve your {f['factor']} to qualify"}
+            for f in factors if not f["met"]]
+
+    rec = ("Strong match — apply immediately." if score >= 0.85 else
+           "Good match — personalise your essay carefully." if score >= 0.70 else
+           "Partial match — address the gaps before applying." if score >= 0.55 else
+           "Weak match — consider better-aligned scholarships first.")
+
+    return {
+        "scholarship_id": opp.get("id",""), "scholarship_name": opp.get("name",""),
+        "match_score": score, "grade": grade,
+        "amount_usd": amount, "acceptance_rate": acceptance,
+        "expected_value_usd": expected_value,
+        "competitiveness": f"{int(acceptance*100)}% acceptance rate",
+        "factors": factors, "gaps": gaps, "strengths": [f["detail"] for f in factors if f["met"]],
+        "recommendation": rec, "factors_met": met_count, "factors_total": len(factors),
+    }
 
 # ── Pipeline ──────────────────────────────────────────────────
 VALID_STAGES = {"researching","essay_ready","submitted","awaiting","won","rejected"}
