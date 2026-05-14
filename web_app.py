@@ -62,6 +62,7 @@ class User(Base):
     extracurriculars        = Column(JSON, default=list)
     demographic_tags        = Column(JSON, default=list)
     personal_statement      = Column(Text, default="")
+    email_verified          = Column(Boolean, default=False)
     password_changed_at     = Column(DateTime, nullable=True)
     plan                    = Column(String(20), default="free")
     applications_this_month = Column(Integer, default=0)
@@ -186,6 +187,18 @@ class Job(Base):
                 "started_at":self.started_at.isoformat() if self.started_at else None,
                 "completed_at":self.completed_at.isoformat() if self.completed_at else None}
 
+class UserEvent(Base):
+    """T1: Behavioural event log — foundation for collaborative filtering."""
+    __tablename__ = "user_events"
+    id         = Column(String(32), primary_key=True)
+    user_id    = Column(String(32), nullable=False, index=True)
+    event_type = Column(String(50), nullable=False)  # view/pipeline_add/essay_gen/submit/win/reject
+    opp_id     = Column(String(32), nullable=True)
+    opp_name   = Column(String(300), nullable=True)
+    metadata_  = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 def get_db():
     db = _get_sf()()
     try: yield db
@@ -245,6 +258,56 @@ _INJECTION = [
     r"disregard\s+(?:all\s+)?(?:previous|above)",
     r"new\s+instructions?:", r"system\s*prompt", r"you\s+are\s+now",
 ]
+def _similarity_score(text_a: str, text_b: str) -> float:
+    """T2: Trigram similarity (0-1). >0.65 = flag for review."""
+    def ngrams(text, n=3):
+        text = text.lower().strip()
+        return set(text[i:i+n] for i in range(max(0, len(text)-n+1)))
+    a, b = ngrams(text_a), ngrams(text_b)
+    if not a or not b: return 0.0
+    return round(len(a & b) / len(a | b), 3)
+
+
+def _check_essay_similarity(essay: str, user_id: str, db) -> dict:
+    """Compare essay against user's previous essays. Returns flagged status."""
+    existing = db.query(Package).filter(
+        Package.user_id == user_id,
+        Package.essay_text != None,
+        Package.essay_text != "",
+    ).order_by(Package.created_at.desc()).limit(20).all()
+    if not existing:
+        return {"score": 0.0, "flagged": False,
+                "message": "No previous essays to compare"}
+    scores = [_similarity_score(essay, p.essay_text)
+              for p in existing if p.essay_text]
+    if not scores:
+        return {"score": 0.0, "flagged": False, "message": "Original essay"}
+    max_score = max(scores)
+    flagged = max_score > 0.65
+    return {
+        "score": round(max_score, 3), "flagged": flagged,
+        "message": (
+            f"⚠️ {int(max_score*100)}% similar to a previous essay — "
+            "personalise significantly before submitting."
+        ) if flagged else f"Essay appears original ({int(max_score*100)}% similarity)",
+    }
+
+
+def _log_event(db, user_id: str, event_type: str,
+               opp_id: str = None, opp_name: str = None, meta: dict = None):
+    """Log a user behaviour event — powers collaborative filtering."""
+    import uuid as _uuid2
+    try:
+        ev = UserEvent(
+            id=f"ev_{_uuid2.uuid4().hex[:8]}",
+            user_id=user_id, event_type=event_type,
+            opp_id=opp_id, opp_name=opp_name, metadata_=meta or {},
+        )
+        db.add(ev); db.commit()
+    except Exception as e:
+        logger.debug("Event log failed (non-critical): %s", e)
+
+
 def _sanitise(text, max_len=8000):
     if not text: return ""
     text = "".join(ch for ch in str(text) if ord(ch)>=32 or ch in "\n\r\t")
@@ -453,6 +516,34 @@ async def register(req: RegisterReq, db: Session = Depends(get_db)):
                  languages=["English"], skills=[], extracurriculars=[],
                  demographic_tags=[], personal_statement="")
         db.add(u); db.commit(); db.refresh(u)
+        # T5: Send verification email if Sender.net configured
+        _sender_key = os.environ.get("SENDER_API_KEY","")
+        if _sender_key:
+            import secrets as _sec2, hashlib as _hl3, requests as _rq2
+            raw_tok = _sec2.token_urlsafe(32)
+            t_hash = _hl3.sha256(raw_tok.encode()).hexdigest()
+            _reset_tokens[f"verify_{t_hash}"] = {
+                "user_id": u.id, "used": False,
+                "expires_at": datetime.utcnow() + timedelta(days=7),
+            }
+            _base = os.environ.get("BASE_URL","https://scholarbot-web.onrender.com")
+            _from = os.environ.get("FROM_EMAIL","noreply@scholarbot.app")
+            try:
+                link = f"{_base}/api/auth/verify-email?token={raw_tok}"
+                html = (f"<p>Hi {u.name},</p><p>Welcome to ScholarBot!</p>"
+                        f"<p><a href='{link}' style='background:#2563eb;color:#fff;"
+                        f"padding:12px 24px;border-radius:6px;text-decoration:none;"
+                        f"display:inline-block'>Verify my email</a></p>"
+                        f"<p style='font-size:12px;color:#888'>Link expires in 7 days.</p>")
+                _rq2.post("https://api.sender.net/v2/message/send",
+                    headers={"Authorization":f"Bearer {_sender_key}",
+                             "Content-Type":"application/json"},
+                    json={"from":{"email":_from,"name":"ScholarBot"},
+                          "to":{"email":u.email,"name":u.name},
+                          "subject":"Verify your ScholarBot email","html":html},
+                    timeout=8)
+            except Exception as _ve:
+                logger.debug("Verification email (non-critical): %s", _ve)
         return _auth_response(u)
     except HTTPException: raise
     except Exception as e:
@@ -477,6 +568,22 @@ async def logout():
     return resp
 
 # ── Profile ───────────────────────────────────────────────────
+@app.get("/api/auth/verify-email")
+async def verify_email(token: str, db: Session = Depends(get_db)):
+    """T5: Marks account as email-verified."""
+    import hashlib as _hl4
+    t_hash = _hl4.sha256(token.encode()).hexdigest()
+    entry = _reset_tokens.get(f"verify_{t_hash}")
+    if not entry or entry.get("used") or entry["expires_at"] < datetime.utcnow():
+        raise HTTPException(400, "Invalid or expired verification link")
+    u = db.query(User).filter(User.id == entry["user_id"]).first()
+    if u:
+        u.email_verified = True
+        entry["used"] = True
+        db.commit()
+    return {"message": "Email verified. Your ScholarBot account is fully activated."}
+
+
 @app.patch("/api/profile")
 async def update_profile(upd: ProfileUpdate, user: User = Depends(_get_user),
                           db: Session = Depends(get_db)):
@@ -610,6 +717,12 @@ async def explain(sid: str, user: User = Depends(_opt_user)):
            "Partial match — address the gaps before applying." if score >= 0.55 else
            "Weak match — consider better-aligned scholarships first.")
 
+    # Log scholarship view event
+    if user:
+        from sqlalchemy.orm import Session as _S
+        _db = _get_sf()()
+        try: _log_event(_db, user.id, "view", opp.get("id"), opp.get("name"))
+        finally: _db.close()
     return {
         "scholarship_id": opp.get("id",""), "scholarship_name": opp.get("name",""),
         "match_score": score, "grade": grade,
@@ -642,7 +755,10 @@ async def add_pipeline(data: dict, user: User = Depends(_get_user),
                     amount_usd=float(data.get("amount_usd",0)),
                     deadline=data.get("deadline",""), url=data.get("url",""),
                     stage=data.get("stage","researching"), notes=data.get("notes",""))
-    db.add(a); db.commit(); db.refresh(a); return a.to_dict()
+    db.add(a); db.commit(); db.refresh(a)
+    _log_event(db, user.id, "pipeline_add",
+               data.get("scholarship_id",""), data.get("scholarship_name",""))
+    return a.to_dict()
 
 @app.patch("/api/pipeline/{app_id}/move")
 async def move_stage(app_id: str, data: dict, user: User = Depends(_get_user),
@@ -653,7 +769,10 @@ async def move_stage(app_id: str, data: dict, user: User = Depends(_get_user),
     stage = data.get("stage", a.stage)
     if stage not in VALID_STAGES: raise HTTPException(400, "Invalid stage")
     a.stage = stage; a.updated_at = datetime.utcnow()
-    db.commit(); db.refresh(a); return a.to_dict()
+    db.commit(); db.refresh(a)
+    if stage in ("submitted","won","rejected"):
+        _log_event(db, user.id, stage, a.opportunity_id, a.scholarship_name)
+    return a.to_dict()
 
 @app.post("/api/applications/record")
 async def record_app(data: dict, user: User = Depends(_get_user),
@@ -709,6 +828,49 @@ async def get_essay(uid: str, pid: str, user: User = Depends(_get_user),
     if not pkg: raise HTTPException(404, "Not found")
     return {"essay": pkg.essay_text or ""}
 
+@app.get("/api/essays/diff/{uid}/{pid_a}/{pid_b}")
+async def essay_diff(uid: str, pid_a: str, pid_b: str,
+                     user: User = Depends(_get_user),
+                     db: Session = Depends(get_db)):
+    """
+    T4: Side-by-side diff between two essay versions.
+    Returns unified diff + similarity score.
+    """
+    if user.id != uid:
+        raise HTTPException(403, "Access denied")
+    pkg_a = db.query(Package).filter(Package.id == pid_a).first()
+    pkg_b = db.query(Package).filter(Package.id == pid_b).first()
+    if not pkg_a or not pkg_b:
+        raise HTTPException(404, "One or both packages not found")
+
+    import difflib
+    essay_a = (pkg_a.essay_text or "").splitlines(keepends=True)
+    essay_b = (pkg_b.essay_text or "").splitlines(keepends=True)
+
+    unified = list(difflib.unified_diff(
+        essay_a, essay_b,
+        fromfile=f"Version {pkg_a.created_at.strftime('%Y-%m-%d') if pkg_a.created_at else 'A'}",
+        tofile=f"Version {pkg_b.created_at.strftime('%Y-%m-%d') if pkg_b.created_at else 'B'}",
+        lineterm=""
+    ))
+
+    added = sum(1 for l in unified if l.startswith("+") and not l.startswith("+++"))
+    removed = sum(1 for l in unified if l.startswith("-") and not l.startswith("---"))
+    sim = _similarity_score(pkg_a.essay_text or "", pkg_b.essay_text or "")
+
+    return {
+        "package_a": {"id": pid_a, "scholarship": pkg_a.scholarship_name,
+                      "created_at": pkg_a.created_at.isoformat() if pkg_a.created_at else None},
+        "package_b": {"id": pid_b, "scholarship": pkg_b.scholarship_name,
+                      "created_at": pkg_b.created_at.isoformat() if pkg_b.created_at else None},
+        "diff": "".join(unified),
+        "lines_added": added,
+        "lines_removed": removed,
+        "similarity_score": sim,
+        "changed_significantly": sim < 0.70,
+    }
+
+
 @app.post("/api/essays/generate")
 async def gen_essay(req: dict, bt: BackgroundTasks,
                      user: User = Depends(_get_user)):
@@ -756,6 +918,99 @@ async def interview_score(data: dict, user: User = Depends(_get_user)):
                         user.to_dict(), data.get("scholarship","general"))
 
 # ── Jobs ──────────────────────────────────────────────────────
+@app.post("/api/essays/critique")
+async def critique_essay(req: dict, user: User = Depends(_get_user),
+                          db: Session = Depends(get_db)):
+    """
+    T3: Rubric-aware essay critique (Sopact-style differentiator).
+    Reads the essay against the scholarship rubric, cites specific sentences,
+    and returns scored feedback with evidence.
+    """
+    essay = req.get("essay", "")
+    scholarship_id = req.get("scholarship_id", "")
+    scholarship_name = req.get("scholarship_name", "ScholarBot")
+
+    if len(essay.split()) < 50:
+        raise HTTPException(400, "Essay too short — minimum 50 words for critique")
+
+    # Load rubric if available
+    from engine.interview_data import QUESTION_BANKS
+    rubric_name = req.get("rubric", "general")
+    rubrics = {
+        "chevening":       ["Leadership & Influence", "Networking Ability",
+                            "Ambassador Potential", "Career Plan"],
+        "fulbright":       ["Academic Excellence", "Project Feasibility",
+                            "Cross-Cultural Engagement", "Long-term Impact"],
+        "gates_cambridge": ["Academic Achievement", "Leadership Potential",
+                            "Commitment to Others", "Cambridge Fit"],
+        "general":         ["Clarity & Structure", "Specificity & Evidence",
+                            "Relevance to Scholarship", "Potential Impact"],
+    }
+    rubric_dims = rubrics.get(rubric_name, rubrics["general"])
+    rubric_str = ", ".join(f"{d}" for d in rubric_dims)
+
+    # Check similarity against previous essays
+    similarity = _check_essay_similarity(essay, user.id, db)
+
+    # Claude rubric critique
+    llm = _llm()
+    system = (
+        "You are a scholarship committee expert. Critique this essay against "
+        "the scholarship rubric. For each rubric dimension, cite the EXACT "
+        "sentence from the essay that best demonstrates it (or note if missing). "
+        "Return ONLY valid JSON."
+    )
+    prompt = (
+        f"Scholarship: {scholarship_name}\n"
+        f"Rubric dimensions: {rubric_str}\n\n"
+        f"Essay ({len(essay.split())} words):\n{essay[:3000]}\n\n"
+        "Return JSON with:\n"
+        "overall_score (0.0-1.0), grade (A/B/C/D), "
+        "word_count (integer), "
+        "dimensions (array of {name, score, evidence_sentence, feedback}), "
+        "strengths (array of strings), "
+        "improvements (array of strings), "
+        "suggested_additions (array of strings)"
+    )
+    try:
+        raw = llm(system, prompt)
+        import json as _json
+        start = raw.find("{"); end = raw.rfind("}") + 1
+        result = _json.loads(raw[start:end]) if start >= 0 else {}
+    except Exception as e:
+        logger.warning("Critique AI fallback: %s", e)
+        # Rule-based fallback
+        wc = len(essay.split())
+        has_numbers = any(ch.isdigit() for ch in essay)
+        score = min(1.0, 0.5 + (0.1 if wc >= 300 else 0) +
+                    (0.15 if has_numbers else 0) +
+                    (0.1 if len(set(essay.lower().split())) / max(len(essay.split()), 1) > 0.6 else 0))
+        result = {
+            "overall_score": round(score, 2),
+            "grade": "A" if score >= 0.85 else "B" if score >= 0.70 else "C",
+            "word_count": wc,
+            "dimensions": [{"name": d, "score": round(score, 2),
+                             "evidence_sentence": "See essay for examples",
+                             "feedback": "Provide specific examples"} for d in rubric_dims],
+            "strengths": ["Content addresses the scholarship requirements"],
+            "improvements": ["Add specific numbers and measurable outcomes",
+                             "Include a concrete career plan"],
+            "suggested_additions": ["Mention specific courses or research",
+                                    "Quantify your leadership impact"],
+        }
+
+    # Log essay critique event
+    _log_event(db, user.id, "essay_critique", scholarship_id, scholarship_name)
+
+    return {
+        **result,
+        "rubric": rubric_name,
+        "rubric_dimensions": rubric_dims,
+        "similarity_check": similarity,
+        "scholarship_id": scholarship_id,
+    }
+
+
 @app.get("/api/jobs/{jid}")
 async def get_job(jid: str, user: User = Depends(_get_user),
                    db: Session = Depends(get_db)):
