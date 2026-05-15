@@ -797,8 +797,65 @@ EXTRA_OPPORTUNITIES = [
     {"id":"woah_vet_education","name":"WOAH Veterinary Education Scholarship","type":"scholarship","amount_usd":12000,"deadline":"2025-09-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Senegal","Cameroon","Mozambique","Zimbabwe"],"degree_levels":["Undergraduate","Graduate"],"field":"Veterinary Science, Animal Health, Zoonotic Diseases, One Health, Wildlife Conservation","gpa_min":3.0,"tags":["veterinary","animal health","zoonotic","one health","africa","wildlife"],"url":"https://www.woah.org/en/capacity-building/scholarships/","description":"World Organisation for Animal Health scholarships for African students in veterinary sciences","competitiveness":{"label":"Moderate","acceptance_rate":0.15}}
 ]
 
+# Dynamic weight learning: updated from behavioral outcomes
+_DYNAMIC_WEIGHTS = {
+    "gpa": 0.25, "degree": 0.20, "country": 0.15,
+    "field": 0.15, "financial_need": 0.10, "deadline": 0.10, "amount": 0.05,
+    "_last_updated": 0,
+}
+
+def _refresh_dynamic_weights():
+    """
+    T1: Recalculate matching weights from won/rejected outcomes.
+    Called periodically — weights shift toward features that correlate with wins.
+    """
+    import time
+    global _DYNAMIC_WEIGHTS
+    if time.time() - _DYNAMIC_WEIGHTS.get("_last_updated", 0) < 3600:
+        return  # Refresh at most once per hour
+    try:
+        db = SessionLocal()
+        won_events = db.query(UserEvent).filter(
+            UserEvent.event_type == "won"
+        ).limit(500).all()
+        if len(won_events) < 10:
+            db.close(); return  # Not enough data yet
+
+        # For each win, load the user and the opportunity
+        from engine.opportunity_db import load_all_opportunities
+        all_opps = {o["id"]: o for o in load_all_opportunities() + EXTRA_OPPORTUNITIES}
+        gpa_correct = 0; country_correct = 0; field_correct = 0; total = 0
+        for ev in won_events:
+            u = db.query(User).filter(User.id == ev.user_id).first()
+            opp = all_opps.get(ev.opp_id or "")
+            if not u or not opp: continue
+            total += 1
+            if float(u.gpa or 0) >= float(opp.get("gpa_min") or 0):
+                gpa_correct += 1
+            nat = (u.nationality or "").lower()
+            eligible = [c.lower() for c in (opp.get("eligible_countries") or [])]
+            if any(nat in c or c == "global" for c in eligible):
+                country_correct += 1
+            major = (u.major or "").lower()
+            field_str = (opp.get("field") or "").lower() + " " + " ".join(opp.get("tags") or [])
+            if any(w in field_str for w in major.split() if len(w) > 2):
+                field_correct += 1
+        db.close()
+        if total > 0:
+            # Nudge weights toward what correlates with wins
+            _DYNAMIC_WEIGHTS["gpa"]     = round(0.15 + 0.15 * (gpa_correct / total), 3)
+            _DYNAMIC_WEIGHTS["country"] = round(0.10 + 0.10 * (country_correct / total), 3)
+            _DYNAMIC_WEIGHTS["field"]   = round(0.10 + 0.10 * (field_correct / total), 3)
+            _DYNAMIC_WEIGHTS["_last_updated"] = time.time()
+            logger.info("Dynamic weights updated from %d wins: gpa=%.2f country=%.2f field=%.2f",
+                        total, _DYNAMIC_WEIGHTS["gpa"], _DYNAMIC_WEIGHTS["country"], _DYNAMIC_WEIGHTS["field"])
+    except Exception as e:
+        logger.debug("Weight refresh failed (non-critical): %s", e)
+
+
 def _match_opps(profile, opp_type=None, field=None, region=None, min_amount=0):
     import hashlib, json
+    _refresh_dynamic_weights()  # Update weights from outcomes (cached 1hr)
     key_fields = {"dl":profile.get("degree_level",""),"nat":profile.get("nationality",""),
                   "gpa":round(float(profile.get("gpa",0) or 0),1),
                   "fn":bool(profile.get("financial_need")),"maj":profile.get("major",""),
@@ -2786,6 +2843,165 @@ async def digest_preview(user: User = Depends(_get_user),
         "upcoming_deadlines": len(deadlines),
         "email": user.email,
     }
+
+
+# ── Scholarship Alerts ────────────────────────────────────────
+class AlertSub(Base):
+    """User subscribes to alerts for new scholarships matching their profile."""
+    __tablename__ = "alert_subscriptions"
+    id         = Column(String(32), primary_key=True)
+    user_id    = Column(String(32), ForeignKey("users.id"), nullable=False, index=True)
+    frequency  = Column(String(20), default="weekly")   # daily / weekly
+    last_sent  = Column(DateTime, nullable=True)
+    active     = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+@app.post("/api/alerts/subscribe")
+async def subscribe_alerts(req: dict, user: User = Depends(_get_user),
+                            db: Session = Depends(get_db)):
+    """Subscribe to new scholarship match alerts."""
+    existing = db.query(AlertSub).filter(AlertSub.user_id == user.id).first()
+    if existing:
+        existing.active = True
+        existing.frequency = req.get("frequency", "weekly")
+        db.commit()
+        return {"message": "Alert subscription updated", "frequency": existing.frequency}
+    sub = AlertSub(
+        id=f"alert_{uuid.uuid4().hex[:8]}",
+        user_id=user.id,
+        frequency=req.get("frequency", "weekly"),
+    )
+    db.add(sub); db.commit()
+    return {"message": f"Subscribed to {sub.frequency} scholarship alerts",
+            "id": sub.id}
+
+
+@app.delete("/api/alerts/unsubscribe")
+async def unsubscribe_alerts(user: User = Depends(_get_user),
+                              db: Session = Depends(get_db)):
+    """Unsubscribe from alerts."""
+    sub = db.query(AlertSub).filter(AlertSub.user_id == user.id).first()
+    if sub:
+        sub.active = False
+        db.commit()
+    return {"message": "Unsubscribed from scholarship alerts"}
+
+
+@app.get("/api/alerts/status")
+async def alert_status(user: User = Depends(_get_user),
+                        db: Session = Depends(get_db)):
+    """Check current alert subscription status."""
+    sub = db.query(AlertSub).filter(AlertSub.user_id == user.id).first()
+    if not sub or not sub.active:
+        return {"subscribed": False}
+    return {
+        "subscribed": True,
+        "frequency": sub.frequency,
+        "last_sent": sub.last_sent.isoformat() if sub.last_sent else None,
+    }
+
+
+@app.get("/api/interview/tips/{scholarship_slug}")
+async def interview_tips(scholarship_slug: str):
+    """
+    T3: Scholarship-specific interview preparation tips.
+    Covers common panel questions, dos/don'ts, and scoring insights.
+    """
+    tips_db = {
+        "chevening": {
+            "name": "Chevening Scholarship",
+            "panel_format": "3 panelists, 30 minutes, 4 questions aligned to rubric dimensions",
+            "key_dimensions": ["Leadership", "Networking", "Ambassador Potential", "Career Plan"],
+            "top_tips": [
+                "Prepare a specific leadership story using STAR method — panel scores leadership first",
+                "Have 3-5 concrete networking examples ready: conferences, mentors, professional groups",
+                "Research the UK-Kenya/your country partnership — mention specific bilateral ties",
+                "Your career plan must be specific: name the organisation you want to work at in 5 years",
+                "Dress formally — Chevening represents the UK government internationally",
+            ],
+            "common_mistakes": [
+                "Giving vague answers: 'I have good leadership skills' without evidence",
+                "Ignoring the 'return to home country' requirement — mention it explicitly",
+                "Not researching the scholarship body (FCDO) and UK foreign policy",
+            ],
+            "sample_questions": [
+                "Tell us about a time you led a team through a difficult challenge",
+                "How will you use your UK network after you return home?",
+                "What specific role will you play in your country's development?",
+            ]
+        },
+        "fulbright": {
+            "name": "Fulbright Scholarship",
+            "panel_format": "Mix of written essays + interview for finalists",
+            "key_dimensions": ["Academic Excellence", "Research Project", "Cross-cultural Engagement", "Impact"],
+            "top_tips": [
+                "Your research project must be feasible and specific — name the US university and supervisor",
+                "Emphasise mutual exchange: what you bring to the US, not just what you gain",
+                "Fulbright values cultural ambassadors — show genuine curiosity about American society",
+                "Quantify your academic achievements: publications, awards, class rank",
+                "Connect your project to your home country's development needs",
+            ],
+            "common_mistakes": [
+                "Treating it as a study abroad application rather than a research fellowship",
+                "Vague project proposals without methodology or timeline",
+                "Focusing only on personal benefit, ignoring mutual understanding mission",
+            ],
+            "sample_questions": [
+                "Why is this specific research only possible in the United States?",
+                "How will your Fulbright experience benefit your home country?",
+                "Describe your research methodology and expected outcomes",
+            ]
+        },
+        "gates_cambridge": {
+            "name": "Gates Cambridge Scholarship",
+            "panel_format": "Formal interview, 20-30 minutes, academic panel",
+            "key_dimensions": ["Academic Achievement", "Leadership", "Commitment to Others", "Cambridge Fit"],
+            "top_tips": [
+                "Know your research proposal in extreme depth — expect hard technical questions",
+                "Leadership must show you improved others' lives, not just managed a project",
+                "'Commitment to others' is core — have a sustained community engagement story",
+                "Research your Cambridge supervisor and department thoroughly",
+                "The panel includes your potential supervisor — impress academically first",
+            ],
+            "common_mistakes": [
+                "Underpreparing on academic content — this is the most academically rigorous scholarship",
+                "Leadership stories that are self-serving rather than community-focused",
+                "Not engaging with why Cambridge specifically (not just UK or top university)",
+            ],
+            "sample_questions": [
+                "What is the most significant challenge in your research area right now?",
+                "Describe a time you made a significant difference in your community",
+                "Why is Cambridge the best place in the world for this research?",
+            ]
+        },
+        "general": {
+            "name": "General Scholarship Interview",
+            "panel_format": "Varies — typically 2-3 panelists, 20-45 minutes",
+            "key_dimensions": ["Academic Merit", "Leadership", "Future Goals", "Scholarship Fit"],
+            "top_tips": [
+                "Use STAR (Situation, Task, Action, Result) for every competency question",
+                "Research the scholarship organisation — know their mission and values",
+                "Prepare 3 questions to ask the panel — shows genuine interest",
+                "Practice out loud, not just in your head — fluency comes from speaking",
+                "Have specific numbers ready: GPA, years of experience, impact metrics",
+            ],
+            "common_mistakes": [
+                "Memorising answers word-for-word — sounds rehearsed and robotic",
+                "Not answering the actual question asked",
+                "Failing to connect your goals to the scholarship's specific mission",
+            ],
+            "sample_questions": [
+                "Tell us about yourself and why you applied for this scholarship",
+                "What is your biggest achievement and what did you learn from it?",
+                "Where do you see yourself in 10 years?",
+            ]
+        },
+    }
+    slug = scholarship_slug.lower().replace("-", "_").replace(" ", "_")
+    # Match against known slugs
+    matched = next((v for k,v in tips_db.items() if k in slug or slug in k), tips_db["general"])
+    return matched
 
 @app.get("/", response_class=HTMLResponse)
 async def spa():
