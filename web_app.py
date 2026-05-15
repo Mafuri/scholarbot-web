@@ -869,8 +869,38 @@ def _match_opps(profile, opp_type=None, field=None, region=None, min_amount=0):
     opps = base_opps + [o for o in EXTRA_OPPORTUNITIES if o.get("id") not in ext_ids]
     if field: opps=[o for o in opps if field.lower() in o.get("name","").lower() or
                     field.lower() in " ".join(o.get("tags",[])).lower()]
-    if region: opps=[o for o in opps if any(region.lower() in c.lower()
-                     for c in o.get("eligible_countries",[]))]
+    if region:
+        region_l = region.lower()
+        # Map regional aliases to country lists
+        region_groups = {
+            "asia": ["china","japan","south korea","taiwan","singapore","malaysia","thailand",
+                     "vietnam","indonesia","philippines","bangladesh","india","pakistan","nepal",
+                     "sri lanka","cambodia","myanmar","laos","bhutan","mongolia","global"],
+            "east asia": ["china","japan","south korea","taiwan","singapore","hong kong","mongolia"],
+            "southeast asia": ["vietnam","indonesia","philippines","thailand","malaysia","singapore",
+                               "cambodia","myanmar","laos","brunei","timor-leste","global"],
+            "south asia": ["india","bangladesh","pakistan","nepal","sri lanka","bhutan","maldives","global"],
+            "pacific": ["australia","new zealand","fiji","papua new guinea","solomon islands",
+                        "vanuatu","samoa","tonga","kiribati","tuvalu","palau","global"],
+            "middle east": ["egypt","morocco","jordan","lebanon","turkey","iran","iraq","global"],
+            "europe": ["germany","france","uk","united kingdom","netherlands","spain","italy",
+                       "sweden","norway","denmark","finland","switzerland","austria","global"],
+            "north america": ["usa","united states","canada","global"],
+            "latin america": ["brazil","colombia","mexico","argentina","chile","peru","global"],
+        }
+        group = region_groups.get(region_l)
+        if group:
+            opps = [o for o in opps if any(
+                any(g in c.lower() for g in group)
+                for c in o.get("eligible_countries", [])
+            ) or any(
+                any(g in tag.lower() for g in [region_l, region_l.replace(" ",""), "global"])
+                for tag in (o.get("tags") or [])
+            )]
+        else:
+            opps = [o for o in opps if any(
+                region_l in c.lower() for c in o.get("eligible_countries", [])
+            )]
     # T2: Behavioral score boosting — opportunities users like you won/submitted
     # get a small boost to their match score
     user_id = profile.get("id","")
@@ -1845,6 +1875,21 @@ async def analytics(user: User = Depends(_get_user),
         func.count(UserEvent.id).desc()
     ).limit(10).all()
 
+    # Include current dynamic weights and experiment summary
+    experiments_summary = {}
+    for exp_name in ACTIVE_EXPERIMENTS:
+        rows = db.query(Experiment).filter(Experiment.name == exp_name).all()
+        from collections import defaultdict as _dd
+        stats = _dd(lambda: {"exposures":0,"conversions":0})
+        for r in rows:
+            stats[r.variant]["exposures"] += 1
+            if r.converted: stats[r.variant]["conversions"] += 1
+        experiments_summary[exp_name] = {
+            k: {"exposures":v["exposures"],
+                "conversion_rate_pct": round(v["conversions"]/max(v["exposures"],1)*100,1)}
+            for k,v in stats.items()
+        }
+
     return {
         "users": {
             "total": total_users,
@@ -1876,6 +1921,11 @@ async def analytics(user: User = Depends(_get_user),
             {"name": row.opp_name, "pipeline_additions": row.count}
             for row in top_opps
         ],
+        "experiments": experiments_summary,
+        "dynamic_weights": {
+            k:v for k,v in _DYNAMIC_WEIGHTS.items() if k != "_last_updated"
+        },
+        "total_opportunities": 87 + len(EXTRA_OPPORTUNITIES),
     }
 
 
@@ -3158,4 +3208,46 @@ def _packages_job(jid, profile, top_n):
         finally: db.close()
         _update_job(jid,"done",result={"packages":created,"count":len(created)})
     except Exception as e:
-        logger.exception("Package job failed"); _update_job(jid,"failed",error=str(e))
+        logger.exception("Package job failed"); _update_job(jid,"failed",error=str(e)),
+
+    # ── Japan ────────────────────────────────────────────────
+    {"id":"mext_japan","name":"MEXT Japanese Government Scholarship","type":"scholarship","amount_usd":18000,"deadline":"2025-05-31","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields","gpa_min":2.5,"tags":["japan","mext","stem","language","fully-funded","government","asia"],"url":"https://www.mext.go.jp/en/policy/education/highered/title02/detail02/sdetail02/1373897.htm","description":"Japanese government scholarships covering tuition, accommodation, and monthly stipend for international students in Japan","competitiveness":{"label":"Competitive","acceptance_rate":0.15}},
+    {"id":"jasso_scholarship","name":"JASSO Honors Scholarship for Privately-Financed Students","type":"scholarship","amount_usd":6000,"deadline":"2025-06-30","eligible_countries":["Kenya","Nigeria","Ghana","India","Bangladesh","Pakistan","Vietnam","Indonesia","Philippines","Thailand","Malaysia","China","South Korea","Nepal","Sri Lanka"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields","gpa_min":3.2,"tags":["japan","jasso","asia","study abroad","academic excellence"],"url":"https://www.jasso.or.jp/en/","description":"Japan Student Services Organization scholarships for high-achieving international students studying in Japan","competitiveness":{"label":"Competitive","acceptance_rate":0.12}},
+    {"id":"afi_fellowship_japan","name":"Asia Foundation Fellowship (Japan)","type":"fellowship","amount_usd":22000,"deadline":"2025-09-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Bangladesh","India","Pakistan","Vietnam","Indonesia","Philippines","Cambodia","Myanmar","Laos","Nepal"],"degree_levels":["Graduate"],"field":"Policy, Governance, Development, International Relations","gpa_min":3.0,"tags":["japan","asia foundation","policy","governance","development","fellowship"],"url":"https://asiafoundation.org/programs/fellowships/","description":"Asia Foundation fellowships for emerging leaders from developing Asia and Africa","competitiveness":{"label":"Competitive","acceptance_rate":0.10}},
+    {"id":"hitachi_scholarship","name":"Hitachi Scholarship Foundation","type":"scholarship","amount_usd":20000,"deadline":"2025-12-01","eligible_countries":["Bangladesh","India","Indonesia","Malaysia","Pakistan","Philippines","Sri Lanka","Thailand","Vietnam","Myanmar","Cambodia","Nepal"],"degree_levels":["Graduate","Postgraduate"],"field":"Engineering, Science, Technology","gpa_min":3.3,"tags":["japan","hitachi","stem","engineering","science","technology","southeast asia","south asia"],"url":"https://www.hitachi-zaidan.org/global/activities/scholarship/","description":"Hitachi Foundation scholarships for Asian scientists and engineers to study in Japan","competitiveness":{"label":"Competitive","acceptance_rate":0.10}},
+    {"id":"toyota_foundation","name":"Toyota Foundation Research Grant","type":"grant","amount_usd":30000,"deadline":"2025-10-31","eligible_countries":["Global"],"degree_levels":["Postgraduate"],"field":"Social Sciences, Humanities, Environment, Technology","gpa_min":3.3,"tags":["japan","toyota","research","social sciences","humanities","sustainability"],"url":"https://www.toyotafound.or.jp/english/research/","description":"Toyota Foundation research grants addressing global social challenges with a Japan-Asia perspective","competitiveness":{"label":"Very Competitive","acceptance_rate":0.08}},
+
+    # ── South Korea ───────────────────────────────────────────
+    {"id":"gks_scholarship","name":"Korean Government Scholarship Program (GKS/KGSP)","type":"scholarship","amount_usd":16000,"deadline":"2025-03-14","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Bangladesh","India","Pakistan","Vietnam","Indonesia","Philippines","Malaysia","Thailand","Nepal","Sri Lanka","Cambodia","Myanmar"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields","gpa_min":3.0,"tags":["south korea","korea","gks","kgsp","stem","arts","government","fully-funded","asia"],"url":"https://www.studyinkorea.go.kr/en/sub/gks/allnew_unv.do","description":"South Korean government fully-funded scholarships covering tuition, housing, Korean language training, and monthly allowance","competitiveness":{"label":"Competitive","acceptance_rate":0.14}},
+    {"id":"posco_tji","name":"POSCO TJ Park Foundation Asia Fellowship","type":"fellowship","amount_usd":15000,"deadline":"2025-11-30","eligible_countries":["China","India","Vietnam","Indonesia","Philippines","Thailand","Malaysia","Bangladesh","Pakistan","Myanmar","Cambodia","Nepal","Sri Lanka","Mongolia"],"degree_levels":["Graduate","Postgraduate"],"field":"Science, Engineering, Business, Social Sciences","gpa_min":3.2,"tags":["south korea","posco","steel","engineering","asia","fellowship","business"],"url":"https://www.postf.org/eng/index.asp","description":"POSCO Foundation fellowships for Asian graduate students pursuing academic excellence and sustainable development","competitiveness":{"label":"Competitive","acceptance_rate":0.12}},
+    {"id":"sk_scholarship","name":"SK Group Global Scholarship","type":"scholarship","amount_usd":20000,"deadline":"2025-04-30","eligible_countries":["China","Japan","Vietnam","Indonesia","India","Bangladesh","Myanmar","Cambodia","Thailand","Malaysia","Philippines"],"degree_levels":["Undergraduate","Graduate"],"field":"Business, Technology, Engineering","gpa_min":3.3,"tags":["south korea","sk group","business","technology","engineering","corporate","asia"],"url":"https://eng.sksupport.or.kr/","description":"SK Group scholarships for Asian students pursuing degrees in business, technology, and engineering fields","competitiveness":{"label":"Competitive","acceptance_rate":0.10}},
+    {"id":"adb_jsp_korea","name":"ADB-Japan Scholarship Program (Korea)","type":"scholarship","amount_usd":25000,"deadline":"2025-02-15","eligible_countries":["Bangladesh","China","India","Indonesia","Kazakhstan","Malaysia","Mongolia","Myanmar","Nepal","Pakistan","Philippines","Sri Lanka","Thailand","Vietnam","Cambodia","Laos","Afghanistan"],"degree_levels":["Graduate"],"field":"Economics, Development, Finance, Public Policy","gpa_min":3.2,"tags":["south korea","adb","japan","development","economics","finance","policy","asia"],"url":"https://www.adb.org/site/careers/japan-scholarship-program","description":"Asian Development Bank and Japanese government joint scholarships for Asian professionals at leading Asian universities","competitiveness":{"label":"Very Competitive","acceptance_rate":0.08}},
+
+    # ── Taiwan ────────────────────────────────────────────────
+    {"id":"taiwan_mofa","name":"Taiwan Ministry of Foreign Affairs Scholarship","type":"scholarship","amount_usd":10000,"deadline":"2025-03-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Senegal","Burkina Faso","São Tomé and Príncipe","Eswatini","Haiti","Paraguay","Guatemala","Honduras","El Salvador","Belize","Palau","Marshall Islands","Tuvalu","Nauru"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields","gpa_min":2.8,"tags":["taiwan","mofa","diplomatic allies","stem","mandarin","government","official"],"url":"https://www.mofa.gov.tw/en/News.aspx?n=2681","description":"Taiwan government scholarships for students from diplomatic partner countries to study in Taiwan","competitiveness":{"label":"Moderate","acceptance_rate":0.22}},
+    {"id":"taiwan_icdf","name":"Taiwan ICDF International Higher Education Scholarship","type":"scholarship","amount_usd":12000,"deadline":"2025-03-01","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Gambia","Honduras","Paraguay","Guatemala","Belize","Haiti","Palau","Marshall Islands","Tuvalu","Nauru","El Salvador"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Agriculture, Public Health, Environment, Business","gpa_min":3.0,"tags":["taiwan","icdf","development","agriculture","health","environment","scholarships","government"],"url":"https://www.icdf.org.tw/ct.asp?xItem=12505&CtNode=30316&mp=2","description":"Taiwan International Cooperation and Development Fund scholarships for students from partner developing countries","competitiveness":{"label":"Moderate","acceptance_rate":0.20}},
+
+    # ── Singapore ─────────────────────────────────────────────
+    {"id":"a_star_scholarship","name":"A*STAR International Fellowship","type":"fellowship","amount_usd":55000,"deadline":"2025-05-31","eligible_countries":["Global"],"degree_levels":["Postgraduate"],"field":"Biomedical Science, Engineering, Physical Sciences, Computing","gpa_min":3.5,"tags":["singapore","astar","research","biomedical","engineering","physical science","computing","prestigious"],"url":"https://www.a-star.edu.sg/Scholarships/overview","description":"A*STAR International Fellowships for top researchers to conduct cutting-edge research in Singapore's research institutes","competitiveness":{"label":"Very Competitive","acceptance_rate":0.06}},
+    {"id":"ntu_research_scholarship","name":"NTU Research Scholarship","type":"scholarship","amount_usd":20000,"deadline":"2025-06-30","eligible_countries":["Global"],"degree_levels":["Postgraduate"],"field":"Engineering, Science, Business, Humanities","gpa_min":3.5,"tags":["singapore","ntu","nanyang","research","phd","stem","prestigious","asia"],"url":"https://www.ntu.edu.sg/education/graduate-programme/research-scholarship","description":"Nanyang Technological University research scholarships for PhD students across all disciplines","competitiveness":{"label":"Very Competitive","acceptance_rate":0.07}},
+    {"id":"nus_research_scholarship","name":"NUS Research Scholarship","type":"scholarship","amount_usd":20000,"deadline":"2025-07-31","eligible_countries":["Global"],"degree_levels":["Postgraduate"],"field":"All fields — Engineering, Medicine, Law, Arts, Science","gpa_min":3.5,"tags":["singapore","nus","national university","research","phd","stem","prestigious","asia"],"url":"https://nusgs.nus.edu.sg/scholarships/","description":"National University of Singapore research scholarships for outstanding PhD candidates worldwide","competitiveness":{"label":"Very Competitive","acceptance_rate":0.07}},
+
+    # ── Malaysia ──────────────────────────────────────────────
+    {"id":"malaysia_mpc","name":"Malaysia Commonwealth Scholarship","type":"scholarship","amount_usd":14000,"deadline":"2025-04-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Zambia","Zimbabwe","Bangladesh","India","Pakistan","Sri Lanka","Jamaica","Trinidad"],"degree_levels":["Graduate"],"field":"All fields with priority on STEM and Development","gpa_min":3.0,"tags":["malaysia","commonwealth","stem","development","asia","affordable"],"url":"https://www.jpa.gov.my/","description":"Malaysian government Commonwealth scholarships for students from developing Commonwealth countries","competitiveness":{"label":"Moderate","acceptance_rate":0.18}},
+    {"id":"utm_international","name":"UTM International Graduate Scholarship","type":"scholarship","amount_usd":10000,"deadline":"2025-10-31","eligible_countries":["Global"],"degree_levels":["Graduate","Postgraduate"],"field":"Engineering, Technology, Science, Management","gpa_min":3.2,"tags":["malaysia","utm","engineering","technology","science","management","affordable"],"url":"https://graduate.utm.my/scholarship/","description":"Universiti Teknologi Malaysia scholarships for international graduate students in STEM and management fields","competitiveness":{"label":"Moderate","acceptance_rate":0.20}},
+
+    # ── Thailand ──────────────────────────────────────────────
+    {"id":"ait_scholarship","name":"AIT Scholarship (Asian Institute of Technology)","type":"scholarship","amount_usd":15000,"deadline":"2025-08-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Bangladesh","India","Pakistan","Vietnam","Indonesia","Philippines","Myanmar","Cambodia","Laos","Nepal","Sri Lanka","Bhutan","Mongolia"],"degree_levels":["Graduate","Postgraduate"],"field":"Engineering, Technology, Environment, Management","gpa_min":3.0,"tags":["thailand","ait","engineering","environment","technology","management","asia","affordable"],"url":"https://www.ait.ac.th/study-at-ait/scholarships/","description":"Asian Institute of Technology scholarships for students from developing Asia and Africa in applied sciences","competitiveness":{"label":"Moderate","acceptance_rate":0.18}},
+
+    # ── China (additional) ────────────────────────────────────
+    {"id":"csc_bilateral","name":"Chinese Government Bilateral Scholarship","type":"scholarship","amount_usd":15000,"deadline":"2025-04-01","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Zimbabwe","Zambia","Mozambique","South Africa","Egypt","Morocco","Senegal","Bangladesh","Pakistan","Nepal","Sri Lanka","Myanmar","Cambodia","Laos"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields","gpa_min":2.8,"tags":["china","csc","bilateral","government","stem","mandarin","fully-funded","bri","africa","asia"],"url":"https://www.campuschina.org/","description":"Chinese government bilateral scholarships under country-to-country agreements covering tuition, accommodation, and stipend","competitiveness":{"label":"Competitive","acceptance_rate":0.17}},
+    {"id":"great_wall_scholarship","name":"Great Wall Scholarship Program","type":"scholarship","amount_usd":12000,"deadline":"2025-03-15","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Egypt","Morocco","Senegal","Algeria","Angola","Cameroon","Bangladesh","Pakistan","Nepal","Sri Lanka","Myanmar","Vietnam","Indonesia"],"degree_levels":["Graduate","Postgraduate"],"field":"All fields with priority on STEM, Medicine, Agriculture","gpa_min":3.0,"tags":["china","great wall","stem","medicine","agriculture","developing countries","government","africa"],"url":"https://www.campuschina.org/universities/index.html","description":"UNESCO-China Great Wall Co-Sponsored Fellowship Programme for students from developing countries","competitiveness":{"label":"Competitive","acceptance_rate":0.15}},
+
+    # ── South/Southeast Asia region-wide ─────────────────────
+    {"id":"asean_scholarship_sg","name":"ASEAN Scholarship (Singapore)","type":"scholarship","amount_usd":22000,"deadline":"2025-03-31","eligible_countries":["Brunei","Cambodia","Indonesia","Laos","Malaysia","Myanmar","Philippines","Thailand","Vietnam"],"degree_levels":["Undergraduate","Graduate"],"field":"All fields","gpa_min":3.2,"tags":["asean","singapore","southeast asia","prestigious","fully-funded","government","regional"],"url":"https://www.moe.gov.sg/financial-matters/awards-scholarships/asean-scholarships","description":"Singapore Ministry of Education scholarships for outstanding ASEAN students to study in Singapore secondary schools and universities","competitiveness":{"label":"Competitive","acceptance_rate":0.10}},
+    {"id":"seameo_scholarship","name":"SEAMEO Regional Scholarship","type":"scholarship","amount_usd":8000,"deadline":"2025-07-31","eligible_countries":["Brunei","Cambodia","Indonesia","Laos","Malaysia","Myanmar","Philippines","Singapore","Thailand","Vietnam","Timor-Leste"],"degree_levels":["Graduate","Postgraduate"],"field":"Education, Agriculture, Marine Science, Public Health, Cultural Studies","gpa_min":2.8,"tags":["southeast asia","seameo","education","agriculture","marine","public health","regional","affordable"],"url":"https://www.seameo.org/","description":"Southeast Asian Ministers of Education Organization regional scholarships for postgraduate study across ASEAN member states","competitiveness":{"label":"Moderate","acceptance_rate":0.20}},
+    {"id":"sasakawa_peace","name":"Sasakawa Peace Foundation Fellowship","type":"fellowship","amount_usd":25000,"deadline":"2025-09-30","eligible_countries":["Bangladesh","India","Pakistan","Nepal","Sri Lanka","Myanmar","Cambodia","Laos","Vietnam","Philippines","Indonesia","Thailand","Malaysia","Mongolia","Kenya","Nigeria","Tanzania","Ghana"],"degree_levels":["Graduate","Postgraduate"],"field":"Peace Studies, International Relations, Environmental Studies, Ocean Policy","gpa_min":3.2,"tags":["japan","sasakawa","peace","international relations","environment","ocean","asia","africa"],"url":"https://www.spf.org/en/opri/projects/","description":"Sasakawa Peace Foundation fellowships for students from Asia and Africa in peace studies, international relations, and ocean policy","competitiveness":{"label":"Competitive","acceptance_rate":0.10}},
+
+    # ── Australia & New Zealand (Pacific region) ──────────────
+    {"id":"australia_awards","name":"Australia Awards Scholarship","type":"scholarship","amount_usd":45000,"deadline":"2025-04-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Mozambique","Zambia","Zimbabwe","Senegal","Bangladesh","India","Pakistan","Vietnam","Indonesia","Philippines","Myanmar","Cambodia","Laos","Nepal","Sri Lanka","Bhutan","Timor-Leste","Papua New Guinea","Solomon Islands","Vanuatu","Fiji","Samoa","Tonga"],"degree_levels":["Graduate"],"field":"All fields — priority on development, agriculture, health, education","gpa_min":3.0,"tags":["australia","awards","development","fully-funded","prestigious","africa","asia","pacific"],"url":"https://www.dfat.gov.au/people-to-people/australia-awards","description":"Australian government fully-funded scholarships for emerging leaders from developing Asia, Africa, and Pacific regions","competitiveness":{"label":"Competitive","acceptance_rate":0.12}},
+    {"id":"nzaid_scholarship","name":"New Zealand Pacific Scholarships","type":"scholarship","amount_usd":28000,"deadline":"2025-04-30","eligible_countries":["Fiji","Papua New Guinea","Solomon Islands","Vanuatu","Samoa","Tonga","Kiribati","Tuvalu","Niue","Cook Islands","Tokelau","Nauru","Marshall Islands","Federated States of Micronesia","Palau"],"degree_levels":["Undergraduate","Graduate"],"field":"All fields","gpa_min":2.8,"tags":["new zealand","pacific","government","development","island nations","fully-funded"],"url":"https://www.mfat.govt.nz/en/aid-and-development/new-zealand-scholarships/","description":"New Zealand government scholarships for Pacific Island nations students to study in New Zealand or their own region","competitiveness":{"label":"Moderate","acceptance_rate":0.20}}
