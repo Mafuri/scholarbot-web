@@ -340,6 +340,17 @@ function Nav(props) {
                   </div>
                 );
               })}
+              <div className="nav-link" style={{color:'rgba(255,255,255,.7)',marginLeft:4,
+                fontWeight:600,padding:'4px 8px',borderRadius:6,border:'1px solid rgba(255,255,255,.3)'}}
+                onClick={function(){
+                  api('GET','/dashboard').then(function(d){
+                    var u=(d.upcoming_deadlines||[]).filter(function(x){return x.days_left<=7;}).length;
+                    toast(u>0?(u+' urgent deadline'+(u>1?'s':'')+' this week!'):'No urgent deadlines','error');
+                  }).catch(function(){});
+                }}
+                title="Check urgent deadlines">
+                !
+              </div>
               <div className="nav-link" style={{color:'rgba(255,255,255,.5)',marginLeft:4}}
                 onClick={logout}>
                 Sign out
@@ -873,6 +884,8 @@ function ScholarshipsPage(props) {
   const [adding, setAdding]       = useState(null);
   const [explaining, setExplaining] = useState(null);
   const [explanation, setExplanation] = useState(null);
+  const [compareList, setCompareList] = useState([]);
+  const [showCompare, setShowCompare] = useState(false);
 
   function doSearch(q) {
     const query = (q !== undefined ? q : searchQ);
@@ -929,6 +942,9 @@ function ScholarshipsPage(props) {
 
   return (
     <div className="page pb-safe">
+      {showCompare && (
+        <CompareModal items={compareList} onClose={function(){setShowCompare(false);}}/>
+      )}
       <h2 className="section-title">Scholarships</h2>
 
       <div style={{marginBottom:'0.75rem'}}>
@@ -948,6 +964,21 @@ function ScholarshipsPage(props) {
         )}
       </div>
 
+      {compareList.length >= 2 && (
+        <div style={{background:'#1a1a2e',borderRadius:8,padding:'8px 14px',
+          marginBottom:'0.75rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span style={{color:'#fff',fontSize:13}}>
+            {compareList.length} scholarships selected for comparison
+          </span>
+          <div style={{display:'flex',gap:8}}>
+            <button className="btn btn-primary btn-sm" onClick={function(){setShowCompare(true);}}>
+              Compare now →
+            </button>
+            <button className="btn btn-outline btn-sm" style={{color:'#fff',borderColor:'#fff'}}
+              onClick={function(){setCompareList([]);}}>Clear</button>
+          </div>
+        </div>
+      )}
       <p className="section-sub">
         {user ? 'Matched and ranked for your profile' : 'All verified direct-portal scholarships — no aggregators'}
       </p>
@@ -1063,6 +1094,19 @@ function ScholarshipsPage(props) {
                           onClick={function() { addToPipeline(s); }}>
                           {adding === s.id ? 'Adding...' : '+ Add to pipeline'}
                         </button>
+                        <button className="btn btn-outline btn-sm"
+                          style={{fontSize:11,color:compareList.some(function(x){return x.id===s.id;})?'#059669':'#555'}}
+                          onClick={function(e){
+                            e.stopPropagation();
+                            setCompareList(function(cl){
+                              const exists = cl.some(function(x){return x.id===s.id;});
+                              if (exists) return cl.filter(function(x){return x.id!==s.id;});
+                              if (cl.length >= 4) {toast('Max 4 for comparison','error'); return cl;}
+                              return [...cl, s];
+                            });
+                          }}>
+                          {compareList.some(function(x){return x.id===s.id;})?'✓ Comparing':'⚖ Compare'}
+                        </button>
                         <a href={s.url} target="_blank" rel="noreferrer"
                           className="btn btn-outline btn-sm"
                           onClick={function(e) { e.stopPropagation(); }}>
@@ -1096,6 +1140,11 @@ function ScholarshipsPage(props) {
                           )}
                           <div style={{marginTop:8,padding:'6px 10px',background:'#e8f5e9',borderRadius:6,fontSize:12}}>
                             {explanation.recommendation}
+                          </div>
+                          <div style={{marginTop:8,display:'flex',justifyContent:'space-between',
+                            padding:'6px 10px',background:'#f0f9ff',borderRadius:6,fontSize:12}}>
+                            <span>Expected value: <strong>${(explanation.expected_value_usd||0).toLocaleString()}</strong></span>
+                            <span>Acceptance rate: <strong>{Math.round((explanation.acceptance_rate||0.15)*100)}%</strong></span>
                           </div>
                         </div>
                       )}
@@ -1136,6 +1185,8 @@ function PipelinePage() {
 
   const [feedbackApp, setFeedbackApp] = useState(null);
   const [feedbackData, setFeedbackData] = useState({essay_used: null, rating: 0, text: ''});
+  const [editingNote, setEditingNote] = useState(null);
+  const [noteText, setNoteText] = useState('');
 
   function move(appId, stage) {
     setMoving(appId);
@@ -1262,6 +1313,37 @@ function PipelinePage() {
                             return <option key={s.id} value={s.id}>{s.label}</option>;
                           })}
                         </select>
+                        {editingNote === app.id ? (
+                          <div style={{marginTop:4}}>
+                            <textarea rows={2} style={{width:'100%',fontSize:11,padding:4,
+                              borderRadius:4,border:'1px solid #d0d0c8',resize:'none'}}
+                              placeholder="Add note..."
+                              value={noteText}
+                              onChange={function(e){setNoteText(e.target.value);}}/>
+                            <div style={{display:'flex',gap:4,marginTop:2}}>
+                              <button className="btn btn-primary btn-sm" style={{fontSize:10,padding:'2px 8px'}}
+                                onClick={function(){
+                                  api('PATCH','/pipeline/'+app.id+'/notes',{notes:noteText})
+                                    .then(function(){toast('Note saved','success');setEditingNote(null);load();})
+                                    .catch(function(e){toast(e.message,'error');});
+                                }}>Save</button>
+                              <button className="btn btn-outline btn-sm" style={{fontSize:10,padding:'2px 8px'}}
+                                onClick={function(){setEditingNote(null);}}>Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{marginTop:4}}>
+                            {app.notes && <div style={{fontSize:10,color:'#555',fontStyle:'italic',
+                              padding:'3px 6px',background:'#f5f5f0',borderRadius:4,marginBottom:2}}>
+                              {app.notes.slice(0,80)}{app.notes.length>80?'...':''}
+                            </div>}
+                            <button style={{fontSize:10,color:'#2563eb',background:'none',border:'none',
+                              cursor:'pointer',padding:0}}
+                              onClick={function(){setEditingNote(app.id);setNoteText(app.notes||'');}}>
+                              {app.notes?'✏ Edit note':'+ Add note'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -1418,6 +1500,8 @@ function InterviewPage() {
   const [history, setHistory] = useState([]);
   const rubric = RUBRICS[scholarship] || RUBRICS.general;
 
+  const [tips, setTips] = useState(null);
+
   useEffect(function() {
     api('GET', '/interview/questions/' + scholarship)
       .then(function(r) {
@@ -1426,6 +1510,9 @@ function InterviewPage() {
         setAnswer('');
         setResult(null);
       })
+      .catch(function() {});
+    api('GET', '/interview/tips/' + scholarship)
+      .then(function(d) { setTips(d); })
       .catch(function() {});
   }, [scholarship]);
 
@@ -1478,6 +1565,36 @@ function InterviewPage() {
         )}
       </div>
 
+      {tips && (
+        <div className="card" style={{marginBottom:'1rem',background:'#f8f8ff',border:'1px solid #e0e0f0'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+            <strong style={{fontSize:14,color:'#1a1a2e'}}>📋 {tips.name} — Interview Guide</strong>
+            <span style={{fontSize:11,color:'#888'}}>{tips.panel_format}</span>
+          </div>
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:12,fontWeight:600,color:'#555',marginBottom:4}}>Key scoring dimensions:</div>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              {(tips.key_dimensions||[]).map(function(d){return(
+                <span key={d} style={{background:'#1a1a2e',color:'#fff',padding:'2px 10px',
+                  borderRadius:20,fontSize:11}}>{d}</span>
+              );})}
+            </div>
+          </div>
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:12,fontWeight:600,color:'#059669',marginBottom:4}}>Top tips:</div>
+            {(tips.top_tips||[]).slice(0,3).map(function(t,i){return(
+              <div key={i} style={{fontSize:12,color:'#333',marginBottom:3,
+                paddingLeft:12,borderLeft:'2px solid #059669'}}>✓ {t}</div>
+            );})}
+          </div>
+          <details style={{fontSize:12}}>
+            <summary style={{cursor:'pointer',color:'#2563eb',fontWeight:600}}>Common mistakes to avoid</summary>
+            {(tips.common_mistakes||[]).map(function(m,i){return(
+              <div key={i} style={{color:'#dc2626',marginTop:4,paddingLeft:12}}>✗ {m}</div>
+            );})}
+          </details>
+        </div>
+      )}
       {questions.length > 0 && (
         <React.Fragment>
           <div style={{background:'#f5f5f0',borderRadius:12,padding:'1.25rem',borderLeft:'4px solid #1a1a2e',marginBottom:'1rem'}}>
@@ -1900,6 +2017,27 @@ function ProfilePage(props) {
             .catch(function(){toast('Email service not configured','error');});
         }}>Send me this week's digest</button>
       </div>
+      <div className="card" style={{marginTop:'1rem',background:'#f0fdf4',border:'1px solid #86efac'}}>
+        <div style={{fontWeight:600,marginBottom:8}}>🔔 Scholarship Alerts</div>
+        <p style={{fontSize:13,color:'#555',marginBottom:'1rem'}}>
+          Get notified when new scholarships matching your profile are added.
+        </p>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          {['weekly','daily'].map(function(freq){return (
+            <button key={freq} className="btn btn-primary btn-sm" onClick={function(){
+              api('POST','/alerts/subscribe',{frequency:freq})
+                .then(function(d){toast(d.message,'success');})
+                .catch(function(e){toast(e.message,'error');});
+            }}>{freq.charAt(0).toUpperCase()+freq.slice(1)} alerts</button>
+          );})}
+          <button className="btn btn-outline btn-sm" style={{color:'#dc2626',borderColor:'#dc2626'}}
+            onClick={function(){
+              api('DELETE','/alerts/unsubscribe')
+                .then(function(d){toast(d.message,'success');})
+                .catch(function(){});
+            }}>Unsubscribe</button>
+        </div>
+      </div>
       <div className="card" style={{marginTop:'1rem'}}>
         <div style={{fontWeight:600,marginBottom:8}}>Your data rights (GDPR)</div>
         <p style={{fontSize:13,color:'#555',marginBottom:'1rem'}}>Export or delete all your ScholarBot data at any time.</p>
@@ -2086,6 +2224,120 @@ function AnalyticsPage(props) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+
+function CompareModal(props) {
+  const {items, onClose} = props;
+  const [result, setResult] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(function() {
+    if (items.length < 2) return;
+    setLoading(true);
+    api('POST', '/scholarships/compare', {ids: items.map(function(s){return s.id;})})
+      .then(function(d) { setResult(d); setLoading(false); })
+      .catch(function(e) { toast(e.message,'error'); setLoading(false); onClose(); });
+  }, []);
+
+  if (!result && !loading) return null;
+
+  const scholarships = result ? result.scholarships : [];
+  const best = result ? result.best_per_dimension : {};
+
+  const dimensions = [
+    {key:'amount_usd',   label:'Award Amount',    fmt:function(v){return '$'+(v||0).toLocaleString();}},
+    {key:'match_pct',    label:'Your Match',       fmt:function(v){return v||'N/A';}},
+    {key:'acceptance_rate', label:'Acceptance Rate', fmt:function(v){return Math.round((v||0)*100)+'%';}},
+    {key:'expected_value',  label:'Expected Value', fmt:function(v){return '$'+(v||0).toLocaleString();}},
+    {key:'gpa_min',      label:'Min GPA',          fmt:function(v){return v?v+'/4.0':'None';}},
+    {key:'days_left',    label:'Days Left',        fmt:function(v){return v>0?v+'d':'Expired';}},
+    {key:'country_eligible', label:'You Eligible?', fmt:function(v){return v?'✅ Yes':'❌ No';}},
+    {key:'competitiveness',  label:'Competition',  fmt:function(v){return v||'Unknown';}},
+  ];
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:600,
+      display:'flex',alignItems:'flex-start',justifyContent:'center',padding:'1rem',overflowY:'auto'}}>
+      <div className="card" style={{maxWidth:900,width:'100%',marginTop:'2rem',padding:'1.5rem'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+          <h3 style={{fontSize:18,fontWeight:700,color:'#1a1a2e'}}>Scholarship Comparison</h3>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:20,cursor:'pointer'}}>✕</button>
+        </div>
+
+        {loading ? (
+          <div className="empty"><div className="spinner" style={{width:32,height:32}}></div></div>
+        ) : (
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+              <thead>
+                <tr>
+                  <th style={{padding:'8px 12px',textAlign:'left',background:'#f5f5f0',
+                    borderBottom:'2px solid #e8e8e0',minWidth:120}}>Dimension</th>
+                  {scholarships.map(function(s) {
+                    return (
+                      <th key={s.id} style={{padding:'8px 12px',textAlign:'center',
+                        background:'#f5f5f0',borderBottom:'2px solid #e8e8e0',minWidth:160}}>
+                        <div style={{fontWeight:700,color:'#1a1a2e',lineHeight:1.3}}>
+                          {s.name.slice(0,35)}{s.name.length>35?'...':''}
+                        </div>
+                        <div style={{fontWeight:600,fontSize:16,color:'#2563eb',marginTop:2}}>
+                          {s.grade}
+                        </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {dimensions.map(function(dim, di) {
+                  return (
+                    <tr key={dim.key} style={{background:di%2===0?'#fff':'#f9f9f7'}}>
+                      <td style={{padding:'8px 12px',fontWeight:600,color:'#555',
+                        borderBottom:'1px solid #f0f0e8'}}>{dim.label}</td>
+                      {scholarships.map(function(s) {
+                        const isBest = best[dim.key.split('_')[0]] === s.id ||
+                                       best[dim.key] === s.id;
+                        const val = s[dim.key];
+                        return (
+                          <td key={s.id} style={{padding:'8px 12px',textAlign:'center',
+                            borderBottom:'1px solid #f0f0e8',fontWeight:isBest?700:400,
+                            color:isBest?'#059669':'#333',
+                            background:isBest?'#f0fdf4':'transparent'}}>
+                            {dim.fmt(val)}
+                            {isBest && <span style={{fontSize:10,marginLeft:4}}>★</span>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {result && result.recommendation && (
+              <div style={{marginTop:'1rem',padding:'10px 14px',background:'#dbeafe',
+                borderRadius:8,fontSize:13,color:'#1e3a8a'}}>
+                💡 Best overall choice: <strong>{result.recommendation}</strong>
+                {' '} (highest expected value)
+              </div>
+            )}
+
+            <div style={{display:'flex',gap:8,marginTop:'1rem',flexWrap:'wrap'}}>
+              {scholarships.map(function(s) {
+                return (
+                  <a key={s.id} href={s.url} target="_blank" rel="noreferrer"
+                    className="btn btn-primary btn-sm">
+                    Apply to {s.name.split(' ').slice(0,2).join(' ')} →
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
