@@ -2499,6 +2499,130 @@ async def list_locales():
         ]
     }
 
+
+@app.post("/api/digest/send")
+async def send_digest(user: User = Depends(_get_user),
+                      db: Session = Depends(get_db)):
+    """
+    Send personalised weekly scholarship digest to the user.
+    Top 5 matches + upcoming deadlines + platform stats.
+    """
+    import os as _os, requests as _rq
+    sender_key = _os.environ.get("SENDER_API_KEY","")
+    from_email  = _os.environ.get("FROM_EMAIL","noreply@scholarbot.app")
+    base        = _os.environ.get("BASE_URL","https://scholarbot-web.onrender.com")
+
+    # Get top matches
+    profile = user.to_dict()
+    matches = _match_opps(profile)[:5]
+    # Get upcoming deadlines
+    apps = db.query(Application).filter(
+        Application.user_id == user.id,
+        Application.stage.in_(["researching","essay_ready","submitted"]),
+    ).all()
+    deadlines = sorted(
+        [a for a in apps if _days_until(a.deadline) <= 30],
+        key=lambda a: _days_until(a.deadline)
+    )[:3]
+
+    # Build email HTML
+    match_rows = "".join(f"""
+        <tr>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8e8e0">
+            <a href="{m.get('url','#')}" style="color:#2563eb;text-decoration:none;font-weight:500">
+              {m.get('name','')[:50]}
+            </a><br>
+            <span style="font-size:11px;color:#888">{m.get('field','')[:40]}</span>
+          </td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8e8e0;text-align:right;font-weight:700">
+            ${m.get('amount_usd',0):,.0f}
+          </td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e8e8e0;text-align:center;font-weight:600;color:#2563eb">
+            {int((m.get('match_score') or 0.5)*100)}%
+          </td>
+        </tr>""" for m in matches)
+
+    deadline_rows = "".join(f"""
+        <div style="padding:8px 12px;border-left:3px solid {'#dc2626' if _days_until(a.deadline)<=7 else '#d97706'};
+             margin-bottom:8px;background:#fff8f8;border-radius:0 4px 4px 0">
+          <strong style="font-size:13px">{a.scholarship_name[:45]}</strong><br>
+          <span style="font-size:12px;color:#888">{_days_until(a.deadline)} days left · {a.deadline}</span>
+        </div>""" for a in deadlines)
+
+    html = f"""
+    <html><body style="font-family:Arial,sans-serif;color:#333;background:#f5f5f0;margin:0;padding:0">
+    <div style="max-width:600px;margin:0 auto;padding:24px 16px">
+      <div style="background:#1a1a2e;padding:20px 24px;border-radius:8px 8px 0 0">
+        <span style="color:#fff;font-size:20px;font-weight:700">🎓 ScholarBot Weekly Digest</span>
+      </div>
+      <div style="background:#fff;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e8e8e0">
+        <h2 style="color:#1a1a2e;margin-top:0">Hi {user.name.split()[0]},</h2>
+        <p style="color:#555">Here are your top scholarship matches this week:</p>
+
+        <table style="width:100%;border-collapse:collapse;margin:16px 0">
+          <thead>
+            <tr style="background:#f5f5f0">
+              <th style="padding:8px;text-align:left;font-size:12px">Scholarship</th>
+              <th style="padding:8px;text-align:right;font-size:12px">Award</th>
+              <th style="padding:8px;text-align:center;font-size:12px">Match</th>
+            </tr>
+          </thead>
+          <tbody>{match_rows}</tbody>
+        </table>
+
+        {'<h3 style="color:#dc2626;margin-top:20px">⏰ Upcoming deadlines</h3>' + deadline_rows if deadlines else ''}
+
+        <div style="text-align:center;margin:24px 0">
+          <a href="{base}/?page=scholarships" style="background:#2563eb;color:#fff;padding:12px 28px;
+             text-decoration:none;border-radius:6px;font-size:15px;font-weight:600;display:inline-block">
+            View all matches →
+          </a>
+        </div>
+        <hr style="border:none;border-top:1px solid #e8e8e0;margin:20px 0">
+        <p style="font-size:11px;color:#888">
+          ScholarBot · <a href="{base}" style="color:#2563eb">{base}</a>
+        </p>
+      </div>
+    </div>
+    </body></html>"""
+
+    if not sender_key:
+        return {"message": "Email service not configured", "matches": len(matches)}
+
+    resp = _rq.post("https://api.sender.net/v2/message/send",
+        headers={"Authorization":f"Bearer {sender_key}","Content-Type":"application/json"},
+        json={"from":{"email":from_email,"name":"ScholarBot"},
+              "to":{"email":user.email,"name":user.name},
+              "subject":f"🎓 Your weekly ScholarBot digest — {len(matches)} new matches",
+              "html":html},
+        timeout=15)
+
+    if resp.status_code in (200, 201):
+        _log_event(db, user.id, "digest_sent", None, None,
+                   {"matches": len(matches), "deadlines": len(deadlines)})
+        return {"message": "Digest sent to your email", "matches": len(matches),
+                "deadlines": len(deadlines)}
+    return {"message": f"Send failed: {resp.status_code}", "matches": 0}
+
+
+@app.get("/api/digest/preview")
+async def digest_preview(user: User = Depends(_get_user),
+                          db: Session = Depends(get_db)):
+    """Preview what the weekly digest will contain without sending."""
+    profile = user.to_dict()
+    matches = _match_opps(profile)[:5]
+    apps = db.query(Application).filter(
+        Application.user_id == user.id,
+        Application.stage.in_(["researching","essay_ready","submitted"]),
+    ).all()
+    deadlines = [a for a in apps if _days_until(a.deadline) <= 30]
+    return {
+        "top_matches": [{"name": m.get("name"), "amount_usd": m.get("amount_usd"),
+                          "match_score": m.get("match_score")} for m in matches],
+        "upcoming_deadlines": len(deadlines),
+        "email": user.email,
+    }
+
 @app.get("/", response_class=HTMLResponse)
 async def spa():
     p = Path("static/index.html")
