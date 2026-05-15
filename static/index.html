@@ -859,6 +859,19 @@ function ScholarshipsPage(props) {
   const [tab, setTab] = useState('all');
   const [field, setField] = useState('');
   const [region, setRegion] = useState('');
+  const [searchQ, setSearchQ] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+
+  function doSearch(q) {
+    setSearchQ(q);
+    if (!q.trim()) { setSearchResults(null); return; }
+    const params = new URLSearchParams({q});
+    if (field) params.set('field', field);
+    fetch('/api/scholarships/search?' + params.toString())
+      .then(function(r){return r.json();})
+      .then(function(d){setSearchResults(d.results||[]);})
+      .catch(function(){});
+  }
   const [selected, setSelected] = useState(null);
   const [adding, setAdding] = useState(null);
   const [explaining, setExplaining] = useState(null);
@@ -911,7 +924,8 @@ function ScholarshipsPage(props) {
       });
   }
 
-  const filtered = tab === 'all' ? list : list.filter(function(s) {
+  const displaySource = searchResults !== null ? searchResults : list;
+  const filtered = tab === 'all' ? displaySource : displaySource.filter(function(s) {
     const degs = s.degree_levels || [];
     return degs.some(function(d) { return d.toLowerCase().indexOf(tab.toLowerCase().slice(0,4)) !== -1; });
   });
@@ -944,6 +958,15 @@ function ScholarshipsPage(props) {
         })}
       </div>
 
+      <div style={{marginBottom:'0.75rem'}}>
+        <input className="form-control" placeholder="🔍 Search any discipline, country, or keyword..."
+          value={searchQ} onChange={function(e){doSearch(e.target.value);}} style={{fontSize:14}}/>
+        {searchResults!==null&&<div style={{fontSize:11,color:'#888',marginTop:3}}>
+          {searchResults.length} result{searchResults.length!==1?'s':''} for "{searchQ}"
+          <span style={{color:'#2563eb',cursor:'pointer',marginLeft:8}}
+            onClick={function(){setSearchQ('');setSearchResults(null);}}>✕ Clear</span>
+        </div>}
+      </div>
       <div style={{display:'flex',gap:8,marginBottom:'1.25rem',flexWrap:'wrap'}}>
         <select value={field} onChange={function(e) { setField(e.target.value); }} style={{flex:1,minWidth:140}}>
           <option value="">All fields</option>
