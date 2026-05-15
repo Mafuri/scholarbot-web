@@ -1460,7 +1460,71 @@ async def create_rec(req: RecReqCreate, bt: BackgroundTasks,
                      relationship_desc=req.relationship_desc,
                      deadline=req.deadline, status="requested")
     db.add(rec); db.commit(); db.refresh(rec)
-    return {**rec.to_dict(),"message":"Created. Draft letter being generated."}
+    rec_id = rec.id
+    # Generate draft letter in background
+    bt.add_task(_generate_rec_letter, rec_id, user.to_dict())
+    return {**rec.to_dict(),"message":"Created. Draft letter being generated — refresh in 30 seconds."}
+
+
+def _generate_rec_letter(rec_id: str, profile: dict):
+    """
+    T3: AI-generated recommendation letter using full context.
+    Uses the applicant's profile, relationship, and scholarship details.
+    """
+    db = SessionLocal()
+    try:
+        rec = db.query(RecRequest).filter(RecRequest.id == rec_id).first()
+        if not rec: return
+
+        llm = _llm()
+        system = (
+            "You are an expert academic writing assistant helping draft recommendation letters. "
+            "Write in the recommender's voice — professional, specific, and compelling. "
+            "Never use generic filler phrases like 'it is my pleasure' without substance. "
+            "Focus on specific achievements, observed behaviours, and concrete examples."
+        )
+
+        prompt = f"""Draft a strong recommendation letter for a scholarship application.
+
+RECOMMENDER DETAILS:
+- Name: {rec.recommender_name}
+- Title/Role: {rec.recommender_title}
+- Relationship to applicant: {rec.relationship_desc}
+
+APPLICANT PROFILE:
+- Name: {profile.get('name', 'the applicant')}
+- Degree: {profile.get('degree_level', 'Graduate')} in {profile.get('major', '')}
+- University: {profile.get('school', '')}
+- Nationality: {profile.get('nationality', '')}
+- GPA: {profile.get('gpa', 0):.1f}/4.0
+- Skills: {', '.join((profile.get('skills') or [])[:6])}
+- Activities: {', '.join((profile.get('extracurriculars') or [])[:4])}
+- Personal statement: {(profile.get('personal_statement') or '')[:300]}
+
+SCHOLARSHIP BEING APPLIED TO: {rec.opportunity_name}
+SUBMISSION DEADLINE: {rec.deadline}
+
+LETTER REQUIREMENTS:
+1. Opening paragraph: How long and in what capacity have you known the applicant?
+2. Academic/professional capability paragraph: Specific academic or work achievement with evidence
+3. Character paragraph: Leadership, teamwork, integrity with a concrete example
+4. Scholarship fit paragraph: Why this specific scholarship suits this applicant
+5. Closing: Strong recommendation with contact offer
+
+Format: Formal letter, 400-500 words, ready to send. Include placeholders [Date], [Institution Address]."""
+
+        letter = llm(system, prompt)
+        rec.drafted_letter = letter
+        rec.status = "drafted"
+        db.commit()
+    except Exception as e:
+        logger.error("Rec letter generation failed: %s", e)
+        if rec:
+            rec.drafted_letter = f"[Generation failed — {str(e)[:100]}. Please write the letter manually.]"
+            db.commit()
+    finally:
+        db.close()
+
 
 # ── Interview ─────────────────────────────────────────────────
 @app.get("/api/interview/questions/{slug}")
@@ -1758,6 +1822,91 @@ async def analytics(user: User = Depends(_get_user),
     }
 
 
+
+@app.post("/api/scholarships/compare")
+async def compare_scholarships(
+    req: dict,
+    user: Optional[User] = Depends(_opt_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Compare 2-4 scholarships side-by-side.
+    Returns structured comparison across 8 dimensions.
+    """
+    ids = req.get("ids", [])
+    if not ids or len(ids) < 2:
+        raise HTTPException(400, "Provide 2-4 scholarship IDs to compare")
+    if len(ids) > 4:
+        ids = ids[:4]
+
+    from engine.opportunity_db import load_all_opportunities
+    all_opps = load_all_opportunities() + EXTRA_OPPORTUNITIES
+    opp_map  = {o["id"]: o for o in all_opps}
+    selected = [opp_map[i] for i in ids if i in opp_map]
+
+    if len(selected) < 2:
+        raise HTTPException(404, "One or more scholarship IDs not found")
+
+    profile = user.to_dict() if user else {}
+
+    def score_opp(o):
+        if not profile: return 0.5
+        matches = _match_opps(profile)
+        return next((m.get("match_score", 0.5) for m in matches
+                     if m.get("id") == o["id"]), 0.5)
+
+    # Build comparison matrix
+    comparison = []
+    for o in selected:
+        match_sc = score_opp(o)
+        accept   = (o.get("competitiveness") or {}).get("acceptance_rate", 0.15)
+        ev       = round(float(o.get("amount_usd") or 0) * match_sc * min(accept * 5, 1.0))
+        days     = _days_until(o.get("deadline", ""))
+        eligible = [c.lower() for c in (o.get("eligible_countries") or [])]
+        nat      = (profile.get("nationality") or "").lower()
+        country_ok = any(nat in c or c in nat or c == "global" for c in eligible)
+        gpa_ok   = float(profile.get("gpa") or 0) >= float(o.get("gpa_min") or 0)
+
+        comparison.append({
+            "id":              o["id"],
+            "name":            o.get("name", ""),
+            "type":            o.get("type", "scholarship"),
+            "amount_usd":      o.get("amount_usd", 0),
+            "deadline":        o.get("deadline", ""),
+            "days_left":       days,
+            "field":           o.get("field", ""),
+            "gpa_min":         o.get("gpa_min", 0),
+            "eligible_countries": o.get("eligible_countries", []),
+            "url":             o.get("url", ""),
+            "description":     o.get("description", ""),
+            "acceptance_rate": accept,
+            "competitiveness": (o.get("competitiveness") or {}).get("label", "Unknown"),
+            "tags":            o.get("tags", []),
+            # AI-computed fields
+            "match_score":     round(match_sc, 3),
+            "match_pct":       f"{int(match_sc * 100)}%",
+            "expected_value":  ev,
+            "country_eligible": country_ok,
+            "gpa_eligible":    gpa_ok,
+            "grade":           ("A" if match_sc >= 0.85 else "B" if match_sc >= 0.70
+                                else "C" if match_sc >= 0.55 else "D"),
+        })
+
+    # Determine winner per dimension
+    best = {
+        "amount":   max(comparison, key=lambda x: x["amount_usd"] or 0)["id"],
+        "match":    max(comparison, key=lambda x: x["match_score"])["id"],
+        "ev":       max(comparison, key=lambda x: x["expected_value"])["id"],
+        "deadline": min(comparison, key=lambda x: x["days_left"] if x["days_left"] > 0 else 9999)["id"],
+        "acceptance": max(comparison, key=lambda x: x["acceptance_rate"])["id"],
+    }
+
+    return {
+        "scholarships": comparison,
+        "best_per_dimension": best,
+        "recommendation": max(comparison, key=lambda x: x["expected_value"])["name"],
+    }
+
 @app.get("/api/wins")
 async def wins_feed(db: Session = Depends(get_db)):
     """
@@ -1802,6 +1951,21 @@ async def wins_feed(db: Session = Depends(get_db)):
         "total_awarded_usd": round(total),
         "source": "real",
     }
+
+
+@app.patch("/api/pipeline/{app_id}/notes")
+async def update_notes(app_id: str, req: dict,
+                        user: User = Depends(_get_user),
+                        db: Session = Depends(get_db)):
+    """Add or update notes on a pipeline application."""
+    a = db.query(Application).filter(
+        Application.id == app_id, Application.user_id == user.id
+    ).first()
+    if not a: raise HTTPException(404, "Application not found")
+    a.notes = _sanitise(req.get("notes", ""), 2000)
+    a.updated_at = datetime.utcnow()
+    db.commit()
+    return {"message": "Notes saved", "notes": a.notes}
 
 @app.get("/api/account/export")
 async def export_data(user: User = Depends(_get_user), db: Session = Depends(get_db)):
