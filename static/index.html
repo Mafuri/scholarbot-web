@@ -384,6 +384,11 @@ function HomePage(props) {
   const [cookieConsent, setCookieConsent] = useState(
     localStorage.getItem('sb_cookie_consent') === 'true'
   );
+  const [wins, setWins] = React.useState([]);
+  React.useEffect(function(){
+    fetch('/api/wins').then(function(r){return r.json();})
+      .then(function(d){setWins(d.wins||[]);}).catch(function(){});
+  },[]);
   function acceptCookies() {
     localStorage.setItem('sb_cookie_consent', 'true');
     setCookieConsent(true);
@@ -395,6 +400,15 @@ function HomePage(props) {
   ];
   return (
     <div>
+      {wins.length > 0 && (
+        <div style={{background:'#d1fae5',padding:'8px 16px',fontSize:12,color:'#065f46',textAlign:'center'}}>
+          🏆 {wins.slice(0,3).map(function(w,i){return (
+            <span key={i} style={{marginRight:20}}>
+              {w.name} ({w.country}) won <strong>${(w.amount_usd||0).toLocaleString()}</strong> — {(w.scholarship||'').slice(0,35)}
+            </span>
+          );})}
+        </div>
+      )}
       <div className="hero">
         <h1>Win scholarships with AI</h1>
         <p>Find, match, and apply to scholarships worldwide — Undergraduate, Graduate, and Postgraduate. ScholarBot builds your complete application. You click Submit.</p>
@@ -1516,6 +1530,68 @@ function InterviewPage() {
   );
 }
 
+function ProfileWizard(props) {
+  const {user, onComplete} = props;
+  const steps = [
+    {key:'major', label:'Your field of study', placeholder:'e.g. Computer Science, Medicine, Law'},
+    {key:'school', label:'Your university', placeholder:'e.g. University of Nairobi'},
+    {key:'skills', label:'Your top skills (comma separated)', placeholder:'e.g. Python, Leadership, Research'},
+    {key:'extracurriculars', label:'Activities and achievements', placeholder:'e.g. Debate club, Volunteer work'},
+    {key:'personal_statement', label:'Your goal in 2-3 sentences', placeholder:'I am a... who wants to... in order to...'},
+  ];
+  const [step, setStep] = React.useState(0);
+  const [answers, setAnswers] = React.useState({});
+  const [saving, setSaving] = React.useState(false);
+
+  function next() {
+    const cur = steps[step];
+    const val = answers[cur.key] || '';
+    if (!val.trim()) return;
+    if (step < steps.length - 1) { setStep(step + 1); return; }
+    // Final step — save all
+    setSaving(true);
+    const payload = {...answers};
+    if (payload.skills) payload.skills = payload.skills.split(',').map(function(s){return s.trim();}).filter(Boolean);
+    if (payload.extracurriculars) payload.extracurriculars = payload.extracurriculars.split(',').map(function(s){return s.trim();}).filter(Boolean);
+    fetch('/api/profile', {method:'PATCH', headers:{'Content-Type':'application/json',
+      'Authorization':'Bearer '+localStorage.getItem('sb_token')},
+      body:JSON.stringify(payload)})
+      .then(function(){setSaving(false); onComplete();})
+      .catch(function(){setSaving(false); onComplete();});
+  }
+
+  const cur = steps[step];
+  const pct = Math.round((step / steps.length) * 100);
+  return (
+    <div style={{background:'#fff',border:'2px solid #2563eb',borderRadius:12,padding:'1.5rem',marginBottom:'1.5rem'}}>
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+        <strong style={{color:'#1a1a2e'}}>🎯 Complete your profile to improve matches</strong>
+        <span style={{fontSize:12,color:'#888'}}>Step {step+1}/{steps.length}</span>
+      </div>
+      <div style={{background:'#e8e8e0',borderRadius:4,height:6,marginBottom:'1rem'}}>
+        <div style={{background:'#2563eb',width:pct+'%',height:6,borderRadius:4,transition:'width 0.3s'}}/>
+      </div>
+      <label style={{fontSize:14,fontWeight:600,color:'#333',display:'block',marginBottom:6}}>{cur.label}</label>
+      {cur.key === 'personal_statement' ? (
+        <textarea rows={3} className="form-control" placeholder={cur.placeholder}
+          value={answers[cur.key]||''} onChange={function(e){setAnswers(function(a){return {...a,[cur.key]:e.target.value};});}}
+          style={{marginBottom:'1rem'}}/>
+      ) : (
+        <input className="form-control" placeholder={cur.placeholder}
+          value={answers[cur.key]||''} onChange={function(e){setAnswers(function(a){return {...a,[cur.key]:e.target.value};});}}
+          style={{marginBottom:'1rem'}} onKeyDown={function(e){if(e.key==='Enter')next();}}/>
+      )}
+      <div style={{display:'flex',gap:8}}>
+        <button className="btn btn-primary" onClick={next} disabled={saving} style={{flex:1,justifyContent:'center'}}>
+          {saving?'Saving...':(step===steps.length-1?'Finish ✓':'Next →')}
+        </button>
+        <button className="btn btn-outline" onClick={onComplete} style={{fontSize:12}}>Skip</button>
+      </div>
+    </div>
+  );
+}
+
+
 function ProfilePage(props) {
   const user = props.user;
   const setUser = props.setUser;
@@ -1524,6 +1600,7 @@ function ProfilePage(props) {
   const [readiness, setReadiness] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
+  const [showWizard, setShowWizard] = useState(false);
   const fileRef = useRef(null);
 
   useEffect(function() {
