@@ -782,6 +782,19 @@ function DashboardPage(props) {
     <div className="page pb-safe">
       <h2 className="section-title">Hi, {fname} 👋</h2>
       <p className="section-sub">Your scholarship overview</p>
+      {user && !user.email_verified && (
+        <div style={{background:'#fef3c7',border:'1px solid #f59e0b',borderRadius:8,
+          padding:'10px 14px',marginBottom:'1rem',display:'flex',
+          justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}}>
+          <span style={{fontSize:13,color:'#92400e'}}>⚠️ Verify your email to unlock all features.</span>
+          <button className="btn btn-outline btn-sm" style={{fontSize:11,color:'#92400e',borderColor:'#f59e0b'}}
+            onClick={function(){
+              api('POST','/auth/resend-verification')
+                .then(function(d){toast(d.message,'success');})
+                .catch(function(e){toast(e.message,'error');});
+            }}>Resend link</button>
+        </div>
+      )}
 
       <div className="grid4" style={{marginBottom:'1.25rem'}}>
         {metricCards.map(function(s) {
@@ -1332,7 +1345,15 @@ function PipelinePage() {
     <div className="page pb-safe">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem',flexWrap:'wrap',gap:10}}>
         <div>
-          <h2 className="section-title">Application Pipeline</h2>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.5rem'}}>
+        <h2 className="section-title" style={{margin:0}}>Application Pipeline</h2>
+        <a href="/api/pipeline/export.csv"
+          className="btn btn-outline btn-sm"
+          style={{fontSize:11}}
+          download>
+          ⬇ Export CSV
+        </a>
+      </div>
           <p className="section-sub">
             {total} applications · {'$' + wonTotal.toLocaleString()} won
           </p>
@@ -2145,6 +2166,33 @@ function ProfilePage(props) {
                 .then(function(d){toast(d.message,'success');})
                 .catch(function(){});
             }}>Unsubscribe</button>
+        </div>
+      </div>
+      <div className="card" style={{marginTop:'1rem',border:'1px solid #e0e0f0'}}>
+        <div style={{fontWeight:600,marginBottom:8}}>🔐 Two-Factor Authentication (2FA)</div>
+        <p style={{fontSize:13,color:'#555',marginBottom:'1rem'}}>
+          Add an extra layer of security using Google Authenticator or Authy.
+        </p>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <button className="btn btn-outline btn-sm" onClick={function(){
+            api('POST','/auth/2fa/setup').then(function(d){
+              var code=window.prompt(
+                '2FA Setup\n\nSecret: '+d.secret+'\n\n'+
+                'Add this to your authenticator app, then enter the 6-digit code to activate:'
+              );
+              if(code) api('POST','/auth/2fa/verify',{code:code.trim()})
+                .then(function(r){toast(r.message,'success');})
+                .catch(function(e){toast(e.message,'error');});
+            }).catch(function(e){toast(e.message,'error');});
+          }}>Enable 2FA</button>
+          <button className="btn btn-outline btn-sm"
+            style={{color:'#dc2626',borderColor:'#dc2626'}}
+            onClick={function(){
+              if(window.confirm('Disable 2FA? Your account will be less secure.'))
+                api('DELETE','/auth/2fa/disable')
+                  .then(function(d){toast(d.message,'success');})
+                  .catch(function(e){toast(e.message,'error');});
+            }}>Disable 2FA</button>
         </div>
       </div>
       <div className="card" style={{marginTop:'1rem'}}>
