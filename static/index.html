@@ -886,6 +886,8 @@ function ScholarshipsPage(props) {
   const [explanation, setExplanation] = useState(null);
   const [compareList, setCompareList] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
+  const [showLoginGate, setShowLoginGate] = useState(false);
+  const [gateScholarship, setGateScholarship] = useState(null);
 
   function doSearch(q) {
     const query = (q !== undefined ? q : searchQ);
@@ -942,6 +944,13 @@ function ScholarshipsPage(props) {
 
   return (
     <div className="page pb-safe">
+      {showLoginGate && (
+        <LoginGateModal
+          scholarship={gateScholarship}
+          onClose={function(){setShowLoginGate(false); setGateScholarship(null);}}
+          go={go}
+        />
+      )}
       {showCompare && (
         <CompareModal items={compareList} onClose={function(){setShowCompare(false);}}/>
       )}
@@ -979,8 +988,34 @@ function ScholarshipsPage(props) {
           </div>
         </div>
       )}
+      {!user && (
+        <div style={{background:'#1a1a2e',borderRadius:10,padding:'1rem 1.25rem',
+          marginBottom:'1rem',display:'flex',flexWrap:'wrap',gap:12,
+          alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <div style={{color:'#fff',fontWeight:700,fontSize:15,marginBottom:2}}>
+              Unlock your personalised match score
+            </div>
+            <div style={{color:'rgba(255,255,255,.7)',fontSize:12}}>
+              Free account · AI essays · Direct apply links · 196+ scholarships
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            <button className="btn btn-primary btn-sm"
+              style={{background:'#2563eb',whiteSpace:'nowrap'}}
+              onClick={function(){go('register');}}>
+              Sign up free →
+            </button>
+            <button className="btn btn-outline btn-sm"
+              style={{color:'#fff',borderColor:'rgba(255,255,255,.4)',whiteSpace:'nowrap'}}
+              onClick={function(){go('login');}}>
+              Sign in
+            </button>
+          </div>
+        </div>
+      )}
       <p className="section-sub">
-        {user ? 'Matched and ranked for your profile' : 'All verified direct-portal scholarships — no aggregators'}
+        {user ? 'Matched and ranked for your profile' : 'Browse 196+ verified scholarships — sign up free to apply'}
       </p>
 
       <div className="tab-bar">
@@ -1062,12 +1097,21 @@ function ScholarshipsPage(props) {
                 <div key={s.id} className={'sch-card' + (isSelected ? ' selected' : '')}
                   onClick={function() { setSelected(isSelected ? null : s); }}>
                   <div style={{fontWeight:600,fontSize:14,lineHeight:1.3,marginBottom:4}}>
-                    {s.url ? (
+                    {s.url && user ? (
                       <a href={s.url} target="_blank" rel="noreferrer"
                         style={{color:'#1a1a2e',textDecoration:'none'}}
                         onClick={function(e){e.stopPropagation();}}
                         title="Apply directly">{s.name}</a>
-                    ) : s.name}
+                    ) : (
+                      <span style={{cursor: s.url && !user ? 'pointer' : 'default'}}
+                        onClick={function(e){
+                          if (s.url && !user) {
+                            e.stopPropagation();
+                            setShowLoginGate(true);
+                            setGateScholarship(s);
+                          }
+                        }}>{s.name}</span>
+                    )}
                   </div>
                   <div style={{fontSize:22,fontWeight:700,color:'#1a1a2e',margin:'4px 0'}}>
                     {'$' + (s.amount_usd || 0).toLocaleString()}
@@ -1089,6 +1133,17 @@ function ScholarshipsPage(props) {
                       <span className={'tag ' + dayClass} style={{fontSize:10}}>{s.days_left}d left</span>
                     )}
                   </div>
+                  {!user && (
+                    <div style={{marginTop:8,padding:'6px 10px',background:'#f5f5f0',
+                      borderRadius:6,fontSize:11,color:'#888',display:'flex',
+                      alignItems:'center',justifyContent:'space-between'}}>
+                      <span>🔒 Match score hidden</span>
+                      <span style={{color:'#2563eb',cursor:'pointer',fontWeight:600}}
+                        onClick={function(e){e.stopPropagation();go('register');}}>
+                        Sign up free →
+                      </span>
+                    </div>
+                  )}
                   {user && s.match_score !== undefined && (
                     <div style={{marginTop:8}}>
                       <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#888',marginBottom:3}}>
@@ -1140,19 +1195,39 @@ function ScholarshipsPage(props) {
                           }}>
                           {compareList.some(function(x){return x.id===s.id;})?'✓ Comparing':'⚖ Compare'}
                         </button>
-                        <a href={s.url} target="_blank" rel="noreferrer"
-                          className="btn btn-primary btn-sm"
-                          style={{background:'#059669'}}
-                          onClick={function(e) { e.stopPropagation(); }}>
-                          Apply directly →
-                        </a>
-                        <button className="btn btn-outline btn-sm"
-                          onClick={function(e){
-                            e.stopPropagation(); setExplaining(s.id);
-                            api('GET','/scholarships/'+s.id+'/explain')
-                              .then(function(r){setExplanation(r);setExplaining(null);})
-                              .catch(function(){setExplaining(null);});
-                          }}>{explaining===s.id?'...':'🔍 Why this match?'}</button>
+                        {user ? (
+                          <a href={s.url} target="_blank" rel="noreferrer"
+                            className="btn btn-primary btn-sm"
+                            style={{background:'#059669'}}
+                            onClick={function(e){e.stopPropagation();}}>
+                            Apply directly →
+                          </a>
+                        ) : (
+                          <button className="btn btn-primary btn-sm"
+                            style={{background:'#059669'}}
+                            onClick={function(e){
+                              e.stopPropagation();
+                              setShowLoginGate(true);
+                              setGateScholarship(s);
+                            }}>
+                            Apply directly →
+                          </button>
+                        )}
+                        {user ? (
+                          <button className="btn btn-outline btn-sm"
+                            onClick={function(e){
+                              e.stopPropagation(); setExplaining(s.id);
+                              api('GET','/scholarships/'+s.id+'/explain')
+                                .then(function(r){setExplanation(r);setExplaining(null);})
+                                .catch(function(){setExplaining(null);});
+                            }}>{explaining===s.id?'...':'🔍 Why this match?'}</button>
+                        ) : (
+                          <button className="btn btn-outline btn-sm"
+                            onClick={function(e){
+                              e.stopPropagation();
+                              setShowLoginGate(true); setGateScholarship(s);
+                            }}>🔍 Why this match?</button>
+                        )}
                       </div>
                       {explanation&&explanation.scholarship_id===s.id&&(
                         <div style={{marginTop:'1rem',padding:'1rem',background:'#f8f8ff',borderRadius:8,border:'1px solid #e0e0f0'}} onClick={function(e){e.stopPropagation();}}>
@@ -2316,6 +2391,58 @@ function AnalyticsPage(props) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+
+function LoginGateModal(props) {
+  const {scholarship, onClose, go} = props;
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.65)',zIndex:700,
+      display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}>
+      <div className="card" style={{maxWidth:440,width:'100%',padding:'2rem',textAlign:'center'}}>
+        <div style={{fontSize:40,marginBottom:'1rem'}}>🔒</div>
+        <h3 style={{fontSize:20,fontWeight:700,color:'#1a1a2e',marginBottom:'0.5rem'}}>
+          Create a free account to apply
+        </h3>
+        {scholarship && (
+          <div style={{background:'#f5f5f0',borderRadius:8,padding:'0.75rem 1rem',
+            margin:'1rem 0',fontSize:13,textAlign:'left'}}>
+            <div style={{fontWeight:600,color:'#1a1a2e',marginBottom:4}}>
+              {scholarship.name}
+            </div>
+            <div style={{color:'#059669',fontWeight:700,fontSize:16}}>
+              ${(scholarship.amount_usd||0).toLocaleString()}
+            </div>
+            <div style={{color:'#888',fontSize:11,marginTop:2}}>
+              {scholarship.deadline ? 'Deadline: '+scholarship.deadline : ''}
+            </div>
+          </div>
+        )}
+        <p style={{fontSize:13,color:'#555',marginBottom:'1.5rem',lineHeight:1.6}}>
+          Sign up free to get the direct application link, your personalised match
+          score, and an AI-written essay — all in under 5 minutes.
+        </p>
+        <div style={{display:'flex',gap:10,flexDirection:'column'}}>
+          <button className="btn btn-primary" style={{justifyContent:'center',fontSize:15,padding:'12px'}}
+            onClick={function(){onClose(); go('register');}}>
+            Create free account →
+          </button>
+          <button className="btn btn-outline" style={{justifyContent:'center'}}
+            onClick={function(){onClose(); go('login');}}>
+            Already have an account? Sign in
+          </button>
+          <button style={{background:'none',border:'none',color:'#888',fontSize:12,
+            cursor:'pointer',marginTop:4}} onClick={onClose}>
+            Maybe later
+          </button>
+        </div>
+        <div style={{marginTop:'1rem',padding:'8px 12px',background:'#d1fae5',
+          borderRadius:6,fontSize:11,color:'#065f46'}}>
+          ✓ Free forever &nbsp;·&nbsp; ✓ No credit card &nbsp;·&nbsp; ✓ 196+ scholarships
+        </div>
+      </div>
     </div>
   );
 }
