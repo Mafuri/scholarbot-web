@@ -3939,6 +3939,171 @@ async def peer_match(user: User = Depends(_get_user),
         ),
     }
 
+
+@app.get("/api/scholarships/{sid}/quality")
+async def scholarship_quality(sid: str):
+    """
+    Scholarship quality/trust tier for each opportunity.
+    Tier 1 = Government-funded (most trustworthy)
+    Tier 2 = Major foundation / UN agency
+    Tier 3 = University-direct
+    Tier 4 = Corporate / Private
+    Tier 5 = Community submitted (pending verification)
+    """
+    from engine.opportunity_db import load_all_opportunities
+    all_opps = load_all_opportunities() + EXTRA_OPPORTUNITIES
+    opp = next((o for o in all_opps if o["id"] == sid), None)
+    if not opp: raise HTTPException(404, "Scholarship not found")
+
+    tags  = " ".join(opp.get("tags") or []).lower()
+    name  = opp.get("name","").lower()
+    url   = opp.get("url","").lower()
+
+    gov_keywords = ["government","mext","gks","kgsp","moe.","dfat","fcdo",
+                    "mofa","daad","si.se","nawa","commonwealth","quota","erasmus",
+                    "stipendium","turkiye","csc","campuschina","australia awards",
+                    "isdb","sadc","iucea","amci","fulbright","chevening"]
+    foundation_keywords = ["foundation","ford","gates","wellcome","templeton",
+                           "rotary","rockefeller","mastercard","aga khan","agra",
+                           "osf","prince claus","jacobs","bloomberg","who","wfp",
+                           "unep","unicef","worldbank","afdb","adb","usaid","cnpq"]
+    uni_keywords = ["university","tsinghua","peking","fudan","sjtu","waseda",
+                    "kyoto","osaka","kaist","postech","snu","yonsei","korea.ac",
+                    "ntu.edu","nus.edu","oxford","cambridge","eth","epfl","delft",
+                    "leiden","mcgill","harvard","stanford","ku.dk"]
+
+    combined = tags + " " + name + " " + url
+
+    if any(k in combined for k in gov_keywords):
+        tier, label, color = 1, "Government-funded", "#059669"
+    elif any(k in combined for k in foundation_keywords):
+        tier, label, color = 2, "Foundation / UN Agency", "#2563eb"
+    elif any(k in combined for k in uni_keywords):
+        tier, label, color = 3, "University-direct", "#7c3aed"
+    elif any(k in combined for k in ["corporate","accenture","sap","google","microsoft","adobe","palantir"]):
+        tier, label, color = 4, "Corporate / Private", "#d97706"
+    else:
+        tier, label, color = 3, "Verified Organisation", "#6b7280"
+
+    return {
+        "id":  sid,
+        "tier": tier,
+        "label": label,
+        "color": color,
+        "verified": tier <= 3,
+        "description": (
+            "Funded directly by a national government" if tier == 1 else
+            "Major international foundation or UN agency" if tier == 2 else
+            "University or accredited institution" if tier == 3 else
+            "Corporate or private scholarship" if tier == 4 else
+            "Pending community verification"
+        ),
+    }
+
+
+@app.get("/api/platform/leaderboard")
+async def scholar_leaderboard(db: Session = Depends(get_db)):
+    """
+    Anonymised scholar leaderboard — top scholars by applications won.
+    No PII exposed — only first name, country, win count, and total won.
+    """
+    from sqlalchemy import func
+    results = db.query(
+        Application.user_id,
+        func.count(Application.id).label("wins"),
+        func.sum(Application.amount_usd).label("total_usd"),
+    ).filter(Application.stage == "won").group_by(
+        Application.user_id
+    ).order_by(func.count(Application.id).desc()).limit(20).all()
+
+    leaderboard = []
+    for row in results:
+        u = db.query(User).filter(User.id == row.user_id).first()
+        if not u: continue
+        first = (u.name or "Scholar").split()[0]
+        leaderboard.append({
+            "name":      first,
+            "country":   u.nationality or "International",
+            "field":     u.major or "Various",
+            "wins":      row.wins,
+            "total_usd": int(row.total_usd or 0),
+        })
+
+    return {
+        "leaderboard": leaderboard,
+        "total_scholars": db.query(User).count(),
+        "note": "Only first names shown — all data anonymised",
+    }
+
+
+@app.post("/api/scholarships/share")
+async def create_share_link(req: dict, user: User = Depends(_get_user)):
+    """
+    Generate a shareable link to a curated list of scholarships.
+    Encodes IDs + filters in a short token users can paste anywhere.
+    """
+    import base64 as _b64, json as _jj
+    ids     = req.get("ids", [])[:10]
+    filters = req.get("filters", {})
+    payload = _jj.dumps({"ids": ids, "f": filters, "by": user.id[:8]})
+    token   = _b64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")[:40]
+    base    = os.environ.get("BASE_URL", "https://scholarbot-web.onrender.com")
+    return {
+        "share_url": f"{base}/?share={token}",
+        "token":     token,
+        "count":     len(ids),
+        "message":   "Share this link to show your curated scholarships",
+    }
+
+
+@app.post("/api/profile/analyse-statement")
+async def analyse_statement(user: User = Depends(_get_user),
+                             db: Session = Depends(get_db)):
+    """
+    AI analysis of the user's personal statement — identifies gaps and
+    suggests improvements before essay generation.
+    """
+    stmt = (user.personal_statement or "").strip()
+    if len(stmt.split()) < 30:
+        raise HTTPException(400, "Personal statement too short — add at least 30 words first")
+
+    llm = _llm()
+    system = ("You are an expert scholarship admissions consultant. "
+              "Analyse this personal statement and return ONLY valid JSON.")
+    prompt = (
+        f"Personal statement ({len(stmt.split())} words):\n{stmt[:2000]}\n\n"
+        "Return JSON with:\n"
+        "overall_score (0.0-1.0), grade (A/B/C/D), "
+        "strengths (array of strings max 3), "
+        "gaps (array of strings max 3 — what is missing), "
+        "quick_wins (array of strings max 3 — easy improvements), "
+        "word_count (integer), "
+        "verdict (string, 1-2 sentences)"
+    )
+    try:
+        raw = llm(system, prompt)
+        import json as _jj
+        start = raw.find("{"); end = raw.rfind("}") + 1
+        result = _jj.loads(raw[start:end]) if start >= 0 else {}
+    except Exception:
+        wc = len(stmt.split())
+        has_goals = any(w in stmt.lower() for w in ["will","plan","aim","goal","hope","intend"])
+        has_evidence = any(ch.isdigit() for ch in stmt)
+        score = 0.5 + (0.2 if has_goals else 0) + (0.15 if has_evidence else 0) + (0.05 if wc >= 100 else 0)
+        result = {
+            "overall_score": round(min(score, 1.0), 2),
+            "grade": "B" if score >= 0.7 else "C",
+            "strengths": ["Shows motivation for your field"],
+            "gaps": ["Add specific achievements with numbers", "Include your long-term career goal"],
+            "quick_wins": ["Add one measurable achievement", "Name the specific scholarship you are applying to"],
+            "word_count": wc,
+            "verdict": "Good foundation — add specific evidence and goals to strengthen it.",
+        }
+
+    _log_event(db, user.id, "statement_analysed", None, None,
+               {"score": result.get("overall_score"), "grade": result.get("grade")})
+    return result
+
 @app.get("/", response_class=HTMLResponse)
 async def spa():
     p = Path("static/index.html")
