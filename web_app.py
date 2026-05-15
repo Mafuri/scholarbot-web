@@ -3133,25 +3133,6 @@ async def interview_tips(scholarship_slug: str):
 
 
 # ── Developer API Key System ──────────────────────────────────
-class ApiKey(Base):
-    """Developer API keys for third-party integrations."""
-    __tablename__ = "api_keys"
-    id           = Column(String(32), primary_key=True)
-    user_id      = Column(String(32), ForeignKey("users.id"), nullable=False, index=True)
-    name         = Column(String(100), nullable=False)
-    key_hash     = Column(String(64), unique=True, nullable=False, index=True)
-    key_prefix   = Column(String(12), nullable=False)  # shown to user for identification
-    last_used_at = Column(DateTime, nullable=True)
-    requests_total = Column(Integer, default=0)
-    active       = Column(Boolean, default=True)
-    created_at   = Column(DateTime, default=datetime.utcnow)
-
-    def to_dict(self):
-        return {"id":self.id,"name":self.name,"key_prefix":self.key_prefix,
-                "active":self.active,"requests_total":self.requests_total,
-                "last_used_at":self.last_used_at.isoformat() if self.last_used_at else None,
-                "created_at":self.created_at.isoformat() if self.created_at else None}
-
 
 @app.post("/api/developer/keys")
 async def create_api_key(req: dict, user: User = Depends(_get_user),
