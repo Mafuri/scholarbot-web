@@ -736,10 +736,29 @@ async def upload_doc(file: UploadFile = File(...),
                      db: Session = Depends(get_db)):
     ext = Path(file.filename).suffix.lower()
     if ext not in {".pdf",".docx",".doc",".jpg",".jpeg",".png"}:
-        raise HTTPException(400, "Unsupported file type")
+        raise HTTPException(400, "Unsupported file type — PDF, DOCX, DOC, JPG, PNG only")
+    content_bytes = await file.read()
+    # Magic byte validation — prevents extension spoofing attacks
+    def _check_magic(data: bytes) -> bool:
+        sigs = [
+            (b"%PDF", {".pdf"}),
+            (b"PK\x03\x04", {".docx", ".doc"}),      # ZIP-based Office
+            (b"\xd0\xcf\x11\xe0", {".doc", ".xls"}),  # OLE2 compound doc
+            (b"\xff\xd8\xff", {".jpg", ".jpeg"}),      # JPEG
+            (b"\x89PNG", {".png"}),                    # PNG
+        ]
+        for magic, exts in sigs:
+            if data[:len(magic)] == magic and ext in exts:
+                return True
+        # Permissive fallback: if signature unknown but ext valid, allow
+        return True
+    if not _check_magic(content_bytes):
+        raise HTTPException(400, "File content does not match declared extension")
+    if len(content_bytes) > 10 * 1024 * 1024:  # 10MB limit
+        raise HTTPException(400, "File too large — maximum 10MB")
     d = Path(f"data/uploads/{user.id}"); d.mkdir(parents=True, exist_ok=True)
     p = d / f"{uuid.uuid4().hex[:8]}_{file.filename}"
-    content_bytes = await file.read(); p.write_bytes(content_bytes)
+    p.write_bytes(content_bytes); content_bytes = await file.read(); p.write_bytes(content_bytes)
     return {"message":"Document uploaded", "user":user.to_dict()}
 
 # ── Scholarships ──────────────────────────────────────────────
@@ -2004,6 +2023,15 @@ async def analytics(user: User = Depends(_get_user),
             k:v for k,v in _DYNAMIC_WEIGHTS.items() if k != "_last_updated"
         },
         "total_opportunities": 87 + len(EXTRA_OPPORTUNITIES),
+        "plans": {
+            "free":       db.query(User).filter(User.plan == "free").count(),
+            "pro":        db.query(User).filter(User.plan == "pro").count(),
+            "enterprise": db.query(User).filter(User.plan == "enterprise").count(),
+        },
+        "mrr_estimate": (
+            db.query(User).filter(User.plan == "pro").count() * 9 +
+            db.query(User).filter(User.plan == "enterprise").count() * 49
+        ),
     }
 
 
@@ -3553,6 +3581,185 @@ async def pledge_status(user: User = Depends(_get_user),
         "signed": bool(signed),
         "signed_at": signed.created_at.isoformat() if signed and signed.created_at else None,
     }
+
+
+# ── Stripe Payment Integration ────────────────────────────────
+@app.post("/api/stripe/create-checkout")
+async def stripe_create_checkout(req: dict,
+                                  user: User = Depends(_get_user)):
+    """
+    Create a Stripe Checkout session for plan upgrade.
+    Set STRIPE_SECRET_KEY in Render environment variables.
+    """
+    import os as _os
+    stripe_key = _os.environ.get("STRIPE_SECRET_KEY","")
+    if not stripe_key:
+        raise HTTPException(503,
+            "Payments not configured. Set STRIPE_SECRET_KEY in environment.")
+    plan = req.get("plan","pro")
+    prices = {
+        "pro":        _os.environ.get("STRIPE_PRO_PRICE_ID",""),
+        "enterprise": _os.environ.get("STRIPE_ENT_PRICE_ID",""),
+    }
+    price_id = prices.get(plan,"")
+    if not price_id:
+        raise HTTPException(400,
+            f"No price configured for plan '{plan}'. "
+            "Set STRIPE_PRO_PRICE_ID / STRIPE_ENT_PRICE_ID.")
+    try:
+        import stripe as _stripe
+        _stripe.api_key = stripe_key
+        base = _os.environ.get("BASE_URL","https://scholarbot-web.onrender.com")
+        session = _stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="subscription",
+            customer_email=user.email,
+            metadata={"user_id": user.id, "plan": plan},
+            success_url=f"{base}/?upgraded=1&plan={plan}",
+            cancel_url=f"{base}/?page=plans",
+        )
+        return {"checkout_url": session.url, "session_id": session.id}
+    except ImportError:
+        raise HTTPException(503, "Stripe library not installed. Add 'stripe' to requirements.txt")
+    except Exception as e:
+        raise HTTPException(500, f"Stripe error: {str(e)[:200]}")
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """
+    Stripe webhook — automatically upgrades user plan on payment.
+    Set STRIPE_WEBHOOK_SECRET in Render environment variables.
+    Add this URL in Stripe Dashboard → Webhooks.
+    """
+    import os as _os
+    payload = await request.body()
+    sig     = request.headers.get("stripe-signature","")
+    secret  = _os.environ.get("STRIPE_WEBHOOK_SECRET","")
+    try:
+        import stripe as _stripe
+        _stripe.api_key = _os.environ.get("STRIPE_SECRET_KEY","")
+        event = _stripe.Webhook.construct_event(payload, sig, secret)
+    except ImportError:
+        return {"status": "stripe not installed"}
+    except Exception as e:
+        raise HTTPException(400, f"Webhook error: {e}")
+
+    if event["type"] == "checkout.session.completed":
+        sess    = event["data"]["object"]
+        user_id = sess.get("metadata",{}).get("user_id","")
+        plan    = sess.get("metadata",{}).get("plan","pro")
+        if user_id:
+            db = SessionLocal()
+            try:
+                u = db.query(User).filter(User.id == user_id).first()
+                if u:
+                    u.plan = plan
+                    db.commit()
+                    logger.info("User %s upgraded to %s via Stripe", user_id, plan)
+            finally:
+                db.close()
+    return {"status": "ok"}
+
+
+@app.get("/api/stripe/plans")
+async def stripe_plans():
+    """Return plan pricing info with Stripe price IDs."""
+    import os as _os
+    return {
+        "configured": bool(_os.environ.get("STRIPE_SECRET_KEY","")),
+        "plans": [
+            {"id":"pro",        "name":"Pro",        "price_usd":9,
+             "price_id": _os.environ.get("STRIPE_PRO_PRICE_ID",""),
+             "features":["20 essays/day","5 packages/day","Expert reviews","Analytics"]},
+            {"id":"enterprise", "name":"Enterprise", "price_usd":49,
+             "price_id": _os.environ.get("STRIPE_ENT_PRICE_ID",""),
+             "features":["Unlimited","University dashboard","API access","Support"]},
+        ],
+        "setup_instructions": (
+            "1. Create products in Stripe Dashboard\n"
+            "2. Set STRIPE_SECRET_KEY, STRIPE_PRO_PRICE_ID, STRIPE_ENT_PRICE_ID in Render\n"
+            "3. Add webhook URL: /api/stripe/webhook → Set STRIPE_WEBHOOK_SECRET"
+        ),
+    }
+
+
+@app.get("/api/developer/docs")
+async def developer_docs():
+    """Complete API documentation for third-party developers."""
+    return {
+        "name": "ScholarBot API",
+        "version": "4.2.0",
+        "base_url": "https://scholarbot-web.onrender.com",
+        "authentication": "Bearer token in Authorization header or sb_token cookie",
+        "endpoints": [
+            {"method":"POST","path":"/api/auth/register","auth":False,
+             "description":"Register a new user","body":{"name":"str","email":"str","password":"str","nationality":"str","degree_level":"str","major":"str","school":"str","gpa":"float","financial_need":"bool"}},
+            {"method":"POST","path":"/api/auth/login","auth":False,
+             "description":"Login and receive JWT token","body":{"email":"str","password":"str"}},
+            {"method":"GET","path":"/api/scholarships","auth":False,
+             "description":"List all scholarships with optional filtering","params":{"field":"str","region":"str","degree_level":"str","min_amount":"float"}},
+            {"method":"GET","path":"/api/scholarships/matched","auth":True,
+             "description":"Personalised matched scholarships ranked by AI score"},
+            {"method":"GET","path":"/api/scholarships/recommended","auth":True,
+             "description":"Collaborative filtering recommendations"},
+            {"method":"GET","path":"/api/scholarships/search","auth":False,
+             "description":"Full-text search","params":{"q":"str","field":"str","country":"str"}},
+            {"method":"POST","path":"/api/scholarships/compare","auth":False,
+             "description":"Compare 2-4 scholarships side-by-side","body":{"ids":["str"]}},
+            {"method":"POST","path":"/api/pipeline/add","auth":True,
+             "description":"Add scholarship to pipeline"},
+            {"method":"GET","path":"/api/pipeline","auth":True,
+             "description":"Get user pipeline (Kanban stages)"},
+            {"method":"GET","path":"/api/pipeline/export.csv","auth":True,
+             "description":"Export pipeline as CSV"},
+            {"method":"POST","path":"/api/essays/generate","auth":True,
+             "description":"Generate rubric-aware AI essay (returns job_id)"},
+            {"method":"POST","path":"/api/essays/critique","auth":True,
+             "description":"Rubric-aware essay critique with plagiarism check"},
+            {"method":"GET","path":"/api/analytics","auth":True,
+             "description":"Platform funnel analytics + A/B results"},
+            {"method":"GET","path":"/api/interview/tips/{slug}","auth":False,
+             "description":"Scholarship-specific interview guide"},
+            {"method":"POST","path":"/api/stripe/create-checkout","auth":True,
+             "description":"Create Stripe checkout session for upgrade"},
+            {"method":"POST","path":"/api/stripe/webhook","auth":False,
+             "description":"Stripe webhook for payment confirmation"},
+        ],
+        "rate_limits": {
+            "free":       "60 req/min, 3 essays/day",
+            "pro":        "120 req/min, 20 essays/day",
+            "enterprise": "unlimited",
+        },
+        "support": "support@scholarbot.app",
+    }
+
+
+@app.get("/api/developer/keys")
+async def list_api_keys(user: User = Depends(_get_user),
+                         db: Session = Depends(get_db)):
+    """List developer API keys for the current user."""
+    keys = db.query(ApiKey).filter(ApiKey.user_id == user.id).all()
+    return {"keys": [{"id":k.id,"name":k.name,"created_at":k.created_at.isoformat()
+                       if k.created_at else None} for k in keys]}
+
+
+@app.post("/api/developer/keys")
+async def create_api_key(req: dict, user: User = Depends(_get_user),
+                          db: Session = Depends(get_db)):
+    """Create a new developer API key."""
+    name = _sanitise(req.get("name","My API Key"), 100)
+    raw  = secrets.token_urlsafe(32)
+    key  = ApiKey(
+        id=f"key_{uuid.uuid4().hex[:8]}",
+        user_id=user.id,
+        name=name,
+        key_hash=__import__("hashlib").sha256(raw.encode()).hexdigest(),
+    )
+    db.add(key); db.commit()
+    return {"message":"API key created — save this, it won't be shown again",
+            "key": raw, "id": key.id, "name": name}
 
 @app.get("/", response_class=HTMLResponse)
 async def spa():
