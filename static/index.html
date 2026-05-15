@@ -532,6 +532,24 @@ function HomePage(props) {
         </div>
       </div>
 
+      {stats && stats.scholars > 0 && (
+        <div className="card" style={{margin:'1.5rem 0 0'}}>
+          <div style={{fontWeight:700,fontSize:15,marginBottom:'0.75rem'}}>Top Scholars This Month</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            {(wins||[]).slice(0,3).map(function(w,i){return (
+              <div key={i} style={{flex:1,minWidth:120,padding:'8px 12px',
+                background:'#f5f5f0',borderRadius:8,fontSize:12,textAlign:'center'}}>
+                <div style={{fontSize:18,marginBottom:2}}>
+                  {i===0?'🥇':i===1?'🥈':'🥉'}
+                </div>
+                <div style={{fontWeight:600}}>{w.name}</div>
+                <div style={{color:'#888',fontSize:11}}>{w.country}</div>
+                <div style={{color:'#059669',fontWeight:700}}>${(w.amount_usd||0).toLocaleString()}</div>
+              </div>
+            );})}
+          </div>
+        </div>
+      )}
       <div className="card" style={{margin:'1.5rem 0',background:'#f0fdf4',border:'1px solid #86efac'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:12}}>
           <div>
@@ -1197,6 +1215,17 @@ function ScholarshipsPage(props) {
                       <span className={'tag ' + dayClass} style={{fontSize:10}}>{s.days_left}d left</span>
                     )}
                   </div>
+                  {s.tags && s.tags.some && s.tags.some(function(t){
+                    return ['government','fully-funded','mext','gks','fulbright',
+                      'chevening','daad','commonwealth','erasmus','government-funded',
+                      'kgsp','nawa','si.se','dfat'].indexOf(t.toLowerCase())>=0;
+                  }) && (
+                    <div style={{fontSize:10,color:'#065f46',fontWeight:700,
+                      background:'#d1fae5',borderRadius:10,padding:'2px 8px',
+                      display:'inline-block',marginBottom:4}}>
+                      ✓ Government-funded
+                    </div>
+                  )}
                   {!user && (
                     <div style={{marginTop:8,padding:'6px 10px',background:'#f5f5f0',
                       borderRadius:6,fontSize:11,color:'#888',display:'flex',
@@ -1554,14 +1583,47 @@ function PackagesPage(props) {
   useEffect(function() { load(); }, []);
 
   function prepTop() {
-    setPreparing(true);
-    api('POST', '/packages/prepare', {top_n: 5})
-      .then(function() {
-        toast('Preparing top 5 packages — refresh in about 2 minutes', 'success');
-        setPreparing(false);
-        setTimeout(load, 10000);
-      })
-      .catch(function(e) { toast(e.message, 'error'); setPreparing(false); });
+    // Scholar's Pledge gate — once per session
+    if (!sessionStorage.getItem('pledge_signed')) {
+      if (!window.confirm(
+        "Scholar's Pledge\n\n" +
+        "I agree to:\n" +
+        "• Personalise AI essays before submission\n" +
+        "• Not submit AI content as entirely my own work\n" +
+        "• Use ScholarBot essays as a starting point only\n\n" +
+        "Click OK to generate your essays."
+      )) return;
+      sessionStorage.setItem('pledge_signed','1');
+      api('POST','/pledge',{agreed:true}).catch(function(){});
+    }
+    // Rate limit check
+    api('GET','/my-plan').then(function(plan){
+      var lim = plan.limits.essays_per_day;
+      var used = plan.usage_today.essays;
+      if (lim > 0 && used >= lim) {
+        if (window.confirm(
+          'Daily limit reached ('+used+'/'+lim+' essays).\n\nUpgrade to Pro for 20/day.\n\nGo to Plans?'
+        )) { go('plans'); }
+        return;
+      }
+      setPreparing(true);
+      api('POST', '/packages/prepare', {top_n: 5})
+        .then(function() {
+          toast('Preparing top 5 packages — refresh in about 2 minutes', 'success');
+          setPreparing(false);
+          setTimeout(load, 10000);
+        })
+        .catch(function(e) { toast(e.message, 'error'); setPreparing(false); });
+    }).catch(function(){
+      // If plan check fails, proceed anyway
+      setPreparing(true);
+      api('POST', '/packages/prepare', {top_n: 5})
+        .then(function() {
+          toast('Preparing top 5 packages — refresh in about 2 minutes', 'success');
+          setPreparing(false); setTimeout(load, 10000);
+        })
+        .catch(function(e) { toast(e.message, 'error'); setPreparing(false); });
+    });
   }
 
   return (
@@ -2170,8 +2232,21 @@ function ProfilePage(props) {
               placeholder="Tech club president, Community volunteer, Research assistant..."/>
           </div>
           <div className="form-group">
-            <label>Personal statement <span style={{fontWeight:400,color:'#888'}}>(used in generated essays)</span></label>
-            <textarea rows={4} value={form.personal_statement || ''}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+              <label style={{margin:0}}>Personal statement
+                <span style={{fontSize:12,color:'#888'}}> (your goals in 3-5 sentences)</span>
+              </label>
+              <button type="button" className="btn btn-outline btn-sm" style={{fontSize:10,padding:'2px 8px'}}
+                onClick={function(){
+                  api('POST','/profile/analyse-statement')
+                    .then(function(d){
+                      toast('Grade: '+d.grade+' — '+
+                        (d.quick_wins||[]).slice(0,1).join(''),'success');
+                    })
+                    .catch(function(e){toast(e.message||'Add 30+ words first','error');});
+                }}>AI analyse</button>
+            </div>
+            <label style={{display:'none'}}>Personal statement            <textarea rows={4} value={form.personal_statement || ''}
               onChange={function(e) { setField('personal_statement', e.target.value); }}
               placeholder="Your goals, background, what drives you, and the impact you want to make..."/>
             <p className="helper">The more detail here, the better and more personal your generated essays</p>
