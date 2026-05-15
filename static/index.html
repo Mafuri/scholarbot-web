@@ -313,6 +313,7 @@ function Nav(props) {
     {id:'interview', label:'Interview', icon:'🎤'},
     {id:'profile', label:'Profile', icon:'👤'},
     {id:'plans', label:'Plans', icon:'⭐'},
+    {id:'analytics', label:'Analytics', icon:'📈'},
   ];
 
   const mobileLinks = [
@@ -815,7 +816,14 @@ function DashboardPage(props) {
         )}
 
         <div className="card">
-          <div style={{fontWeight:600,marginBottom:'1rem',fontSize:15}}>⏰ Upcoming Deadlines</div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.75rem'}}>
+            <div style={{fontWeight:600,fontSize:15}}>⏰ Upcoming Deadlines</div>
+            <button className="btn btn-outline btn-sm" style={{fontSize:11}}
+              onClick={function(){
+                api('POST','/digest/send').then(function(){toast('Digest sent to your email!','success');})
+                  .catch(function(){toast('Email not configured','error');});
+              }}>📧 Email digest</button>
+          </div>
           {(!data.upcoming_deadlines || data.upcoming_deadlines.length === 0) ? (
             <div style={{color:'#888',fontSize:14}}>
               No urgent deadlines within 60 days.
@@ -888,7 +896,19 @@ function ScholarshipsPage(props) {
       .catch(function() { setLoading(false); });
   }
 
+  const [recommended, setRecommended] = useState([]);
+  const [showRec, setShowRec] = useState(false);
+
   useEffect(function() { load(); }, [tab, field, region]);
+  useEffect(function() {
+    if (user) {
+      fetch('/api/scholarships/recommended', {
+        headers: {'Authorization': 'Bearer ' + (localStorage.getItem('sb_token') || '')}
+      }).then(function(r){return r.json();})
+        .then(function(d){setRecommended(d.recommended||[]);})
+        .catch(function(){});
+    }
+  }, [user]);
 
   function addToPipeline(s) {
     if (!user) { go('register'); return; }
@@ -901,7 +921,7 @@ function ScholarshipsPage(props) {
       .catch(function(e) { toast(e.message, 'error'); setAdding(null); });
   }
 
-  const displaySource = searchResults !== null ? searchResults : list;
+  const displaySource = showRec ? recommended : (searchResults !== null ? searchResults : list);
   const filtered = tab === 'all' ? displaySource : displaySource.filter(function(s) {
     const degs = s.degree_levels || [];
     return degs.some(function(d) { return d.toLowerCase().indexOf(tab.toLowerCase().slice(0,4)) !== -1; });
@@ -936,11 +956,18 @@ function ScholarshipsPage(props) {
         {['all','Undergraduate','Graduate','Postgraduate'].map(function(t) {
           return (
             <div key={t} className={'tab' + (tab === t ? ' active' : '')}
-              onClick={function() { setTab(t); setSelected(null); }}>
+              onClick={function() { setTab(t); setSelected(null); setSearchResults(null); setSearchQ(''); }}>
               {t === 'all' ? 'All levels' : t}
             </div>
           );
         })}
+        {user && recommended.length > 0 && (
+          <div className={'tab' + (showRec ? ' active' : '')}
+            style={{color:showRec?'#fff':'#059669',borderColor:'#059669'}}
+            onClick={function(){setShowRec(!showRec);}}>
+            ⭐ For You ({recommended.length})
+          </div>
+        )}
       </div>
 
       <div style={{display:'flex',gap:8,marginBottom:'1.25rem',flexWrap:'wrap'}}>
@@ -1002,12 +1029,18 @@ function ScholarshipsPage(props) {
                     <div style={{marginTop:8}}>
                       <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#888',marginBottom:3}}>
                         <span>Match score</span>
-                        <span style={{fontWeight:600}}>{Math.round(s.match_score * 100)}%</span>
+                        <span style={{fontWeight:600,color:s.match_score>=0.8?'#059669':s.match_score>=0.6?'#2563eb':'#d97706'}}>
+                          {Math.round(s.match_score * 100)}%
+                        </span>
                       </div>
                       <div className="progress progress-sm">
-                        <div className="progress-fill" style={{width: (s.match_score * 100) + '%', background:'#1a1a2e'}}></div>
+                        <div className="progress-fill" style={{width:(s.match_score*100)+'%',
+                          background:s.match_score>=0.8?'#059669':s.match_score>=0.6?'#2563eb':'#d97706'}}></div>
                       </div>
                     </div>
+                  )}
+                  {s._behavioral_boost && (
+                    <div style={{fontSize:10,color:'#059669',marginTop:4}}>⭐ Popular with similar students</div>
                   )}
                   {s.tags && s.tags.length > 0 && (
                     <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:8}}>
@@ -1857,7 +1890,17 @@ function ProfilePage(props) {
         </button>
       </form>
 
-      <div className="card" style={{marginTop:'1.25rem'}}>
+      <div className="card" style={{marginTop:'1.25rem',background:'#eff6ff',border:'1px solid #bfdbfe'}}>
+        <div style={{fontWeight:600,marginBottom:8}}>📧 Weekly scholarship digest</div>
+        <p style={{fontSize:13,color:'#555',marginBottom:'1rem'}}>
+          Get your top 5 matched scholarships + upcoming deadlines sent to your email every week.
+        </p>
+        <button className="btn btn-primary btn-sm" onClick={function(){
+          api('POST','/digest/send').then(function(d){toast(d.message||'Digest sent!','success');})
+            .catch(function(){toast('Email service not configured','error');});
+        }}>Send me this week's digest</button>
+      </div>
+      <div className="card" style={{marginTop:'1rem'}}>
         <div style={{fontWeight:600,marginBottom:8}}>Your data rights (GDPR)</div>
         <p style={{fontSize:13,color:'#555',marginBottom:'1rem'}}>Export or delete all your ScholarBot data at any time.</p>
         <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
@@ -1963,6 +2006,91 @@ function PlansPage() {
 }
 
 
+function AnalyticsPage(props) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(function() {
+    api('GET', '/analytics')
+      .then(function(d) { setData(d); setLoading(false); })
+      .catch(function() { setLoading(false); });
+  }, []);
+
+  if (loading) return <div className="page pb-safe"><div className="empty"><div className="spinner" style={{width:32,height:32}}></div></div></div>;
+  if (!data) return <div className="page pb-safe"><p style={{color:'#888',padding:'2rem'}}>Analytics not available.</p></div>;
+
+  const funnel = data.funnel || {};
+  const users  = data.users  || {};
+  const outcomes = data.outcomes || {};
+  const topScholars = data.top_scholarships || [];
+
+  function StatCard(props) {
+    return (
+      <div className="card" style={{textAlign:'center',padding:'1rem'}}>
+        <div style={{fontSize:28,fontWeight:800,color:'#1a1a2e'}}>{props.value}</div>
+        <div style={{fontSize:12,color:'#888',marginTop:4}}>{props.label}</div>
+        {props.sub && <div style={{fontSize:11,color:props.subColor||'#059669',marginTop:2}}>{props.sub}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="page pb-safe">
+      <h2 className="section-title">Platform Analytics</h2>
+      <p className="section-sub">ScholarBot usage and outcome metrics</p>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:'0.75rem',marginBottom:'1.5rem'}}>
+        <StatCard value={users.total||0} label="Registered users" sub={users.profile_complete_pct+'% profile complete'}/>
+        <StatCard value={funnel.viewed_scholarship||0} label="Scholarship views"/>
+        <StatCard value={funnel.added_to_pipeline||0} label="Pipeline additions"/>
+        <StatCard value={funnel.submitted||0} label="Applications submitted"/>
+        <StatCard value={outcomes.won||0} label="Scholarships won" sub={'$'+(outcomes.total_won_usd||0).toLocaleString()} subColor="#059669"/>
+        <StatCard value={(outcomes.win_rate_pct||0)+'%'} label="Win rate"/>
+      </div>
+
+      <div className="card" style={{marginBottom:'1rem'}}>
+        <div style={{fontWeight:600,fontSize:15,marginBottom:'1rem'}}>Application funnel</div>
+        {[
+          ['Registered',funnel.registered||0,'#1a1a2e'],
+          ['Viewed scholarship',funnel.viewed_scholarship||0,'#2563eb'],
+          ['Added to pipeline',funnel.added_to_pipeline||0,'#7c3aed'],
+          ['Submitted',funnel.submitted||0,'#059669'],
+          ['Won',funnel.won||0,'#16a34a'],
+        ].map(function(step) {
+          const pct = funnel.registered ? Math.round(step[1]/funnel.registered*100) : 0;
+          return (
+            <div key={step[0]} style={{marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4}}>
+                <span>{step[0]}</span>
+                <span style={{fontWeight:600}}>{step[1].toLocaleString()} <span style={{color:'#888',fontWeight:400}}>({pct}%)</span></span>
+              </div>
+              <div className="progress progress-sm">
+                <div className="progress-fill" style={{width:pct+'%',background:step[2]}}></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {topScholars.length > 0 && (
+        <div className="card">
+          <div style={{fontWeight:600,fontSize:15,marginBottom:'1rem'}}>🏆 Most popular scholarships</div>
+          {topScholars.map(function(s,i) {
+            return (
+              <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'8px 0',
+                borderBottom:i<topScholars.length-1?'1px solid #f0f0e8':'none',fontSize:13}}>
+                <span>{i+1}. {(s.name||'').slice(0,45)}</span>
+                <span style={{color:'#2563eb',fontWeight:600}}>{s.pipeline_additions} adds</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -2050,6 +2178,7 @@ function App() {
     if (page === 'interview') return <InterviewPage/>;
     if (page === 'profile' && user) return <ProfilePage user={user} setUser={setUser} logout={logout}/>;
     if (page === 'plans') return <PlansPage go={go}/>;
+    if (page === 'analytics' && user) return <AnalyticsPage go={go}/>;
     if (page === 'tos') return <TosPage go={go}/>;
     if (page === 'privacy') return <PrivacyPage go={go}/>;
     if (page === 'accessibility') return <AccessibilityPage go={go}/>;
