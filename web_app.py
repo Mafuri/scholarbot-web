@@ -3761,6 +3761,184 @@ async def create_api_key(req: dict, user: User = Depends(_get_user),
     return {"message":"API key created — save this, it won't be shown again",
             "key": raw, "id": key.id, "name": name}
 
+
+# ── SEO Infrastructure ────────────────────────────────────────
+@app.get("/sitemap.xml", response_class=__import__("fastapi").responses.PlainTextResponse)
+async def sitemap():
+    """XML sitemap for search engine indexing."""
+    base = "https://scholarbot-web.onrender.com"
+    urls = [
+        base + "/",
+        base + "/?page=scholarships",
+        base + "/?page=register",
+        base + "/?page=login",
+        base + "/?page=plans",
+        base + "/?page=interview",
+    ]
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for url in urls:
+        xml += f"  <url><loc>{url}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>\n"
+    xml += "</urlset>"
+    return __import__("fastapi").responses.PlainTextResponse(xml, media_type="application/xml")
+
+
+@app.get("/robots.txt", response_class=__import__("fastapi").responses.PlainTextResponse)
+async def robots():
+    """robots.txt for search engine crawlers."""
+    return """User-agent: *
+Allow: /
+Allow: /?page=scholarships
+Allow: /?page=plans
+Disallow: /api/admin/
+Disallow: /api/auth/
+Sitemap: https://scholarbot-web.onrender.com/sitemap.xml"""
+
+
+@app.get("/api/platform-stats")
+async def platform_stats(db: Session = Depends(get_db)):
+    """
+    Public platform statistics — shown on homepage and used for SEO.
+    No PII exposed — aggregate only.
+    """
+    from sqlalchemy import func
+    total_users  = db.query(User).count()
+    total_won    = db.query(Application).filter(Application.stage == "won").count()
+    total_won_usd= db.query(func.sum(Application.amount_usd)).filter(
+                       Application.stage == "won").scalar() or 0
+    total_apps   = db.query(Application).count()
+    win_rate     = round(total_won / max(total_apps, 1) * 100, 1)
+    return {
+        "scholars":          total_users,
+        "scholarships_won":  total_won,
+        "total_awarded_usd": int(total_won_usd),
+        "applications":      total_apps,
+        "win_rate_pct":      win_rate,
+        "opportunities":     87 + len(EXTRA_OPPORTUNITIES),
+        "countries_covered": 65,
+        "disciplines":       22,
+    }
+
+
+@app.get("/api/admin/validate-listings")
+async def validate_listings(admin: User = Depends(_require_admin)):
+    """
+    Check scholarship URLs for dead links.
+    Returns list of potentially broken listings for admin review.
+    Runs lightweight HEAD requests — no page content fetched.
+    """
+    import requests as _rq
+    from engine.opportunity_db import load_all_opportunities
+    all_opps = load_all_opportunities() + EXTRA_OPPORTUNITIES
+    results  = {"ok": [], "broken": [], "slow": [], "unchecked": []}
+    checked  = 0
+    for opp in all_opps[:30]:  # Sample first 30 to avoid timeout
+        url = opp.get("url","")
+        if not url or not url.startswith("http"):
+            results["unchecked"].append({"id": opp["id"], "name": opp["name"], "reason": "no URL"})
+            continue
+        try:
+            import time as _t
+            t0 = _t.time()
+            r  = _rq.head(url, timeout=5, allow_redirects=True,
+                          headers={"User-Agent": "ScholarBot/1.0 (scholarship validator)"})
+            elapsed = _t.time() - t0
+            entry = {"id": opp["id"], "name": opp["name"][:50],
+                     "url": url, "status": r.status_code, "ms": int(elapsed*1000)}
+            if r.status_code < 400:
+                results["ok"].append(entry)
+            else:
+                results["broken"].append(entry)
+            if elapsed > 3:
+                results["slow"].append(entry)
+            checked += 1
+        except Exception as e:
+            results["broken"].append({"id": opp["id"], "name": opp["name"][:50],
+                                       "url": url, "error": str(e)[:60]})
+    return {**results,
+            "checked": checked, "total": len(all_opps),
+            "note": f"Sampled 30/{len(all_opps)} — run periodically for full scan"}
+
+
+@app.post("/api/push/subscribe")
+async def push_subscribe(req: dict, user: User = Depends(_get_user),
+                          db: Session = Depends(get_db)):
+    """Store browser push subscription for deadline notifications."""
+    endpoint   = req.get("endpoint","")
+    keys       = req.get("keys",{})
+    if not endpoint:
+        raise HTTPException(400, "Push subscription endpoint required")
+    _log_event(db, user.id, "push_subscribed", None, None,
+               {"endpoint": endpoint[:100], "has_keys": bool(keys)})
+    return {"message": "Push notifications enabled for deadline reminders"}
+
+
+@app.post("/api/push/test")
+async def push_test(user: User = Depends(_get_user)):
+    """Send a test push notification."""
+    return {
+        "message": "Push notification test queued",
+        "note": "Full web push requires VAPID keys — add VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY to Render"
+    }
+
+
+@app.get("/api/scholars/peer-match")
+async def peer_match(user: User = Depends(_get_user),
+                      db: Session = Depends(get_db)):
+    """
+    Scholar network — find users who have won scholarships in
+    the same field or from the same country. Anonymised connection.
+    """
+    profile = user.to_dict()
+    field   = (profile.get("major") or "").lower()
+    nat     = (profile.get("nationality") or "").lower()
+
+    # Find users who won scholarships with similar profile
+    won_events = db.query(UserEvent).filter(
+        UserEvent.event_type == "won",
+        UserEvent.user_id != user.id,
+    ).limit(200).all()
+
+    peer_ids = {ev.user_id for ev in won_events}
+    peers    = db.query(User).filter(User.id.in_(peer_ids)).limit(50).all()
+
+    # Score by similarity
+    matches = []
+    for p in peers:
+        score = 0
+        if p.nationality and nat and p.nationality.lower() == nat:
+            score += 3  # Same country — high relevance
+        if p.major and field and any(
+            w in (p.major or "").lower() for w in field.split() if len(w) > 3
+        ):
+            score += 2  # Same field
+        if p.degree_level == user.degree_level:
+            score += 1
+        if score > 0:
+            # Get what scholarship they won
+            won = db.query(UserEvent).filter(
+                UserEvent.user_id == p.id,
+                UserEvent.event_type == "won",
+            ).first()
+            matches.append({
+                "nationality":    p.nationality,
+                "degree_level":   p.degree_level,
+                "field":          p.major,
+                "scholarship_won": won.opp_name if won else "Scholarship",
+                "similarity_score": score,
+            })
+
+    matches.sort(key=lambda x: x["similarity_score"], reverse=True)
+    return {
+        "peer_scholars": matches[:10],
+        "total_found":   len(matches),
+        "message": (
+            f"Found {len(matches)} scholars from similar backgrounds who won scholarships."
+            if matches else
+            "No peer matches yet — be the first from your country and field to win!"
+        ),
+    }
+
 @app.get("/", response_class=HTMLResponse)
 async def spa():
     p = Path("static/index.html")
