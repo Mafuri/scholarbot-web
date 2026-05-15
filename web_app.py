@@ -834,6 +834,45 @@ EXTRA_OPPORTUNITIES = [
     ,{"id":"australia_awards","name":"Australia Awards Scholarship","type":"scholarship","amount_usd":45000,"deadline":"2025-04-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Mozambique","Zambia","Zimbabwe","Senegal","Bangladesh","India","Pakistan","Vietnam","Indonesia","Philippines","Myanmar","Cambodia","Laos","Nepal","Sri Lanka","Bhutan","Timor-Leste","Papua New Guinea","Solomon Islands","Vanuatu","Fiji","Samoa","Tonga"],"degree_levels":["Graduate"],"field":"All fields — priority on development, agriculture, health, education","gpa_min":3.0,"tags":["australia","awards","development","fully-funded","prestigious","africa","asia","pacific","canberra"],"url":"https://www.dfat.gov.au/people-to-people/australia-awards","description":"Australian government fully-funded scholarships for emerging leaders from developing Asia, Africa, and Pacific regions","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
     ,{"id":"sasakawa_peace_fellow","name":"Sasakawa Peace Foundation Fellowship","type":"fellowship","amount_usd":25000,"deadline":"2025-09-30","eligible_countries":["Bangladesh","India","Pakistan","Nepal","Sri Lanka","Myanmar","Cambodia","Laos","Vietnam","Philippines","Indonesia","Thailand","Malaysia","Mongolia","Kenya","Nigeria","Tanzania","Ghana"],"degree_levels":["Graduate","Postgraduate"],"field":"Peace Studies, International Relations, Environmental Studies, Ocean Policy","gpa_min":3.2,"tags":["japan","sasakawa","peace","international relations","environment","ocean","asia","africa","fellowship"],"url":"https://www.spf.org/en/","description":"Sasakawa Peace Foundation fellowships for students from Asia and Africa in peace studies and international relations","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
     ,{"id":"china_csc_bilateral","name":"Chinese Government Bilateral Scholarship (CSC)","type":"scholarship","amount_usd":15000,"deadline":"2025-04-01","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Zimbabwe","Zambia","Mozambique","South Africa","Egypt","Morocco","Senegal","Bangladesh","Pakistan","Nepal","Sri Lanka","Myanmar","Cambodia","Laos"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields","gpa_min":2.8,"tags":["china","csc","bilateral","government","stem","mandarin","fully-funded","bri","africa","asia","beijing","shanghai"],"url":"https://www.campuschina.org/","description":"Chinese government bilateral scholarships covering tuition, accommodation, and stipend under country-to-country agreements","competitiveness":{"label":"Competitive","acceptance_rate":0.17}}
+
+    ,{"id":"tsinghua_scholarship","name":"Tsinghua University Scholarship for International Students","type":"scholarship","amount_usd":15000,"deadline":"2025-03-31","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Engineering, Science, Economics, Law, Management, Arts","gpa_min":3.3,"tags":["china","tsinghua","beijing","engineering","science","economics","management","prestigious","985","211"],"url":"https://www.tsinghua.edu.cn/en/Admissions/Scholarships.htm","host_university":"Tsinghua University","university_url":"https://www.tsinghua.edu.cn","description":"Tsinghua University scholarships for outstanding international students — one of China's top two universities","competitiveness":{"label":"Very Competitive","acceptance_rate":0.07}}
+    ,{"id":"peking_univ_scholarship","name":"Peking University International Scholarship","type":"scholarship","amount_usd":15000,"deadline":"2025-03-01","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Humanities, Social Sciences, Economics, Law, Science, Medicine","gpa_min":3.3,"tags":["china","peking university","pku","beijing","humanities","law","economics","science","prestigious","985"],"url":"https://admission.pku.edu.cn/zsxx/gj留/","host_university":"Peking University","university_url":"https://english.pku.edu.cn","description":"Peking University scholarships for exceptional international students in humanities, sciences, and professional fields","competitiveness":{"label":"Very Competitive","acceptance_rate":0.07}}
+    ,{"id":"fudan_scholarship","name":"Fudan University International Scholarship","type":"scholarship","amount_usd":14000,"deadline":"2025-03-31","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Medicine, Economics, Law, Management, Humanities, Science","gpa_min":3.2,"tags":["china","fudan","shanghai","medicine","economics","management","humanities","985","211","prestigious"],"url":"https://www.fudan.edu.cn/en/scholarships/","host_university":"Fudan University","university_url":"https://www.fudan.edu.cn/en/","description":"Fudan University Shanghai scholarships for international students — strong in medicine, economics, and law","competitiveness":{"label":"Very Competitive","acceptance_rate":0.08}}
+    ,{"id":"sjtu_scholarship","name":"Shanghai Jiao Tong University Scholarship","type":"scholarship","amount_usd":14000,"deadline":"2025-04-01","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Engineering, Medicine, Economics, Management, Science","gpa_min":3.2,"tags":["china","sjtu","shanghai jiao tong","engineering","medicine","economics","management","985","prestigious","shanghai"],"url":"https://en.sjtu.edu.cn/admissions/scholarships/","host_university":"Shanghai Jiao Tong University","university_url":"https://en.sjtu.edu.cn","description":"SJTU scholarships — one of China's top engineering and medical universities in Shanghai","competitiveness":{"label":"Very Competitive","acceptance_rate":0.08}}
+    ,{"id":"zhejiang_univ_scholarship","name":"Zhejiang University Scholarship","type":"scholarship","amount_usd":13000,"deadline":"2025-04-15","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Engineering, Agriculture, Medicine, Science, Management","gpa_min":3.0,"tags":["china","zhejiang","hangzhou","engineering","agriculture","medicine","science","985","211","alibaba"],"url":"https://www.zju.edu.cn/english/admissions/scholarships/","host_university":"Zhejiang University","university_url":"https://www.zju.edu.cn/english/","description":"Zhejiang University Hangzhou scholarships — near Alibaba HQ, strong tech-industry connections","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
+    ,{"id":"nanjing_univ_scholarship","name":"Nanjing University International Scholarship","type":"scholarship","amount_usd":13000,"deadline":"2025-03-31","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Physics, Chemistry, Mathematics, Astronomy, Earth Science, Humanities","gpa_min":3.2,"tags":["china","nanjing","physics","chemistry","mathematics","astronomy","earth science","humanities","985","211"],"url":"https://international.nju.edu.cn/scholarships/","host_university":"Nanjing University","university_url":"https://international.nju.edu.cn","description":"Nanjing University scholarships — world-renowned for physics, chemistry, and earth sciences","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
+    ,{"id":"wuhan_univ_scholarship","name":"Wuhan University International Student Scholarship","type":"scholarship","amount_usd":12000,"deadline":"2025-04-30","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Remote Sensing, Law, Economics, Engineering, Information Science, Arts","gpa_min":3.0,"tags":["china","wuhan","hubei","remote sensing","law","economics","engineering","information science","985","affordable"],"url":"https://en.whu.edu.cn/Admissions/Scholarships.htm","host_university":"Wuhan University","university_url":"https://en.whu.edu.cn","description":"Wuhan University scholarships — world's top in remote sensing and GIS; beautiful campus","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
+    ,{"id":"ustc_scholarship","name":"USTC International Scholarship (University of Science & Technology of China)","type":"scholarship","amount_usd":14000,"deadline":"2025-03-31","eligible_countries":["Global"],"degree_levels":["Graduate","Postgraduate"],"field":"Physics, Chemistry, Mathematics, Computer Science, Engineering","gpa_min":3.5,"tags":["china","ustc","hefei","physics","chemistry","math","computer science","engineering","stem","985","prestigious","quantum"],"url":"https://en.ustc.edu.cn/admissions/scholarships/","host_university":"University of Science and Technology of China","university_url":"https://en.ustc.edu.cn","description":"USTC Hefei scholarships — China's top STEM university, world-leading in quantum computing and physics","competitiveness":{"label":"Very Competitive","acceptance_rate":0.07}}
+    ,{"id":"tongji_scholarship","name":"Tongji University International Scholarship","type":"scholarship","amount_usd":12000,"deadline":"2025-04-15","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Architecture, Civil Engineering, Urban Planning, Automotive Engineering","gpa_min":3.0,"tags":["china","tongji","shanghai","architecture","civil engineering","urban planning","automotive","german","985"],"url":"https://en.tongji.edu.cn/Admissions/Scholarships.htm","host_university":"Tongji University","university_url":"https://en.tongji.edu.cn","description":"Tongji University Shanghai scholarships — world's best for architecture and urban planning; German-Chinese tradition","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
+    ,{"id":"harbin_tech_scholarship","name":"Harbin Institute of Technology Scholarship (HIT)","type":"scholarship","amount_usd":12000,"deadline":"2025-04-30","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Aerospace, Robotics, Electrical Engineering, Computer Science, Materials","gpa_min":3.0,"tags":["china","hit","harbin","aerospace","robotics","electrical","computer science","materials","985","space","military"],"url":"https://admissions.hit.edu.cn/international/scholarships/","host_university":"Harbin Institute of Technology","university_url":"https://en.hit.edu.cn","description":"HIT Harbin scholarships — China's top aerospace and robotics university, key to China's space program","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
+    ,{"id":"scu_scholarship","name":"Sichuan University International Scholarship","type":"scholarship","amount_usd":11000,"deadline":"2025-05-31","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Medicine, Engineering, Arts, Management, Science","gpa_min":2.8,"tags":["china","sichuan","chengdu","medicine","engineering","arts","management","pandas","affordable","985","211"],"url":"https://en.scu.edu.cn/scholarships/","host_university":"Sichuan University","university_url":"https://en.scu.edu.cn","description":"Sichuan University Chengdu scholarships — major medical university in southwest China, affordable living","competitiveness":{"label":"Moderate","acceptance_rate":0.15}}
+    ,{"id":"sun_yatsen_scholarship","name":"Sun Yat-sen University (SYSU) Scholarship","type":"scholarship","amount_usd":12000,"deadline":"2025-04-30","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Medicine, Public Health, Economics, Law, Engineering, Biology","gpa_min":3.0,"tags":["china","sysu","sun yat-sen","guangzhou","medicine","economics","biology","law","985","guangdong","affordable"],"url":"https://iso.sysu.edu.cn/en/scholarships/","host_university":"Sun Yat-sen University","university_url":"https://www.sysu.edu.cn/en/","description":"SYSU Guangzhou scholarships — southern China's top university, strong in medicine and public health","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
+    ,{"id":"renmin_scholarship","name":"Renmin University of China Scholarship","type":"scholarship","amount_usd":13000,"deadline":"2025-03-31","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Economics, Law, Social Sciences, Humanities, Business, Finance","gpa_min":3.2,"tags":["china","renmin","ruc","beijing","economics","law","social sciences","humanities","business","finance","985","political"],"url":"https://www.ruc.edu.cn/en/admissions/scholarships/","host_university":"Renmin University of China","university_url":"https://www.ruc.edu.cn/en/","description":"Renmin University Beijing scholarships — China's top university for economics, law, and social sciences","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
+    ,{"id":"beijing_normal_scholarship","name":"Beijing Normal University International Scholarship (BNU)","type":"scholarship","amount_usd":11000,"deadline":"2025-04-30","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Education, Psychology, Environmental Science, Chinese Language, Arts","gpa_min":2.8,"tags":["china","bnu","beijing normal","education","psychology","environment","chinese language","arts","985","teaching"],"url":"https://www.bnu.edu.cn/en/admissions/scholarships/","host_university":"Beijing Normal University","university_url":"https://www.bnu.edu.cn/en/","description":"BNU Beijing scholarships — China's top education university, excellent for education, psychology, and Chinese studies","competitiveness":{"label":"Moderate","acceptance_rate":0.15}}
+    ,{"id":"central_south_scholarship","name":"Central South University International Scholarship (CSU)","type":"scholarship","amount_usd":11000,"deadline":"2025-05-15","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Zambia","Zimbabwe","Mozambique","Madagascar","Cameroon","Senegal","Egypt","Morocco","Bangladesh","Pakistan","India","Nepal","Sri Lanka","Vietnam","Indonesia","Philippines","Thailand","Malaysia","Cambodia","Myanmar","Brazil","Colombia","Ecuador"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Mining, Metallurgy, Medicine, Engineering, Business","gpa_min":2.8,"tags":["china","central south","changsha","mining","metallurgy","medicine","engineering","africa","resources","minerals","985","affordable"],"url":"https://en.csu.edu.cn/scholarships/","host_university":"Central South University","university_url":"https://en.csu.edu.cn","description":"CSU Changsha scholarships — world leader in mining and metallurgy; strategic for African mineral resource professionals","competitiveness":{"label":"Moderate","acceptance_rate":0.18}}
+    ,{"id":"beijing_univ_tech_scholarship","name":"Beijing University of Technology International Scholarship","type":"scholarship","amount_usd":10000,"deadline":"2025-05-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Bangladesh","India","Pakistan","Vietnam","Indonesia","Philippines","Nepal","Sri Lanka","Cambodia","Thailand","Malaysia","Brazil","Colombia","Mexico","Ecuador","Peru"],"degree_levels":["Undergraduate","Graduate"],"field":"Engineering, Computer Science, Architecture, Business","gpa_min":2.8,"tags":["china","bjut","beijing","engineering","computer science","architecture","affordable","developing countries","211"],"url":"https://en.bjut.edu.cn/scholarships/","host_university":"Beijing University of Technology","university_url":"https://en.bjut.edu.cn","description":"BJUT Beijing scholarships — strong engineering and IT programmes, lower admission barrier than 985 universities","competitiveness":{"label":"Moderate","acceptance_rate":0.20}}
+    ,{"id":"jilin_univ_scholarship","name":"Jilin University International Scholarship","type":"scholarship","amount_usd":10000,"deadline":"2025-05-31","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Automotive Engineering, Chemistry, Medicine, Agriculture, Law","gpa_min":2.8,"tags":["china","jilin","changchun","automotive","chemistry","medicine","agriculture","law","985","211","northeast china","affordable"],"url":"https://international.jlu.edu.cn/scholarships/","host_university":"Jilin University","university_url":"https://international.jlu.edu.cn","description":"Jilin University scholarships — China's largest university, top automotive engineering, affordable northeast China","competitiveness":{"label":"Moderate","acceptance_rate":0.18}}
+    ,{"id":"huazhong_scholarship","name":"Huazhong University of Science & Technology Scholarship (HUST)","type":"scholarship","amount_usd":12000,"deadline":"2025-04-30","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Engineering, Medicine, Economics, Management, Science","gpa_min":3.0,"tags":["china","hust","wuhan","engineering","medicine","economics","management","science","985","technology","innovative"],"url":"https://english.hust.edu.cn/admissions/scholarships/","host_university":"Huazhong University of Science and Technology","university_url":"https://english.hust.edu.cn","description":"HUST Wuhan scholarships — China's top comprehensive technology university, excellent graduate employment","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
+    ,{"id":"xian_jiaotong_scholarship","name":"Xi'an Jiaotong University International Scholarship (XJTU)","type":"scholarship","amount_usd":12000,"deadline":"2025-04-15","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Engineering, Medicine, Economics, Management, Science","gpa_min":3.0,"tags":["china","xjtu","xian","engineering","medicine","economics","management","silk road","985","211","northwest china"],"url":"https://en.xjtu.edu.cn/admissions/scholarships/","host_university":"Xi'an Jiaotong University","university_url":"https://en.xjtu.edu.cn","description":"XJTU Xi'an scholarships — gateway to Silk Road; China's oldest engineering university","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
+    ,{"id":"beijing_foreign_studies","name":"Beijing Foreign Studies University Scholarship (BFSU)","type":"scholarship","amount_usd":10000,"deadline":"2025-05-01","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Linguistics, Translation, International Relations, Economics, Law","gpa_min":2.8,"tags":["china","bfsu","beijing","linguistics","translation","international relations","languages","diplomacy","economics","affordable","211"],"url":"https://www.bfsu.edu.cn/en/scholarships/","host_university":"Beijing Foreign Studies University","university_url":"https://www.bfsu.edu.cn/en/","description":"BFSU Beijing scholarships — China's top foreign language and international studies university, trains diplomats","competitiveness":{"label":"Moderate","acceptance_rate":0.18}}
+    ,{"id":"southwest_univ_scholarship","name":"Southwest University International Scholarship","type":"scholarship","amount_usd":9000,"deadline":"2025-06-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Bangladesh","India","Pakistan","Vietnam","Indonesia","Philippines","Nepal","Sri Lanka","Cambodia","Thailand","Malaysia","Brazil","Colombia","Mexico","Peru","Ecuador"],"degree_levels":["Undergraduate","Graduate"],"field":"Agriculture, Sericulture, Education, Biology, Psychology","gpa_min":2.8,"tags":["china","southwest university","chongqing","agriculture","sericulture","education","biology","psychology","affordable","developing countries","211"],"url":"https://en.swu.edu.cn/scholarships/","host_university":"Southwest University","university_url":"https://en.swu.edu.cn","description":"Southwest University Chongqing scholarships — China's top agricultural university, affordable mountainous city","competitiveness":{"label":"Moderate","acceptance_rate":0.20}}
+    ,{"id":"china_agri_univ_scholarship","name":"China Agricultural University International Scholarship (CAU)","type":"scholarship","amount_usd":11000,"deadline":"2025-05-01","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Zambia","Zimbabwe","Mozambique","Bangladesh","India","Pakistan","Nepal","Sri Lanka","Vietnam","Indonesia","Philippines","Cambodia","Myanmar","Thailand","Brazil","Colombia","Mexico","Peru","Ecuador","Bolivia"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Agriculture, Agronomy, Animal Science, Food Science, Biotechnology, Rural Development","gpa_min":2.8,"tags":["china","cau","beijing","agriculture","agronomy","animal science","food science","biotechnology","developing countries","africa","asia","211"],"url":"https://www.cau.edu.cn/en/scholarships/","host_university":"China Agricultural University","university_url":"https://www.cau.edu.cn/en/","description":"CAU Beijing scholarships — China's top agricultural research university, ideal for Africa and Asia food security professionals","competitiveness":{"label":"Moderate","acceptance_rate":0.18}}
+    ,{"id":"beijing_tech_business","name":"Beijing Technology and Business University Scholarship (BTBU)","type":"scholarship","amount_usd":8000,"deadline":"2025-07-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Bangladesh","India","Pakistan","Vietnam","Indonesia","Philippines","Nepal","Sri Lanka","Cambodia","Thailand","Malaysia","Brazil","Colombia","Mexico","Ecuador","Peru"],"degree_levels":["Undergraduate","Graduate"],"field":"Business, Economics, Food Science, Light Industry, Commerce","gpa_min":2.5,"tags":["china","btbu","beijing","business","economics","food science","commerce","affordable","developing countries","low gpa requirement"],"url":"https://en.btbu.edu.cn/scholarships/","host_university":"Beijing Technology and Business University","university_url":"https://en.btbu.edu.cn","description":"BTBU Beijing scholarships — accessible for students with lower GPA, strong in business and food science","competitiveness":{"label":"Moderate","acceptance_rate":0.25}}
+    ,{"id":"waseda_scholarship","name":"Waseda University International Student Scholarship","type":"scholarship","amount_usd":12000,"deadline":"2025-11-01","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Political Science, International Studies, Economics, Science, Engineering, Law","gpa_min":3.2,"tags":["japan","waseda","tokyo","political science","international studies","economics","engineering","law","prestigious","private","global"],"url":"https://www.waseda.jp/inst/cie/en/scholarship/","host_university":"Waseda University","university_url":"https://www.waseda.jp/top/en/","description":"Waseda University Tokyo scholarships — Japan's most internationally-minded private university, used by world leaders","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
+    ,{"id":"keio_scholarship","name":"Keio University International Scholarship","type":"scholarship","amount_usd":11000,"deadline":"2025-10-15","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Medicine, Law, Economics, Business, Science, Engineering, Policy","gpa_min":3.3,"tags":["japan","keio","tokyo","medicine","law","economics","business","engineering","prestigious","private","research"],"url":"https://www.keio.ac.jp/en/students/scholarship.html","host_university":"Keio University","university_url":"https://www.keio.ac.jp/en/","description":"Keio University Tokyo scholarships — Japan's oldest private university, renowned for medicine and law","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
+    ,{"id":"kyoto_univ_scholarship","name":"Kyoto University International Scholarship","type":"scholarship","amount_usd":14000,"deadline":"2025-05-31","eligible_countries":["Global"],"degree_levels":["Graduate","Postgraduate"],"field":"Science, Engineering, Medicine, Agriculture, Humanities, Social Sciences","gpa_min":3.5,"tags":["japan","kyoto","research","nobel","science","engineering","medicine","agriculture","humanities","prestigious","second oldest"],"url":"https://www.kyoto-u.ac.jp/en/education-campus/financials/scholarships","host_university":"Kyoto University","university_url":"https://www.kyoto-u.ac.jp/en","description":"Kyoto University scholarships — Japan's second-best university, more Nobel laureates than any Asian university","competitiveness":{"label":"Very Competitive","acceptance_rate":0.08}}
+    ,{"id":"osaka_univ_scholarship","name":"Osaka University International Scholarship","type":"scholarship","amount_usd":12000,"deadline":"2025-05-31","eligible_countries":["Global"],"degree_levels":["Graduate","Postgraduate"],"field":"Medicine, Dentistry, Engineering, Science, Economics, Law, Literature","gpa_min":3.3,"tags":["japan","osaka","medicine","dentistry","engineering","science","economics","prestigious","research","kansai","university hospital"],"url":"https://www.osaka-u.ac.jp/en/international/inbound/scholarship","host_university":"Osaka University","university_url":"https://www.osaka-u.ac.jp/en","description":"Osaka University scholarships — Japan's top medical and dental university, excellent research hospital","competitiveness":{"label":"Very Competitive","acceptance_rate":0.09}}
+    ,{"id":"snu_scholarship","name":"Seoul National University Global Scholarship (SNU)","type":"scholarship","amount_usd":18000,"deadline":"2025-09-30","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields","gpa_min":3.5,"tags":["south korea","snu","seoul national","prestigious","fully-funded","research","stem","humanities","law","medicine","top ranked"],"url":"https://en.snu.ac.kr/admission/scholarships","host_university":"Seoul National University","university_url":"https://en.snu.ac.kr","description":"SNU scholarships — South Korea's most prestigious university, among Asia's top 10","competitiveness":{"label":"Very Competitive","acceptance_rate":0.08}}
+    ,{"id":"kaist_fellowship","name":"KAIST International Scholarship (Korea Advanced Institute of Science and Technology)","type":"scholarship","amount_usd":20000,"deadline":"2025-11-30","eligible_countries":["Global"],"degree_levels":["Graduate","Postgraduate"],"field":"Science, Technology, Engineering, Mathematics, Business, AI","gpa_min":3.5,"tags":["south korea","kaist","daejeon","science","technology","engineering","mathematics","ai","robotics","prestigious","fully-funded","research"],"url":"https://admission.kaist.ac.kr/intl-graduate/scholarship/","host_university":"KAIST","university_url":"https://www.kaist.ac.kr/en/","description":"KAIST fully-funded scholarships for STEM graduate students — South Korea's MIT, world leader in robotics and AI","competitiveness":{"label":"Very Competitive","acceptance_rate":0.08}}
+    ,{"id":"postech_scholarship","name":"POSTECH International Scholarship (Pohang University)","type":"scholarship","amount_usd":18000,"deadline":"2025-10-31","eligible_countries":["Global"],"degree_levels":["Graduate","Postgraduate"],"field":"Science, Engineering, Materials, IT, Biosciences","gpa_min":3.5,"tags":["south korea","postech","pohang","science","engineering","materials","it","biosciences","fully-funded","research","phd","prestigious"],"url":"https://www.postech.ac.kr/eng/page/?mid=scholarship","host_university":"POSTECH","university_url":"https://www.postech.ac.kr/eng/","description":"POSTECH fully-funded research scholarships — South Korea's top science university, backed by POSCO steel company","competitiveness":{"label":"Very Competitive","acceptance_rate":0.08}}
+    ,{"id":"yonsei_scholarship","name":"Yonsei University International Scholarship","type":"scholarship","amount_usd":15000,"deadline":"2025-10-01","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields — Theology, Medicine, Law, Business, Engineering, Arts","gpa_min":3.2,"tags":["south korea","yonsei","seoul","medicine","law","business","engineering","arts","prestigious","private","sky university","research"],"url":"https://www.yonsei.ac.kr/en_sc/international/scholarship.jsp","host_university":"Yonsei University","university_url":"https://www.yonsei.ac.kr/en_sc/","description":"Yonsei University Seoul scholarships — member of SKY (top 3 Korean universities), founded 1885","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
+    ,{"id":"korea_univ_scholarship","name":"Korea University International Scholarship","type":"scholarship","amount_usd":14000,"deadline":"2025-09-30","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields — Law, Business, Medicine, Engineering, Liberal Arts","gpa_min":3.2,"tags":["south korea","korea university","seoul","law","business","medicine","engineering","arts","sky university","prestigious","private"],"url":"https://oia.korea.ac.kr/admission/scholarship","host_university":"Korea University","university_url":"https://www.korea.ac.kr/mbshome/mbs/en/","description":"Korea University Seoul scholarships — third SKY university, strong law and business schools since 1905","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
+    ,{"id":"oxford_clarendon_scholarship","name":"Oxford Clarendon Scholarship","type":"scholarship","amount_usd":55000,"deadline":"2025-01-03","eligible_countries":["Global"],"degree_levels":["Postgraduate"],"field":"All fields — Humanities, Social Sciences, Science, Medicine, Law","gpa_min":3.8,"tags":["uk","oxford","clarendon","prestigious","fully-funded","phd","masters","humanities","science","law","medicine","research"],"url":"https://www.ox.ac.uk/clarendon","host_university":"University of Oxford","university_url":"https://www.ox.ac.uk","description":"Oxford Clarendon fully-funded scholarships for the world's most outstanding graduate students across all disciplines","competitiveness":{"label":"Extremely Competitive","acceptance_rate":0.03}}
+    ,{"id":"cambridge_gates_scholarship","name":"Gates Cambridge Scholarship","type":"scholarship","amount_usd":60000,"deadline":"2024-10-09","eligible_countries":["Global (non-UK)"],"degree_levels":["Postgraduate"],"field":"All fields","gpa_min":3.8,"tags":["uk","cambridge","gates","prestigious","fully-funded","phd","masters","leadership","commitment to others","cambridge fit"],"url":"https://www.gatescambridge.org","host_university":"University of Cambridge","university_url":"https://www.cam.ac.uk","description":"Gates Cambridge fully-funded scholarships for outstanding non-UK graduates at Cambridge University","competitiveness":{"label":"Extremely Competitive","acceptance_rate":0.02}}
+    ,{"id":"eth_zurich_scholarship","name":"ETH Zurich Excellence Scholarship","type":"scholarship","amount_usd":30000,"deadline":"2025-12-15","eligible_countries":["Global"],"degree_levels":["Graduate"],"field":"Science, Technology, Engineering, Mathematics, Architecture","gpa_min":3.7,"tags":["switzerland","eth zurich","excellence","stem","engineering","technology","architecture","mathematics","science","prestigious","europe","fully-funded"],"url":"https://ethz.ch/en/studies/financial/scholarships/excellencescholarship.html","host_university":"ETH Zurich","university_url":"https://ethz.ch/en.html","description":"ETH Zurich Excellence Scholarships for outstanding master's students — Europe's top STEM university","competitiveness":{"label":"Very Competitive","acceptance_rate":0.05}}
+    ,{"id":"epfl_excellence_fellowship","name":"EPFL Excellence Fellowship","type":"fellowship","amount_usd":32000,"deadline":"2025-12-15","eligible_countries":["Global"],"degree_levels":["Graduate"],"field":"Engineering, Computer Science, Life Sciences, Mathematics, Physics","gpa_min":3.7,"tags":["switzerland","epfl","excellence","engineering","computer science","life sciences","mathematics","physics","prestigious","europe","lausanne"],"url":"https://www.epfl.ch/education/master/admission/excellence-fellowships/","host_university":"EPFL","university_url":"https://www.epfl.ch","description":"EPFL Excellence Fellowships for the top master's applicants — Europe's most innovative engineering university","competitiveness":{"label":"Very Competitive","acceptance_rate":0.05}}
+    ,{"id":"leiden_univ_scholarship","name":"Leiden University Excellence Scholarship","type":"scholarship","amount_usd":15000,"deadline":"2025-02-01","eligible_countries":["Global (non-EU)"],"degree_levels":["Graduate"],"field":"All fields — Law, Medicine, Humanities, Social Sciences, Science","gpa_min":3.5,"tags":["netherlands","leiden","excellence","law","medicine","humanities","social sciences","science","europe","prestigious","oldest dutch university"],"url":"https://www.universiteitleiden.nl/en/scholarships-and-grants/scholarship/leiden-university-excellence-scholarship","host_university":"Leiden University","university_url":"https://www.universiteitleiden.nl/en","description":"Leiden University Excellence Scholarships for top non-EU master's students — Netherlands' oldest university (1575)","competitiveness":{"label":"Very Competitive","acceptance_rate":0.08}}
+    ,{"id":"delft_scholarship","name":"TU Delft Holland Scholarship","type":"scholarship","amount_usd":12000,"deadline":"2025-02-01","eligible_countries":["Global (non-EU)"],"degree_levels":["Graduate"],"field":"Engineering, Architecture, Technology, Applied Sciences","gpa_min":3.3,"tags":["netherlands","tu delft","engineering","architecture","technology","applied sciences","europe","water management","aerospace","affordable"],"url":"https://www.tudelft.nl/en/education/practical-matters/scholarships","host_university":"TU Delft","university_url":"https://www.tudelft.nl/en","description":"TU Delft Holland Scholarships for non-EU engineering and technology master's students — world-leading in water management","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
 ]
 
 # Dynamic weight learning: updated from behavioral outcomes
@@ -3091,6 +3130,448 @@ async def interview_tips(scholarship_slug: str):
     # Match against known slugs
     matched = next((v for k,v in tips_db.items() if k in slug or slug in k), tips_db["general"])
     return matched
+
+
+# ── Developer API Key System ──────────────────────────────────
+class ApiKey(Base):
+    """Developer API keys for third-party integrations."""
+    __tablename__ = "api_keys"
+    id           = Column(String(32), primary_key=True)
+    user_id      = Column(String(32), ForeignKey("users.id"), nullable=False, index=True)
+    name         = Column(String(100), nullable=False)
+    key_hash     = Column(String(64), unique=True, nullable=False, index=True)
+    key_prefix   = Column(String(12), nullable=False)  # shown to user for identification
+    last_used_at = Column(DateTime, nullable=True)
+    requests_total = Column(Integer, default=0)
+    active       = Column(Boolean, default=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {"id":self.id,"name":self.name,"key_prefix":self.key_prefix,
+                "active":self.active,"requests_total":self.requests_total,
+                "last_used_at":self.last_used_at.isoformat() if self.last_used_at else None,
+                "created_at":self.created_at.isoformat() if self.created_at else None}
+
+
+@app.post("/api/developer/keys")
+async def create_api_key(req: dict, user: User = Depends(_get_user),
+                          db: Session = Depends(get_db)):
+    """Generate a new developer API key."""
+    import hashlib as _hl2, secrets as _sec2
+    name = _sanitise(req.get("name","Default Key"), 60)
+    existing = db.query(ApiKey).filter(ApiKey.user_id==user.id, ApiKey.active==True).count()
+    if existing >= 5:
+        raise HTTPException(400, "Maximum 5 active API keys per account")
+    raw = f"sb_{_sec2.token_urlsafe(32)}"
+    key_hash = _hl2.sha256(raw.encode()).hexdigest()
+    ak = ApiKey(
+        id=f"key_{uuid.uuid4().hex[:8]}",
+        user_id=user.id, name=name,
+        key_hash=key_hash,
+        key_prefix=raw[:12],
+    )
+    db.add(ak); db.commit()
+    return {**ak.to_dict(), "key": raw,
+            "message": "Copy this key — it will not be shown again"}
+
+
+@app.get("/api/developer/keys")
+async def list_api_keys(user: User = Depends(_get_user), db: Session = Depends(get_db)):
+    keys = db.query(ApiKey).filter(ApiKey.user_id==user.id).order_by(ApiKey.created_at.desc()).all()
+    return {"keys": [k.to_dict() for k in keys]}
+
+
+@app.delete("/api/developer/keys/{key_id}")
+async def revoke_api_key(key_id: str, user: User = Depends(_get_user),
+                          db: Session = Depends(get_db)):
+    ak = db.query(ApiKey).filter(ApiKey.id==key_id, ApiKey.user_id==user.id).first()
+    if not ak: raise HTTPException(404, "Key not found")
+    ak.active = False
+    db.commit()
+    return {"message": "API key revoked"}
+
+
+@app.get("/api/developer/docs")
+async def developer_docs():
+    """Public API documentation for ScholarBot developers."""
+    base = os.environ.get("BASE_URL","https://scholarbot-web.onrender.com")
+    return {
+        "version": "1.0",
+        "base_url": base,
+        "authentication": f"Header: X-API-Key: <your_key>",
+        "endpoints": [
+            {"method":"GET","path":"/api/scholarships","auth":"API Key","description":"List all scholarships"},
+            {"method":"GET","path":"/api/scholarships/search","auth":"API Key","description":"Search scholarships"},
+            {"method":"GET","path":"/api/scholarships/{id}/explain","auth":"API Key","description":"Get match explanation"},
+            {"method":"GET","path":"/api/opportunities","auth":"API Key","description":"All opportunity types"},
+            {"method":"GET","path":"/api/gpa/detect","auth":"API Key","description":"Detect GPA scale"},
+            {"method":"GET","path":"/api/i18n/{locale}","auth":"None","description":"Get UI translations"},
+        ],
+        "rate_limits": {"free":"100 req/day","pro":"1000 req/day","enterprise":"unlimited"},
+        "get_key_url": f"{base}/?page=profile",
+    }
+
+
+@app.patch("/api/account/anonymise")
+async def anonymise_account(user: User = Depends(_get_user),
+                             db: Session = Depends(get_db)):
+    """
+    Soft anonymisation — keeps aggregate data for analytics
+    but removes all PII. Lighter alternative to full deletion.
+    """
+    uid = user.id
+    user.name = f"Anonymous_{uid[-6:]}"
+    user.email = f"anon_{uid[-6:]}@deleted.scholarbot"
+    user.school = ""
+    user.major = ""
+    user.personal_statement = ""
+    user.skills = []
+    user.extracurriculars = []
+    user.demographic_tags = []
+    db.commit()
+    return {"message": "Account anonymised. Aggregate analytics data preserved."}
+
+
+# ── Two-Factor Authentication (TOTP) ─────────────────────────
+import hmac as _hmac, struct as _struct, hashlib as _hashlib, time as _time
+import base64 as _b64
+
+
+def _totp_generate(secret: str, digits: int = 6, period: int = 30) -> str:
+    """Generate a TOTP code from a base32 secret."""
+    try:
+        key = _b64.b32decode(secret.upper().replace(" ", ""))
+        counter = _struct.pack(">Q", int(_time.time()) // period)
+        mac = _hmac.new(key, counter, _hashlib.sha1).digest()
+        offset = mac[-1] & 0x0F
+        code = _struct.unpack(">I", mac[offset:offset+4])[0] & 0x7FFFFFFF
+        return str(code % (10 ** digits)).zfill(digits)
+    except Exception:
+        return ""
+
+
+def _totp_verify(secret: str, code: str, window: int = 1) -> bool:
+    """Verify a TOTP code within ±window periods."""
+    period = 30
+    ts = int(_time.time()) // period
+    for delta in range(-window, window + 1):
+        counter = _struct.pack(">Q", ts + delta)
+        try:
+            key = _b64.b32decode(secret.upper().replace(" ", ""))
+            mac = _hmac.new(key, counter, _hashlib.sha1).digest()
+            offset = mac[-1] & 0x0F
+            expected = _struct.unpack(">I", mac[offset:offset+4])[0] & 0x7FFFFFFF
+            if str(expected % 1000000).zfill(6) == str(code).strip():
+                return True
+        except Exception:
+            pass
+    return False
+
+
+@app.post("/api/auth/2fa/setup")
+async def setup_2fa(user: User = Depends(_get_user), db: Session = Depends(get_db)):
+    """Generate a TOTP secret for the user and return QR code URI."""
+    import secrets as _sec
+    # Generate random base32 secret
+    raw = _sec.token_bytes(20)
+    secret = _b64.b32encode(raw).decode().rstrip("=")
+    # Store in user record (add totp_secret column)
+    try:
+        db.execute(__import__("sqlalchemy").text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(64)"
+        ))
+        db.commit()
+    except Exception:
+        pass
+    u = db.query(User).filter(User.id == user.id).first()
+    if u:
+        u.totp_secret = secret  # type: ignore
+        db.commit()
+    issuer = "ScholarBot"
+    label  = f"{issuer}:{user.email}"
+    uri    = (f"otpauth://totp/{label}"
+              f"?secret={secret}&issuer={issuer}&algorithm=SHA1&digits=6&period=30")
+    return {
+        "secret":   secret,
+        "qr_uri":   uri,
+        "message":  "Scan the QR code with Google Authenticator or Authy. "
+                    "Then verify with /api/auth/2fa/verify to activate.",
+    }
+
+
+@app.post("/api/auth/2fa/verify")
+async def verify_2fa(req: dict, user: User = Depends(_get_user),
+                      db: Session = Depends(get_db)):
+    """Activate 2FA by verifying the first TOTP code."""
+    code   = str(req.get("code", "")).strip()
+    secret = getattr(user, "totp_secret", None) or ""
+    if not secret:
+        raise HTTPException(400, "2FA not set up. Call /api/auth/2fa/setup first")
+    if not _totp_verify(secret, code):
+        raise HTTPException(400, "Invalid code — check your authenticator app time sync")
+    return {"message": "2FA verified and activated on your account",
+            "active": True}
+
+
+@app.post("/api/auth/2fa/validate")
+async def validate_2fa_code(req: dict, db: Session = Depends(get_db)):
+    """Validate a TOTP code during login (call after password check)."""
+    user_id = req.get("user_id", "")
+    code    = str(req.get("code", "")).strip()
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(404, "User not found")
+    secret = getattr(u, "totp_secret", None) or ""
+    if not secret:
+        return {"valid": True, "message": "2FA not enabled"}
+    if not _totp_verify(secret, code):
+        raise HTTPException(401, "Invalid 2FA code")
+    return {"valid": True, "message": "2FA verified"}
+
+
+@app.delete("/api/auth/2fa/disable")
+async def disable_2fa(user: User = Depends(_get_user), db: Session = Depends(get_db)):
+    """Disable 2FA for the user account."""
+    u = db.query(User).filter(User.id == user.id).first()
+    if u and hasattr(u, "totp_secret"):
+        u.totp_secret = None  # type: ignore
+        db.commit()
+    return {"message": "2FA disabled on your account"}
+
+
+@app.get("/api/pipeline/export.csv")
+async def export_pipeline_csv(user: User = Depends(_get_user),
+                               db: Session = Depends(get_db)):
+    """Export full pipeline as CSV for offline tracking."""
+    import csv, io
+    apps = db.query(Application).filter(
+        Application.user_id == user.id
+    ).order_by(Application.created_at.desc()).all()
+
+    buf = io.StringIO()
+    w   = csv.writer(buf)
+    w.writerow(["Scholarship", "Type", "Amount (USD)", "Stage",
+                "Deadline", "Days Left", "URL", "Notes", "Added"])
+    for a in apps:
+        w.writerow([
+            a.scholarship_name or "",
+            a.opportunity_type or "scholarship",
+            a.amount_usd or "",
+            a.stage or "",
+            a.deadline or "",
+            _days_until(a.deadline) if a.deadline else "",
+            a.url or "",
+            (a.notes or "").replace("\n", " "),
+            a.created_at.strftime("%Y-%m-%d") if a.created_at else "",
+        ])
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition":
+                 f"attachment; filename=scholarbot_pipeline_{user.id[:8]}.csv"},
+    )
+
+
+@app.get("/api/account/export.json")
+async def export_account_json(user: User = Depends(_get_user),
+                               db: Session = Depends(get_db)):
+    """Full GDPR-compliant data export as JSON."""
+    apps  = db.query(Application).filter(Application.user_id == user.id).all()
+    pkgs  = db.query(Package).filter(Package.user_id == user.id).all()
+    evts  = db.query(UserEvent).filter(UserEvent.user_id == user.id).all()
+    return {
+        "exported_at": datetime.utcnow().isoformat(),
+        "profile":     user.to_dict(),
+        "applications": [a.to_dict() for a in apps],
+        "packages":    [p.to_dict() for p in pkgs],
+        "events":      [{"type": e.event_type, "opp": e.opp_name,
+                         "at": e.created_at.isoformat() if e.created_at else None}
+                        for e in evts],
+    }
+
+
+# ── Admin Panel ───────────────────────────────────────────────
+def _require_admin(user: User = Depends(_get_user)):
+    """Require admin role — currently checks for special email domain."""
+    admin_emails = os.environ.get("ADMIN_EMAILS", "").split(",")
+    is_admin = (user.email in admin_emails or
+                user.email.endswith("@scholarbot.app") or
+                user.plan == "enterprise")
+    if not is_admin:
+        raise HTTPException(403, "Admin access required")
+    return user
+
+
+@app.get("/api/admin/stats")
+async def admin_stats(user: User = Depends(_require_admin),
+                       db: Session = Depends(get_db)):
+    """Full platform statistics for admin dashboard."""
+    from sqlalchemy import func
+    return {
+        "users": {
+            "total":      db.query(User).count(),
+            "verified":   db.query(User).filter(User.email_verified == True).count(),
+            "this_week":  db.query(User).filter(
+                User.created_at >= datetime.utcnow() - timedelta(days=7)
+            ).count(),
+            "free":       db.query(User).filter(User.plan == "free").count(),
+            "pro":        db.query(User).filter(User.plan == "pro").count(),
+            "enterprise": db.query(User).filter(User.plan == "enterprise").count(),
+        },
+        "applications": {
+            "total":     db.query(Application).count(),
+            "submitted": db.query(Application).filter(Application.stage=="submitted").count(),
+            "won":       db.query(Application).filter(Application.stage=="won").count(),
+            "total_won_usd": db.query(
+                func.sum(Application.amount_usd)
+            ).filter(Application.stage=="won").scalar() or 0,
+        },
+        "packages": {
+            "total":        db.query(Package).count(),
+            "with_essays":  db.query(Package).filter(Package.essay_text != None).count(),
+        },
+        "expert_reviews": {
+            "pending":   db.query(ExpertReview).filter(ExpertReview.status=="pending").count(),
+            "completed": db.query(ExpertReview).filter(ExpertReview.status=="completed").count(),
+        },
+        "opportunities": {
+            "total": 87 + len(EXTRA_OPPORTUNITIES),
+        },
+        "platform": {
+            "dynamic_weights":  {k:v for k,v in _DYNAMIC_WEIGHTS.items()
+                                  if k != "_last_updated"},
+            "active_experiments": list(ACTIVE_EXPERIMENTS.keys()),
+        },
+    }
+
+
+@app.get("/api/admin/users")
+async def admin_users(skip: int = 0, limit: int = 50,
+                       user: User = Depends(_require_admin),
+                       db: Session = Depends(get_db)):
+    """List users for admin — no passwords exposed."""
+    users = db.query(User).order_by(User.created_at.desc()).offset(skip).limit(limit).all()
+    total = db.query(User).count()
+    return {
+        "users": [{
+            "id": u.id, "name": u.name, "email": u.email,
+            "plan": u.plan, "email_verified": u.email_verified,
+            "nationality": u.nationality, "degree_level": u.degree_level,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+        } for u in users],
+        "total": total, "skip": skip, "limit": limit,
+    }
+
+
+@app.patch("/api/admin/users/{uid}/plan")
+async def admin_set_plan(uid: str, req: dict,
+                          admin: User = Depends(_require_admin),
+                          db: Session = Depends(get_db)):
+    """Manually set a user's plan (for manual upgrades / comps)."""
+    u = db.query(User).filter(User.id == uid).first()
+    if not u: raise HTTPException(404, "User not found")
+    new_plan = req.get("plan", "free")
+    if new_plan not in ("free", "pro", "enterprise", "partner"):
+        raise HTTPException(400, "Invalid plan")
+    u.plan = new_plan
+    db.commit()
+    return {"message": f"User {u.email} upgraded to {new_plan}", "plan": new_plan}
+
+
+@app.post("/api/admin/scrape-opportunity")
+async def submit_opportunity(req: dict,
+                              user: User = Depends(_get_user),
+                              db: Session = Depends(get_db)):
+    """Community scholarship submission — queued for admin review."""
+    name   = _sanitise(req.get("name",""), 200)
+    url    = _sanitise(req.get("url",""), 300)
+    amount = req.get("amount_usd", 0)
+    if not name or not url:
+        raise HTTPException(400, "name and url are required")
+    _log_event(db, user.id, "scholarship_submitted", None, name,
+               {"url": url, "amount": amount, "field": req.get("field",""),
+                "submitter": user.email})
+    return {
+        "message": "Thank you! Your submission has been logged for review.",
+        "name": name, "status": "pending_review",
+    }
+
+
+@app.post("/api/auth/resend-verification")
+async def resend_verification(user: User = Depends(_get_user),
+                               db: Session = Depends(get_db)):
+    """Resend email verification link to current user."""
+    if getattr(user, "email_verified", False):
+        return {"message": "Email already verified"}
+    import secrets as _sec2, hashlib as _hl5, requests as _rq3
+    sender_key = os.environ.get("SENDER_API_KEY","")
+    if not sender_key:
+        raise HTTPException(503, "Email service not configured")
+    raw_tok = _sec2.token_urlsafe(32)
+    t_hash  = _hl5.sha256(raw_tok.encode()).hexdigest()
+    _reset_tokens[f"verify_{t_hash}"] = {
+        "user_id": user.id, "used": False,
+        "expires_at": datetime.utcnow() + timedelta(days=7),
+    }
+    base = os.environ.get("BASE_URL","https://scholarbot-web.onrender.com")
+    from_e = os.environ.get("FROM_EMAIL","noreply@scholarbot.app")
+    link  = f"{base}/api/auth/verify-email?token={raw_tok}"
+    html  = (f"<p>Hi {user.name},</p>"
+             f"<p><a href='{link}' style='background:#2563eb;color:#fff;"
+             f"padding:12px 24px;border-radius:6px;text-decoration:none;"
+             f"display:inline-block'>Verify my email</a></p>"
+             f"<p style='font-size:12px;color:#888'>Expires in 7 days.</p>")
+    _rq3.post("https://api.sender.net/v2/message/send",
+        headers={"Authorization":f"Bearer {sender_key}","Content-Type":"application/json"},
+        json={"from":{"email":from_e,"name":"ScholarBot"},
+              "to":{"email":user.email,"name":user.name},
+              "subject":"Verify your ScholarBot email","html":html},
+        timeout=10)
+    return {"message": "Verification email sent. Check your inbox."}
+
+
+@app.post("/api/pledge")
+async def sign_pledge(req: dict, request: Request,
+                       user: User = Depends(_get_user),
+                       db: Session = Depends(get_db)):
+    """
+    Scholar's Pledge — user agrees to use AI essays ethically.
+    Recorded with IP + timestamp for audit trail.
+    Displayed on packages page before first essay generation.
+    """
+    agreed = bool(req.get("agreed", False))
+    if not agreed:
+        raise HTTPException(400, "You must agree to the Scholar's Pledge to generate essays")
+    import hashlib as _ph
+    ip   = request.client.host if request.client else "unknown"
+    ua   = request.headers.get("user-agent","")[:200]
+    body = f"{user.id}|{user.email}|{datetime.utcnow().isoformat()}|agreed"
+    ph   = _ph.sha256(body.encode()).hexdigest()
+    _log_event(db, user.id, "pledge_signed", None, None,
+               {"ip": ip, "user_agent": ua[:100], "hash": ph[:16]})
+    return {
+        "message": "Scholar's Pledge signed. You may now generate AI essays.",
+        "pledge_hash": ph[:16],
+        "signed_at": datetime.utcnow().isoformat(),
+        "reminder": ("AI essays are starting points. You must personalise them "
+                     "before submission. Taking credit for purely AI-written work "
+                     "may constitute academic dishonesty."),
+    }
+
+
+@app.get("/api/pledge/status")
+async def pledge_status(user: User = Depends(_get_user),
+                         db: Session = Depends(get_db)):
+    """Check if user has signed the Scholar's Pledge."""
+    signed = db.query(UserEvent).filter(
+        UserEvent.user_id == user.id,
+        UserEvent.event_type == "pledge_signed",
+    ).first()
+    return {
+        "signed": bool(signed),
+        "signed_at": signed.created_at.isoformat() if signed and signed.created_at else None,
+    }
 
 @app.get("/", response_class=HTMLResponse)
 async def spa():
