@@ -762,6 +762,39 @@ EXTRA_OPPORTUNITIES = [
     {"id":"commonwealth_split","name":"Commonwealth Split-Site Scholarship","type":"scholarship","amount_usd":25000,"deadline":"2025-11-19","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Zambia","India","Pakistan","Sri Lanka"],"degree_levels":["Postgraduate"],"field":"All fields","gpa_min":3.0,"tags":["commonwealth","research","phd","split site"],"url":"https://cscuk.fcdo.gov.uk/scholarships/commonwealth-split-site-scholarships/","description":"PhD students spend up to 12 months at a UK university alongside home study","competitiveness":{"label":"Competitive","acceptance_rate":0.15}},
     {"id":"african_dev_bank_sc","name":"African Development Bank Scholarship","type":"scholarship","amount_usd":30000,"deadline":"2025-03-15","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Egypt","Morocco","South Africa"],"degree_levels":["Graduate"],"field":"Economics, Development, Finance","gpa_min":3.2,"tags":["economics","finance","development","africa","policy"],"url":"https://www.afdb.org/en/topics-and-sectors/initiatives-partnerships/african-development-bank-scholarship-program","description":"For African professionals in development-related postgraduate studies","competitiveness":{"label":"Very Competitive","acceptance_rate":0.08}},
     {"id":"soros_osi","name":"Open Society Foundations Scholarship","type":"scholarship","amount_usd":20000,"deadline":"2025-02-28","eligible_countries":["Kenya","Nigeria","Ghana","Uganda","Tanzania","South Africa","Zimbabwe","Zambia","Mozambique"],"degree_levels":["Graduate"],"field":"Law, Human Rights, Social Science, Media","gpa_min":3.0,"tags":["human rights","law","media","social justice","democracy"],"url":"https://www.opensocietyfoundations.org/grants/higher-education-support-program","description":"Supporting academics advancing open society values","competitiveness":{"label":"Competitive","acceptance_rate":0.10}},
+    # ── Arts & Humanities ────────────────────────────────────
+    {"id":"prince_claus_arts","name":"Prince Claus Fund Cultural Grant","type":"grant","amount_usd":10000,"deadline":"2025-06-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Senegal","Morocco","Egypt"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Arts, Culture, Heritage, Creative Industries","gpa_min":0,"tags":["arts","culture","heritage","creative","humanities"],"url":"https://www.princeclausfund.org/","description":"Grants for artists and cultural practitioners from Africa and Asia","competitiveness":{"label":"Moderate","acceptance_rate":0.15}},
+    {"id":"fulbright_arts_fellow","name":"Fulbright Creative Arts Fellowship","type":"fellowship","amount_usd":35000,"deadline":"2025-10-15","eligible_countries":["Global"],"degree_levels":["Graduate","Postgraduate"],"field":"Visual Arts, Music, Film, Creative Writing, Humanities","gpa_min":3.0,"tags":["fulbright","arts","music","film","creative writing","usa","humanities"],"url":"https://foreign.fulbrightonline.org/","description":"Fulbright fellowships for creative artists to pursue advanced study in the USA","competitiveness":{"label":"Very Competitive","acceptance_rate":0.07}},
+    # ── Education ────────────────────────────────────────────
+    {"id":"aga_khan_education","name":"Aga Khan Education Services Scholarship","type":"scholarship","amount_usd":15000,"deadline":"2025-04-30","eligible_countries":["Kenya","Tanzania","Uganda","India","Pakistan","Bangladesh","Afghanistan","Mozambique"],"degree_levels":["Undergraduate","Graduate"],"field":"Education, Teaching, Curriculum Development, Early Childhood","gpa_min":3.0,"tags":["education","aga khan","teaching","curriculum","developing countries"],"url":"https://www.akes.org/","description":"Scholarships for students committed to careers in education in AKDN countries","competitiveness":{"label":"Competitive","acceptance_rate":0.12}},
+    {"id":"hgse_int_fellowship","name":"Harvard Education Fellowship (International)","type":"fellowship","amount_usd":55000,"deadline":"2025-01-02","eligible_countries":["Global"],"degree_levels":["Graduate"],"field":"Education Policy, Educational Leadership, International Education","gpa_min":3.5,"tags":["harvard","education","policy","leadership","hgse"],"url":"https://www.gse.harvard.edu/financial-aid","description":"Need-based and merit fellowships for international students at Harvard Graduate School of Education","competitiveness":{"label":"Extremely Competitive","acceptance_rate":0.04}},
+    # ── Architecture & Urban Design ───────────────────────────
+    {"id":"riba_foster_scholarship","name":"RIBA Norman Foster Scholarship","type":"scholarship","amount_usd":16000,"deadline":"2025-11-01","eligible_countries":["Global"],"degree_levels":["Graduate","Postgraduate"],"field":"Architecture, Sustainable Design, Urban Planning, Interior Design","gpa_min":3.3,"tags":["architecture","riba","design","norman foster","sustainable","urban"],"url":"https://www.riba.org/education-and-careers/scholarships/","description":"RIBA scholarship for outstanding architecture students with focus on sustainable design","competitiveness":{"label":"Very Competitive","acceptance_rate":0.06}},
+    {"id":"unhabitat_youth","name":"UN-Habitat Urban Youth Innovation Grant","type":"grant","amount_usd":20000,"deadline":"2025-07-15","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Egypt","Bangladesh","India","Indonesia","Philippines"],"degree_levels":["Undergraduate","Graduate"],"field":"Urban Planning, Architecture, Sustainable Cities, Real Estate","gpa_min":0,"tags":["urban","planning","cities","architecture","habitat","sustainable"],"url":"https://unhabitat.org/youth","description":"UN-Habitat grants for young urban innovators in developing countries","competitiveness":{"label":"Competitive","acceptance_rate":0.10}},
+    # ── Psychology & Mental Health ─────────────────────────────
+    {"id":"who_mental_health_grant","name":"WHO Mental Health Research Grant","type":"grant","amount_usd":25000,"deadline":"2025-06-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","India","Pakistan","Bangladesh"],"degree_levels":["Graduate","Postgraduate"],"field":"Psychology, Psychiatry, Mental Health, Counseling, Behavioral Science","gpa_min":3.2,"tags":["who","mental health","psychiatry","psychology","research","counseling"],"url":"https://www.who.int/activities/improving-mental-health","description":"WHO research grants for mental health innovations in low and middle-income countries","competitiveness":{"label":"Competitive","acceptance_rate":0.10}},
+    # ── Philosophy & Ethics ───────────────────────────────────
+    {"id":"templeton_philo_grant","name":"John Templeton Foundation Philosophy Grant","type":"grant","amount_usd":50000,"deadline":"2025-04-01","eligible_countries":["Global"],"degree_levels":["Postgraduate"],"field":"Philosophy, Ethics, Theology, Religious Studies, Metaphysics","gpa_min":3.5,"tags":["philosophy","ethics","religion","templeton","theology","consciousness"],"url":"https://www.templeton.org/grants","description":"Research grants at the intersection of science, religion, and philosophy","competitiveness":{"label":"Very Competitive","acceptance_rate":0.06}},
+    # ── Mathematics & Statistics ──────────────────────────────
+    {"id":"ictp_maths_diploma","name":"ICTP Postgraduate Diploma Programme (Mathematics)","type":"scholarship","amount_usd":18000,"deadline":"2025-01-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Senegal","Cameroon","Bangladesh","Pakistan","Nepal","Vietnam","Indonesia"],"degree_levels":["Graduate"],"field":"Mathematics, Statistics, Mathematical Physics, Computational Science","gpa_min":3.3,"tags":["mathematics","statistics","physics","ictp","italy","computational","theoretical"],"url":"https://www.ictp.it/","description":"ICTP one-year postgraduate diplomas in mathematics and physics for developing country students","competitiveness":{"label":"Competitive","acceptance_rate":0.12}},
+    # ── Journalism & Media ────────────────────────────────────
+    {"id":"reuters_journalist_fellow","name":"Reuters Institute Journalist Fellowship (Oxford)","type":"fellowship","amount_usd":22000,"deadline":"2025-02-28","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","South Africa","Egypt","Morocco","Senegal","Ethiopia"],"degree_levels":["Graduate"],"field":"Journalism, Media Studies, Communications, Broadcasting, Digital Media","gpa_min":0,"tags":["journalism","media","reuters","oxford","digital","reporting","broadcasting"],"url":"https://reutersinstitute.politics.ox.ac.uk/journalist-fellowships","description":"Oxford-based fellowship for mid-career journalists researching digital media and journalism innovation","competitiveness":{"label":"Very Competitive","acceptance_rate":0.07}},
+    # ── Nursing & Allied Health ───────────────────────────────
+    {"id":"johnson_nursing_scholarship","name":"Johnson and Johnson Nursing Scholarship","type":"scholarship","amount_usd":10000,"deadline":"2025-07-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","South Africa","India","Pakistan","Bangladesh","Philippines","Indonesia"],"degree_levels":["Undergraduate","Graduate"],"field":"Nursing, Midwifery, Allied Health Sciences, Physiotherapy, Occupational Therapy","gpa_min":3.0,"tags":["nursing","midwifery","allied health","healthcare","clinical","women"],"url":"https://nursing.jnj.com/","description":"Scholarships for nursing and allied health students committed to improving developing country healthcare","competitiveness":{"label":"Moderate","acceptance_rate":0.18}},
+    # ── Social Work ───────────────────────────────────────────
+    {"id":"iassw_social_sch","name":"IASSW International Social Work Scholarship","type":"scholarship","amount_usd":5000,"deadline":"2025-08-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Bangladesh","India","Pakistan","Nepal","Sri Lanka"],"degree_levels":["Graduate"],"field":"Social Work, Community Development, Child Welfare, Youth Work, Disability Studies","gpa_min":2.8,"tags":["social work","community","child welfare","development","human services","disability"],"url":"https://www.iassw-aiets.org/scholarships/","description":"IASSW scholarships for social work students from developing countries","competitiveness":{"label":"Moderate","acceptance_rate":0.18}},
+    # ── Accounting & Finance ──────────────────────────────────
+    {"id":"acca_access_sch","name":"ACCA Access Scholarship","type":"scholarship","amount_usd":6000,"deadline":"2025-10-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Zimbabwe","Zambia","Senegal","Cameroon","Bangladesh","Pakistan","Sri Lanka"],"degree_levels":["Undergraduate","Graduate"],"field":"Accounting, Finance, Auditing, Taxation, Financial Management","gpa_min":3.0,"tags":["accounting","finance","acca","audit","taxation","professional"],"url":"https://www.accaglobal.com/gb/en/student/exam-support-resources/scholarships.html","description":"ACCA scholarships for internationally recognised accounting qualifications from developing countries","competitiveness":{"label":"Competitive","acceptance_rate":0.14}},
+    # ── Agriculture & Food Science ────────────────────────────
+    {"id":"cgiar_young_sci","name":"CGIAR Research Fellowship for Young Scientists","type":"fellowship","amount_usd":20000,"deadline":"2025-06-15","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Senegal","Bangladesh","India","Pakistan","Vietnam","Philippines","Indonesia"],"degree_levels":["Graduate","Postgraduate"],"field":"Agriculture, Food Science, Plant Science, Soil Science, Agronomy, Agroforestry","gpa_min":3.2,"tags":["agriculture","food","plant","soil","cgiar","research","food security"],"url":"https://www.cgiar.org/","description":"CGIAR fellowships for young agricultural scientists addressing global food security challenges","competitiveness":{"label":"Competitive","acceptance_rate":0.10}},
+    # ── Sports Science ────────────────────────────────────────
+    {"id":"olympic_solidarity_s","name":"Olympic Solidarity Scholarship","type":"scholarship","amount_usd":8000,"deadline":"2025-11-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Senegal","Morocco","Egypt","Bangladesh","India","Pakistan"],"degree_levels":["Undergraduate","Graduate"],"field":"Sports Science, Physical Education, Sports Management, Coaching, Athletic Training","gpa_min":2.5,"tags":["sports","olympic","physical education","coaching","athlete","solidarity","performance"],"url":"https://www.olympic.org/olympic-solidarity","description":"IOC Olympic Solidarity scholarships for student-athletes and sports science students from developing nations","competitiveness":{"label":"Moderate","acceptance_rate":0.20}},
+    # ── Tourism & Hospitality ─────────────────────────────────
+    {"id":"unwto_themis_s","name":"UNWTO Themis Foundation Scholarship","type":"scholarship","amount_usd":8000,"deadline":"2025-05-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Morocco","Egypt","Bangladesh","India","Sri Lanka","Nepal","Indonesia"],"degree_levels":["Undergraduate","Graduate"],"field":"Tourism, Hospitality, Hotel Management, Event Management, Ecotourism","gpa_min":2.8,"tags":["tourism","hospitality","hotel","ecotourism","event management","sustainable"],"url":"https://themis.unwto.org/","description":"UNWTO scholarships for tourism students committed to sustainable tourism development","competitiveness":{"label":"Moderate","acceptance_rate":0.20}},
+    # ── Pharmacy ─────────────────────────────────────────────
+    {"id":"usp_pharma_fellow","name":"USP International Graduate Fellowship (Pharmacy)","type":"fellowship","amount_usd":25000,"deadline":"2025-03-15","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","South Africa","India","Bangladesh","Pakistan","Philippines","Indonesia"],"degree_levels":["Graduate","Postgraduate"],"field":"Pharmacy, Pharmaceutical Sciences, Drug Development, Clinical Pharmacy","gpa_min":3.3,"tags":["pharmacy","pharmaceutical","drug","research","clinical","medicine","quality"],"url":"https://www.usp.org/about/scholarships","description":"US Pharmacopeia fellowships for international graduate students in pharmaceutical sciences","competitiveness":{"label":"Competitive","acceptance_rate":0.10}},
+    # ── Veterinary Science ────────────────────────────────────
+    {"id":"woah_vet_education","name":"WOAH Veterinary Education Scholarship","type":"scholarship","amount_usd":12000,"deadline":"2025-09-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Senegal","Cameroon","Mozambique","Zimbabwe"],"degree_levels":["Undergraduate","Graduate"],"field":"Veterinary Science, Animal Health, Zoonotic Diseases, One Health, Wildlife Conservation","gpa_min":3.0,"tags":["veterinary","animal health","zoonotic","one health","africa","wildlife"],"url":"https://www.woah.org/en/capacity-building/scholarships/","description":"World Organisation for Animal Health scholarships for African students in veterinary sciences","competitiveness":{"label":"Moderate","acceptance_rate":0.15}}
 ]
 
 def _match_opps(profile, opp_type=None, field=None, region=None, min_amount=0):
@@ -1115,6 +1148,114 @@ async def recommended_scholarships(user: User = Depends(_get_user),
         "similar_users_found": len(similar_ids),
         "based_on_events": len(events),
     }
+
+
+@app.get("/api/scholarships/search")
+async def search_scholarships(
+    q: str = "",
+    degree_level: str = "",
+    field: str = "",
+    country: str = "",
+    min_amount: float = 0,
+    max_amount: float = 0,
+    opp_type: str = "",
+    db: Session = Depends(get_db),
+):
+    """
+    Full-text search across all 120+ opportunities.
+    Searches name, description, field, tags, and eligible countries.
+    """
+    from engine.opportunity_db import load_all_opportunities
+    base = load_all_opportunities()
+    ext_ids = {o.get("id") for o in base}
+    all_opps = base + [o for o in EXTRA_OPPORTUNITIES if o.get("id") not in ext_ids]
+
+    q_lower = q.lower().strip()
+
+    def score_opp(o):
+        if not q_lower:
+            return 1.0
+        name = (o.get("name","") or "").lower()
+        desc = (o.get("description","") or "").lower()
+        field_str = (o.get("field","") or "").lower()
+        tags = " ".join(o.get("tags") or []).lower()
+        countries = " ".join(o.get("eligible_countries") or []).lower()
+        combined = f"{name} {desc} {field_str} {tags} {countries}"
+        # Exact name match = highest score
+        if q_lower in name: return 1.0
+        # Field match
+        if q_lower in field_str: return 0.9
+        # Tag match
+        if q_lower in tags: return 0.8
+        # Description match
+        if q_lower in desc: return 0.6
+        # Partial word match
+        words = q_lower.split()
+        hits = sum(1 for w in words if w in combined and len(w) > 2)
+        return hits / max(len(words), 1) * 0.5
+
+    results = []
+    for o in all_opps:
+        # Apply filters
+        if degree_level and degree_level.lower() not in                 [d.lower() for d in (o.get("degree_levels") or [])]:
+            continue
+        if field and field.lower() not in (o.get("field","") or "").lower():
+            continue
+        if country and country.lower() not in                 [c.lower() for c in (o.get("eligible_countries") or [])]:
+            if "global" not in " ".join(o.get("eligible_countries") or []).lower():
+                continue
+        if opp_type and o.get("type","").lower() != opp_type.lower():
+            continue
+        amt = float(o.get("amount_usd") or 0)
+        if min_amount and amt < min_amount:
+            continue
+        if max_amount and amt > max_amount:
+            continue
+        sc = score_opp(o)
+        if q_lower and sc == 0:
+            continue
+        results.append({**o, "_search_score": sc})
+
+    results.sort(key=lambda x: x["_search_score"], reverse=True)
+    return {
+        "results": results[:50],
+        "total": len(results),
+        "query": q,
+        "filters": {"degree_level": degree_level, "field": field,
+                    "country": country, "opp_type": opp_type},
+    }
+
+
+@app.post("/api/scholarships/{sid}/bookmark")
+async def bookmark_scholarship(sid: str, user: User = Depends(_get_user),
+                                db: Session = Depends(get_db)):
+    """Quick save a scholarship without adding to pipeline."""
+    from engine.opportunity_db import load_all_opportunities
+    all_opps = load_all_opportunities() + EXTRA_OPPORTUNITIES
+    opp = next((o for o in all_opps if o.get("id") == sid), None)
+    if not opp:
+        raise HTTPException(404, "Scholarship not found")
+    # Add to pipeline at 'researching' stage if not already there
+    existing = db.query(Application).filter(
+        Application.user_id == user.id,
+        Application.opportunity_id == sid,
+    ).first()
+    if existing:
+        return {"message": "Already in your pipeline", "id": existing.id}
+    a = Application(
+        id=f"app_{uuid.uuid4().hex[:8]}",
+        user_id=user.id,
+        opportunity_id=sid,
+        scholarship_name=opp.get("name",""),
+        opportunity_type=opp.get("type","scholarship"),
+        amount_usd=float(opp.get("amount_usd",0)),
+        deadline=opp.get("deadline",""),
+        url=opp.get("url",""),
+        stage="researching",
+    )
+    db.add(a); db.commit()
+    _log_event(db, user.id, "pipeline_add", sid, opp.get("name",""))
+    return {"message": "Saved to your pipeline", "id": a.id, "stage": "researching"}
 
 # ── Pipeline ──────────────────────────────────────────────────
 VALID_STAGES = {"researching","essay_ready","submitted","awaiting","won","rejected"}
