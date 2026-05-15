@@ -853,37 +853,27 @@ function DashboardPage(props) {
 
 function ScholarshipsPage(props) {
   const user = props.user;
-  const go = props.go;
-  const [list, setList] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('all');
-  const [field, setField] = useState('');
-  const [region, setRegion] = useState('');
-  const [searchQ, setSearchQ] = useState('');
+  const go   = props.go;
+  const [list, setList]           = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [tab, setTab]             = useState('all');
+  const [field, setField]         = useState('');
+  const [region, setRegion]       = useState('');
+  const [searchQ, setSearchQ]     = useState('');
   const [searchResults, setSearchResults] = useState(null);
+  const [selected, setSelected]   = useState(null);
+  const [adding, setAdding]       = useState(null);
+  const [explaining, setExplaining] = useState(null);
+  const [explanation, setExplanation] = useState(null);
 
   function doSearch(q) {
-    setSearchQ(q);
-    if (!q.trim()) { setSearchResults(null); return; }
-    const params = new URLSearchParams({q});
-    if (field) params.set('field', field);
-    fetch('/api/scholarships/search?' + params.toString())
+    const query = (q !== undefined ? q : searchQ);
+    setSearchQ(query);
+    if (!query.trim()) { setSearchResults(null); return; }
+    fetch('/api/scholarships/search?q=' + encodeURIComponent(query) + (field ? '&field=' + encodeURIComponent(field) : ''))
       .then(function(r){return r.json();})
       .then(function(d){setSearchResults(d.results||[]);})
       .catch(function(){});
-  }
-  const [selected, setSelected] = useState(null);
-  const [adding, setAdding] = useState(null);
-  const [explaining, setExplaining] = useState(null);
-  const [explanation, setExplanation] = useState(null);
-  const [searchQ, setSearchQ] = useState('');
-  const [searchResults, setSearchResults] = useState(null);
-
-  function doSearch() {
-    if (!searchQ.trim()) { setSearchResults(null); return; }
-    api('GET','/scholarships/search?q='+encodeURIComponent(searchQ))
-      .then(function(d){setSearchResults(d.results||[]);})
-      .catch(function(e){toast(e.message,'error');});
   }
 
   function load() {
@@ -894,10 +884,7 @@ function ScholarshipsPage(props) {
     if (field) params.set('field', field);
     if (region) params.set('region', region);
     api('GET', ep + '?' + params.toString())
-      .then(function(r) {
-        setList(r.scholarships || r.opportunities || []);
-        setLoading(false);
-      })
+      .then(function(r) { setList(r.scholarships || r.opportunities || []); setLoading(false); })
       .catch(function() { setLoading(false); });
   }
 
@@ -907,21 +894,11 @@ function ScholarshipsPage(props) {
     if (!user) { go('register'); return; }
     setAdding(s.id);
     api('POST', '/pipeline/add', {
-      scholarship_id: s.id,
-      scholarship_name: s.name,
-      amount_usd: s.amount_usd,
-      deadline: s.deadline,
-      url: s.url,
-      stage: 'researching'
+      scholarship_id: s.id, scholarship_name: s.name,
+      amount_usd: s.amount_usd, deadline: s.deadline, url: s.url, stage: 'researching'
     })
-      .then(function() {
-        toast('Added to pipeline', 'success');
-        setAdding(null);
-      })
-      .catch(function(e) {
-        toast(e.message, 'error');
-        setAdding(null);
-      });
+      .then(function() { toast('Added to pipeline', 'success'); setAdding(null); })
+      .catch(function(e) { toast(e.message, 'error'); setAdding(null); });
   }
 
   const displaySource = searchResults !== null ? searchResults : list;
@@ -933,16 +910,24 @@ function ScholarshipsPage(props) {
   return (
     <div className="page pb-safe">
       <h2 className="section-title">Scholarships</h2>
-      <div style={{display:'flex',gap:8,marginBottom:'1rem',flexWrap:'wrap'}}>
-        <input className="form-control" placeholder="Search scholarships, countries, fields..."
-          style={{flex:1,minWidth:200}}
-          value={searchQ} onChange={function(e){setSearchQ(e.target.value);}}
-          onKeyDown={function(e){if(e.key==='Enter')doSearch();}}/>
-        <button className="btn btn-primary" onClick={doSearch}
-          style={{whiteSpace:'nowrap'}}>Search</button>
-        {searchQ&&<button className="btn btn-outline" onClick={function(){
-          setSearchQ('');setSearchResults(null);}}>Clear</button>}
+
+      <div style={{marginBottom:'0.75rem'}}>
+        <div style={{display:'flex',gap:8}}>
+          <input className="form-control" placeholder="🔍 Search any discipline, country, keyword..."
+            value={searchQ} onChange={function(e){doSearch(e.target.value);}}
+            style={{flex:1,fontSize:14}}
+            onKeyDown={function(e){if(e.key==='Enter')doSearch();}}/>
+          {searchQ && (
+            <button className="btn btn-outline" onClick={function(){setSearchQ('');setSearchResults(null);}}>✕</button>
+          )}
+        </div>
+        {searchResults!==null&&(
+          <div style={{fontSize:11,color:'#888',marginTop:3}}>
+            {searchResults.length} result{searchResults.length!==1?'s':''} for "{searchQ}"
+          </div>
+        )}
       </div>
+
       <p className="section-sub">
         {user ? 'Matched and ranked for your profile' : 'All verified direct-portal scholarships — no aggregators'}
       </p>
@@ -958,25 +943,19 @@ function ScholarshipsPage(props) {
         })}
       </div>
 
-      <div style={{marginBottom:'0.75rem'}}>
-        <input className="form-control" placeholder="🔍 Search any discipline, country, or keyword..."
-          value={searchQ} onChange={function(e){doSearch(e.target.value);}} style={{fontSize:14}}/>
-        {searchResults!==null&&<div style={{fontSize:11,color:'#888',marginTop:3}}>
-          {searchResults.length} result{searchResults.length!==1?'s':''} for "{searchQ}"
-          <span style={{color:'#2563eb',cursor:'pointer',marginLeft:8}}
-            onClick={function(){setSearchQ('');setSearchResults(null);}}>✕ Clear</span>
-        </div>}
-      </div>
       <div style={{display:'flex',gap:8,marginBottom:'1.25rem',flexWrap:'wrap'}}>
         <select value={field} onChange={function(e) { setField(e.target.value); }} style={{flex:1,minWidth:140}}>
           <option value="">All fields</option>
-          {['Computer Science','Information Technology','Cybersecurity','AI / Machine Learning','Data Science','Software Engineering'].map(function(f) {
+          {['Arts & Humanities','Architecture','Agriculture','Business','Computer Science','Economics',
+            'Education','Engineering','Environment','Finance','Global Health','Journalism','Law',
+            'Mathematics','Medicine','Nursing','Philosophy','Psychology','Social Work',
+            'Sports Science','Tourism','Veterinary Science'].map(function(f) {
             return <option key={f} value={f}>{f}</option>;
           })}
         </select>
         <select value={region} onChange={function(e) { setRegion(e.target.value); }} style={{flex:1,minWidth:120}}>
           <option value="">All regions</option>
-          {['Africa','Kenya','Global','UK','USA','Europe','Asia','Canada','Australia'].map(function(r) {
+          {['Africa','Kenya','Nigeria','Ghana','Tanzania','Uganda','Global','UK','USA','Europe','Asia','India'].map(function(r) {
             return <option key={r} value={r}>{r}</option>;
           })}
         </select>
@@ -991,10 +970,10 @@ function ScholarshipsPage(props) {
       ) : filtered.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">🔍</div>
-          <p>No scholarships found for these filters.</p>
-          <button className="btn btn-outline btn-sm" style={{marginTop:12}} onClick={function() { setField(''); setRegion(''); setTab('all'); }}>
-            Clear filters
-          </button>
+          <p>No scholarships found.</p>
+          <button className="btn btn-outline btn-sm" style={{marginTop:12}} onClick={function() {
+            setField(''); setRegion(''); setTab('all'); setSearchQ(''); setSearchResults(null);
+          }}>Clear all filters</button>
         </div>
       ) : (
         <React.Fragment>
@@ -1032,9 +1011,7 @@ function ScholarshipsPage(props) {
                   )}
                   {s.tags && s.tags.length > 0 && (
                     <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:8}}>
-                      {s.tags.filter(function(t) {
-                        return ['cybersecurity','ai','africa','uk','usa','prestigious','financial_need','fully-funded'].indexOf(t) !== -1;
-                      }).slice(0,3).map(function(t) {
+                      {s.tags.slice(0,3).map(function(t) {
                         return <span key={t} className="tag tag-blue" style={{fontSize:10}}>{t}</span>;
                       })}
                     </div>
@@ -1058,10 +1035,9 @@ function ScholarshipsPage(props) {
                           onClick={function(e) { e.stopPropagation(); }}>
                           Apply →
                         </a>
-
                         <button className="btn btn-outline btn-sm"
                           onClick={function(e){
-                            e.stopPropagation();setExplaining(s.id);
+                            e.stopPropagation(); setExplaining(s.id);
                             api('GET','/scholarships/'+s.id+'/explain')
                               .then(function(r){setExplanation(r);setExplaining(null);})
                               .catch(function(){setExplaining(null);});
@@ -1101,6 +1077,7 @@ function ScholarshipsPage(props) {
     </div>
   );
 }
+
 
 const STAGES = [
   {id:'researching', label:'Researching', color:'#6366f1'},
