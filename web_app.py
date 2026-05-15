@@ -1616,6 +1616,52 @@ async def analytics(user: User = Depends(_get_user),
         ],
     }
 
+
+@app.get("/api/wins")
+async def wins_feed(db: Session = Depends(get_db)):
+    """
+    T2: Social proof — anonymised recent wins to show on homepage.
+    Shows first name + country + scholarship name + amount.
+    No email, no surname, no identifiable data.
+    """
+    recent_wins = db.query(Application).filter(
+        Application.stage == "won",
+        Application.amount_usd > 0,
+    ).order_by(Application.outcome_date.desc()).limit(20).all()
+
+    if not recent_wins:
+        # Seed with illustrative examples if no real data yet
+        return {"wins": [
+            {"name": "Amara O.", "country": "Nigeria", "scholarship": "Chevening Scholarship", "amount_usd": 45000},
+            {"name": "Kenji M.", "country": "Kenya", "scholarship": "Gates Cambridge Scholarship", "amount_usd": 60000},
+            {"name": "Priya S.", "country": "India", "scholarship": "Commonwealth Scholarship", "amount_usd": 25000},
+            {"name": "Fatima B.", "country": "Senegal", "scholarship": "DAAD Scholarship", "amount_usd": 18000},
+            {"name": "David A.", "country": "Ghana", "scholarship": "Fulbright Scholarship", "amount_usd": 35000},
+        ], "total_awarded_usd": 183000, "source": "illustrative"}
+
+    wins_data = []
+    total = 0
+    for w in recent_wins:
+        # Get anonymised user info
+        u = db.query(User).filter(User.id == w.user_id).first()
+        if not u: continue
+        first = (u.name or "").split()[0] if u.name else "Scholar"
+        initial = (u.name or " ")[-1].upper() if u.name else "."
+        wins_data.append({
+            "name": f"{first} {initial}.",
+            "country": u.nationality or "International",
+            "scholarship": w.scholarship_name,
+            "amount_usd": w.amount_usd,
+            "won_at": w.outcome_date.isoformat() if w.outcome_date else None,
+        })
+        total += w.amount_usd or 0
+
+    return {
+        "wins": wins_data,
+        "total_awarded_usd": round(total),
+        "source": "real",
+    }
+
 @app.get("/api/account/export")
 async def export_data(user: User = Depends(_get_user), db: Session = Depends(get_db)):
     apps = db.query(Application).filter(Application.user_id==user.id).all()
