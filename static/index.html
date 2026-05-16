@@ -1371,6 +1371,29 @@ function ScholarshipsPage(props) {
                             Apply directly →
                           </button>
                         )}
+                        <button className="btn btn-outline btn-sm"
+                          style={{fontSize:10,padding:'4px 8px'}}
+                          onClick={function(e){
+                            e.stopPropagation();
+                            if (!user) { setShowLoginGate(true); setGateScholarship(s); return; }
+                            api('POST','/scholarships/share',{ids:[s.id],filters:{}})
+                              .then(function(d){
+                                navigator.clipboard.writeText(d.share_url)
+                                  .then(function(){toast('Link copied!','success');})
+                                  .catch(function(){toast(d.share_url,'success');});
+                              }).catch(function(e){toast(e.message,'error');});
+                          }}>🔗 Share</button>
+                        <button className="btn btn-outline btn-sm"
+                          style={{fontSize:10,padding:'3px 8px',color:'#888',borderColor:'#ddd'}}
+                          title="Copy shareable link"
+                          onClick={function(e){
+                            e.stopPropagation();
+                            if (!user) { setShowLoginGate(true); setGateScholarship(s); return; }
+                            api('POST','/scholarships/share',{ids:[s.id],filters:{}})
+                              .then(function(d){
+                                navigator.clipboard ? navigator.clipboard.writeText(d.share_url).then(function(){toast('Share link copied!','success');}) : toast(d.share_url,'success');
+                              }).catch(function(){toast('Share failed','error');});
+                          }}>🔗</button>
                         {user ? (
                           <button className="btn btn-outline btn-sm"
                             onClick={function(e){
@@ -1729,6 +1752,11 @@ function PackagesPage(props) {
                   <div style={{fontWeight:600,fontSize:16}}>{pkg.scholarship}</div>
                   <div style={{fontSize:13,color:'#555',marginTop:3}}>
                     {'$' + (pkg.amount_usd || 0).toLocaleString()} · Deadline: {pkg.deadline || 'N/A'}
+                  </div>
+                  <div style={{background:'#fef3c7',border:'1px solid #f59e0b',borderRadius:6,
+                    padding:'6px 10px',marginTop:8,fontSize:11,color:'#92400e'}}>
+                    ⚠️ <strong>Personalise before submitting</strong> — add specific memories, dates,
+                    and your institution name. Turnitin detects unmodified AI text.
                   </div>
                   {pkg.essay_preview && (
                     <p style={{fontSize:13,color:'#888',marginTop:8,fontStyle:'italic',lineHeight:1.5}}>
@@ -2485,7 +2513,12 @@ function PlansPage() {
   return (
     <div className="page pb-safe">
       <h2 className="section-title">Plans</h2>
-      <p className="section-sub" style={{marginBottom:'1.5rem'}}>Start free. Upgrade anytime.</p>
+      <p className="section-sub" style={{marginBottom:'0.5rem'}}>Start free. Upgrade anytime.</p>
+      <div style={{background:'#d1fae5',border:'1px solid #6ee7b7',borderRadius:8,
+        padding:'8px 14px',marginBottom:'1.5rem',fontSize:13,color:'#065f46',textAlign:'center'}}>
+        💡 Break-even: <strong>32 Pro subscribers</strong> ($288 MRR) covers all running costs.
+        Help us get there — tell a friend.
+      </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'1rem',marginBottom:'1.5rem'}}>
         {P.map(function(p){return (
           <div key={p.id} className="card" style={{border:'2px solid '+(p.hot?p.c:'#e8e8e0'),padding:'1.25rem',position:'relative'}}>
