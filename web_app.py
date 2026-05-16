@@ -512,7 +512,7 @@ async def startup():
     Path("data/uploads").mkdir(parents=True, exist_ok=True)
     Path("static").mkdir(parents=True, exist_ok=True)
     _init_db()
-    logger.info("ScholarBot v4.2.0 started")
+    logger.info("ScholarBot v4.3.0 started")
     # T4: Sentry error tracking
     sentry_dsn = os.environ.get("SENTRY_DSN","")
     if sentry_dsn:
@@ -1862,7 +1862,7 @@ async def debug_info():
     except Exception as e:
         db_error = str(e)[:200]
     return {
-        "version": "4.2.0",
+        "version": "4.3.0",
         "python": sys.version[:20],
         "db_connected": db_ok,
         "db_error": db_error,
@@ -1876,7 +1876,7 @@ async def debug_info():
 async def health(db: Session = Depends(get_db)):
     try: users=db.query(User).count(); ok=True
     except Exception as e: users=-1; ok=False
-    return {"status":"ok" if ok else "db_error","version":"4.2.0",
+    return {"status":"ok" if ok else "db_error","version":"4.3.0",
             "db":_DB_URL.split("://")[0],"users":users,
             "timestamp":datetime.utcnow().isoformat()}
 
@@ -2186,7 +2186,7 @@ async def export_data(user: User = Depends(_get_user), db: Session = Depends(get
     pkgs = db.query(Package).filter(Package.user_id==user.id).all()
     return JSONResponse({
         "export_generated_at":datetime.utcnow().isoformat(),
-        "platform":"ScholarBot v4.2.0",
+        "platform":"ScholarBot v4.3.0",
         "profile":user.to_dict(),
         "applications":[a.to_dict() for a in apps],
         "packages":[{"id":p.id,"scholarship":p.scholarship_name,
@@ -3690,7 +3690,7 @@ async def developer_docs():
     """Complete API documentation for third-party developers."""
     return {
         "name": "ScholarBot API",
-        "version": "4.2.0",
+        "version": "4.3.0",
         "base_url": "https://scholarbot-web.onrender.com",
         "authentication": "Bearer token in Authorization header or sb_token cookie",
         "endpoints": [
@@ -4103,6 +4103,69 @@ async def analyse_statement(user: User = Depends(_get_user),
     _log_event(db, user.id, "statement_analysed", None, None,
                {"score": result.get("overall_score"), "grade": result.get("grade")})
     return result
+
+
+# ── Password Reset Flow ───────────────────────────────────────
+@app.post("/api/auth/forgot-password")
+async def forgot_password(req: dict, db: Session = Depends(get_db)):
+    """Send password reset email. Always returns 200 to prevent email enumeration."""
+    import secrets as _sec4, hashlib as _hl6, requests as _rq4
+    email = req.get("email","").strip().lower()
+    u = db.query(User).filter(User.email == email).first()
+    if not u:
+        return {"message": "If that email exists, a reset link has been sent."}
+    raw_tok = _sec4.token_urlsafe(32)
+    t_hash  = _hl6.sha256(raw_tok.encode()).hexdigest()
+    _reset_tokens[f"reset_{t_hash}"] = {
+        "user_id": u.id, "used": False,
+        "expires_at": datetime.utcnow() + timedelta(hours=2),
+    }
+    sender_key = os.environ.get("SENDER_API_KEY","")
+    base = os.environ.get("BASE_URL","https://scholarbot-web.onrender.com")
+    from_email = os.environ.get("FROM_EMAIL","noreply@scholarbot.app")
+    link = f"{base}/?reset_token={raw_tok}"
+    if sender_key:
+        try:
+            import requests as _rq4
+            html = (f"<p>Hi {u.name},</p>"
+                    f"<p>Click below to reset your ScholarBot password. "
+                    f"This link expires in 2 hours.</p>"
+                    f"<p><a href='{link}' style='background:#2563eb;color:#fff;"
+                    f"padding:12px 24px;border-radius:6px;text-decoration:none;"
+                    f"display:inline-block'>Reset my password</a></p>"
+                    f"<p style='font-size:12px;color:#888'>If you didn't request this, ignore this email.</p>")
+            _rq4.post("https://api.sender.net/v2/message/send",
+                headers={"Authorization": f"Bearer {sender_key}",
+                         "Content-Type": "application/json"},
+                json={"from":{"email":from_email,"name":"ScholarBot"},
+                      "to":{"email":u.email,"name":u.name},
+                      "subject":"Reset your ScholarBot password","html":html},
+                timeout=10)
+        except Exception as e:
+            logger.debug("Reset email error (non-critical): %s", e)
+    return {"message": "If that email exists, a reset link has been sent.",
+            "dev_token": raw_tok if not sender_key else None}
+
+
+@app.post("/api/auth/reset-password")
+async def reset_password(req: dict, db: Session = Depends(get_db)):
+    """Complete password reset using token from email."""
+    import hashlib as _hl7
+    token    = req.get("token","").strip()
+    new_pass = req.get("password","").strip()
+    if len(new_pass) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+    t_hash = _hl7.sha256(token.encode()).hexdigest()
+    entry  = _reset_tokens.get(f"reset_{t_hash}")
+    if not entry or entry.get("used") or entry["expires_at"] < datetime.utcnow():
+        raise HTTPException(400, "Invalid or expired reset link — request a new one")
+    u = db.query(User).filter(User.id == entry["user_id"]).first()
+    if not u: raise HTTPException(404, "User not found")
+    u.password_hash        = _hash_pw(new_pass)
+    u.password_changed_at  = datetime.utcnow()  # Invalidates all existing tokens
+    entry["used"] = True
+    db.commit()
+    return {"message": "Password reset successfully. Please log in with your new password."}
 
 @app.get("/", response_class=HTMLResponse)
 async def spa():
