@@ -2246,7 +2246,7 @@ function ProfilePage(props) {
                     .catch(function(e){toast(e.message||'Add 30+ words first','error');});
                 }}>AI analyse</button>
             </div>
-            <label style={{display:'none'}}>Personal statement            <textarea rows={4} value={form.personal_statement || ''}
+            <textarea rows={4} value={form.personal_statement || ''}
               onChange={function(e) { setField('personal_statement', e.target.value); }}
               placeholder="Your goals, background, what drives you, and the impact you want to make..."/>
             <p className="helper">The more detail here, the better and more personal your generated essays</p>
