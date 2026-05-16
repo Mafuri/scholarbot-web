@@ -430,6 +430,7 @@ def _sanitise(text, max_len=8000):
 
 # ── Rate limiting ─────────────────────────────────────────────
 _rate_store = defaultdict(list)
+_processed_stripe_events: set = set()  # Stripe idempotency
 _RATE_RULES = {
     "/api/auth/register": (10, 3600),
     "/api/auth/login":    (20, 3600),
@@ -580,6 +581,47 @@ async def startup():
         logger.info("APScheduler started — deadline reminders at 08:00 daily")
     except ImportError:
         logger.info("APScheduler not installed — deadline reminders disabled")
+
+    # ── Persistent job queue: poll DB every 5s ────────────────
+    # Professor fix: BackgroundTasks die on Render spin-down.
+    # This loop survives restarts — pending jobs resume on next boot.
+    import asyncio as _aio3
+    async def _job_worker():
+        """Poll jobs table for pending work. Survives worker restarts."""
+        logger.info("Persistent job worker started — polling every 5s")
+        while True:
+            try:
+                _db = SessionLocal()
+                pending = _db.query(Job).filter(
+                    Job.status == "pending",
+                    Job.retry_count < 3,
+                ).limit(3).all()
+                _db.close()
+                for job in pending:
+                    _db2 = SessionLocal()
+                    try:
+                        j = _db2.query(Job).filter(Job.id == job.id).first()
+                        if j: j.status = "running"; _db2.commit()
+                    finally:
+                        _db2.close()
+                    if job.job_type == "essay":
+                        meta = job.result or {}
+                        opp  = meta.get("opp")
+                        prof = meta.get("profile")
+                        if opp and prof:
+                            _essay_job(job.id, opp, prof)
+                    elif job.job_type == "packages":
+                        meta = job.result or {}
+                        prof = meta.get("profile")
+                        n    = meta.get("top_n", 5)
+                        if prof:
+                            _packages_job(job.id, prof, n)
+            except Exception as _je:
+                logger.debug("Job worker tick error (non-critical): %s", _je)
+            await _aio3.sleep(5)
+
+    _aio3.create_task(_job_worker())
+    logger.info("Persistent job worker task created")
 
 def _get_user(creds: HTTPAuthorizationCredentials = Depends(security),
               db: Session = Depends(get_db)):
@@ -1861,6 +1903,18 @@ async def debug_info():
             db_ok = True
     except Exception as e:
         db_error = str(e)[:200]
+    # Redis check
+    redis_ok = False
+    redis_url = os.environ.get("REDIS_URL","")
+    if redis_url:
+        try:
+            import redis as _redis
+            r = _redis.from_url(redis_url, socket_timeout=2)
+            r.ping()
+            redis_ok = True
+        except Exception:
+            pass
+
     return {
         "version": "4.3.0",
         "python": sys.version[:20],
@@ -1868,6 +1922,14 @@ async def debug_info():
         "db_error": db_error,
         "tables_in_db": table_count,
         "extra_opps": len(EXTRA_OPPORTUNITIES),
+        "total_opportunities": 87 + len(EXTRA_OPPORTUNITIES),
+        "redis_configured": bool(redis_url),
+        "redis_connected": redis_ok,
+        "rate_limiting": "redis" if redis_ok else "in-memory (single worker)",
+        "stripe_configured": bool(os.environ.get("STRIPE_SECRET_KEY","")),
+        "email_configured": bool(os.environ.get("SENDER_API_KEY","")),
+        "sentry_configured": bool(os.environ.get("SENTRY_DSN","")),
+        "processed_stripe_events": len(_processed_stripe_events),
         "status": "ok" if db_ok else "db_error",
     }
 
@@ -2759,93 +2821,6 @@ async def create_checkout(req: dict, user: User = Depends(_get_user)):
 
 
 @app.post("/api/payments/webhook")
-async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
-    """Handle Stripe webhook events — activates plan on successful payment."""
-    stripe_key = os.environ.get("STRIPE_SECRET_KEY","")
-    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET","")
-    if not stripe_key:
-        raise HTTPException(503, "Stripe not configured")
-    payload = await request.body()
-    sig = request.headers.get("stripe-signature","")
-    try:
-        import stripe as _stripe
-        _stripe.api_key = stripe_key
-        event = _stripe.Webhook.construct_event(payload, sig, webhook_secret)
-        if event["type"] == "checkout.session.completed":
-            session = event["data"]["object"]
-            user_id = session.get("client_reference_id")
-            plan = session.get("metadata",{}).get("plan","pro")
-            if user_id:
-                u = db.query(User).filter(User.id == user_id).first()
-                if u:
-                    u.plan = plan
-                    db.commit()
-                    logger.info("Plan upgraded: %s → %s", user_id, plan)
-        return {"received": True}
-    except Exception as e:
-        raise HTTPException(400, f"Webhook error: {str(e)}")
-
-
-# ── Internationalisation ──────────────────────────────────────
-_TRANSLATIONS = {
-    "en": {
-        "welcome": "Welcome to ScholarBot",
-        "find_scholarships": "Find Scholarships",
-        "generate_essay": "Generate Essay",
-        "add_to_pipeline": "Add to Pipeline",
-        "match_score": "Match Score",
-        "apply_now": "Apply Now",
-        "why_match": "Why this match?",
-        "deadline": "Deadline",
-        "award": "Award",
-        "sign_in": "Sign In",
-        "create_account": "Create Account",
-        "forgot_password": "Forgot your password?",
-    },
-    "fr": {
-        "welcome": "Bienvenue sur ScholarBot",
-        "find_scholarships": "Trouver des bourses",
-        "generate_essay": "Générer une lettre",
-        "add_to_pipeline": "Ajouter au suivi",
-        "match_score": "Score de correspondance",
-        "apply_now": "Postuler maintenant",
-        "why_match": "Pourquoi cette bourse?",
-        "deadline": "Date limite",
-        "award": "Montant",
-        "sign_in": "Se connecter",
-        "create_account": "Créer un compte",
-        "forgot_password": "Mot de passe oublié?",
-    },
-    "sw": {
-        "welcome": "Karibu ScholarBot",
-        "find_scholarships": "Tafuta Scholarships",
-        "generate_essay": "Andika Insha",
-        "add_to_pipeline": "Ongeza kwenye orodha",
-        "match_score": "Alama ya mechi",
-        "apply_now": "Omba sasa",
-        "why_match": "Kwa nini mechi hii?",
-        "deadline": "Tarehe ya mwisho",
-        "award": "Thamani",
-        "sign_in": "Ingia",
-        "create_account": "Fungua akaunti",
-        "forgot_password": "Umesahau nywila?",
-    },
-    "pt": {
-        "welcome": "Bem-vindo ao ScholarBot",
-        "find_scholarships": "Encontrar bolsas",
-        "generate_essay": "Gerar redação",
-        "add_to_pipeline": "Adicionar ao pipeline",
-        "match_score": "Pontuação de correspondência",
-        "apply_now": "Candidatar-se agora",
-        "why_match": "Por que esta bolsa?",
-        "deadline": "Prazo",
-        "award": "Valor",
-        "sign_in": "Entrar",
-        "create_account": "Criar conta",
-        "forgot_password": "Esqueceu sua senha?",
-    },
-}
-
 
 @app.get("/api/i18n/{locale}")
 async def get_translations(locale: str):
