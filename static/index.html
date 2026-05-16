@@ -323,6 +323,7 @@ function Nav(props) {
     {id:'packages', label:'Packages', icon:'📦'},
     {id:'interview', label:'Interview', icon:'🎤'},
     {id:'profile', label:'Profile', icon:'👤'},
+    user&&user.plan==='enterprise'?{id:'admin', label:'Admin', icon:'⚙️'}:null,
     {id:'plans', label:'Plans', icon:'⭐'},
     {id:'analytics', label:'Analytics', icon:'📈'},
   ];
@@ -2887,6 +2888,198 @@ function useLocale() {
 
 
 
+
+function AdminPage(props) {
+  var go = props.go;
+  var user = props.user;
+  var [stats, setStats] = useState(null);
+  var [users, setUsers] = useState([]);
+  var [debug, setDebug] = useState(null);
+  var [loading, setLoading] = useState(true);
+  var [tab, setTab] = useState('overview');
+
+  useEffect(function() {
+    if (!user) return;
+    Promise.all([
+      api('GET','/admin/stats').catch(function(){return null;}),
+      api('GET','/admin/users').catch(function(){return {users:[]};}),
+      fetch('/api/debug').then(function(r){return r.json();}).catch(function(){return null;}),
+    ]).then(function(res){
+      setStats(res[0]); setUsers((res[1]&&res[1].users)||[]); setDebug(res[2]); setLoading(false);
+    });
+  },[user]);
+
+  if (!user) return <div className="page"><div className="card" style={{textAlign:'center',padding:'3rem'}}><div style={{fontSize:48}}>🔒</div><h3>Admin access required</h3><button className="btn btn-primary" onClick={function(){go('login');}}>Sign in</button></div></div>;
+  if (loading) return <div className="page"><div className="card" style={{textAlign:'center',padding:'3rem'}}><p>Loading admin data…</p><p style={{fontSize:12,color:'#888'}}>Ensure your account has admin privileges (set ADMIN_EMAILS in Render).</p></div></div>;
+
+  return (
+    <div className="page pb-safe">
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+        <h2 className="section-title" style={{margin:0}}>Admin Panel</h2>
+        <span style={{fontSize:12,color:'#888'}}>v{debug&&debug.version}</span>
+      </div>
+      <div style={{display:'flex',gap:4,marginBottom:'1.5rem',flexWrap:'wrap'}}>
+        {['overview','users','infrastructure','experiments'].map(function(t){return(
+          <button key={t} className={'btn btn-sm '+(tab===t?'btn-primary':'btn-outline')}
+            style={{textTransform:'capitalize'}} onClick={function(){setTab(t);}}>{t}</button>
+        );})}
+      </div>
+
+      {tab==='overview' && stats && (
+        <div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:'1rem',marginBottom:'1.5rem'}}>
+            {[
+              {l:'Total users',   v:stats.users&&stats.users.total,        c:'#2563eb'},
+              {l:'Pro users',     v:stats.plans&&stats.plans.pro,          c:'#059669'},
+              {l:'Enterprise',    v:stats.plans&&stats.plans.enterprise,   c:'#7c3aed'},
+              {l:'MRR (est.)',    v:stats.mrr_estimate!=null?'$'+(stats.mrr_estimate||0):'—', c:'#d97706'},
+              {l:'Apps won',      v:stats.applications&&stats.applications.won, c:'#059669'},
+              {l:'USD awarded',   v:stats.applications?'$'+(stats.applications.total_won_usd||0).toLocaleString():'—', c:'#059669'},
+              {l:'Opps in DB',    v:stats.opportunities&&stats.opportunities.total, c:'#1a1a2e'},
+              {l:'Reviews pending', v:stats.expert_reviews&&stats.expert_reviews.pending, c:'#d97706'},
+            ].map(function(m){return(
+              <div key={m.l} className="card" style={{padding:'1rem'}}>
+                <div style={{fontSize:11,color:'#888',marginBottom:4}}>{m.l}</div>
+                <div style={{fontSize:24,fontWeight:800,color:m.c}}>{m.v!=null?m.v:'—'}</div>
+              </div>
+            );})}
+          </div>
+          {stats.funnel && (
+            <div className="card" style={{marginBottom:'1rem'}}>
+              <div style={{fontWeight:700,marginBottom:'1rem'}}>Conversion Funnel</div>
+              {[
+                {label:'Registered',      val:stats.funnel.registered},
+                {label:'Viewed',          val:stats.funnel.viewed_scholarship},
+                {label:'Added pipeline',  val:stats.funnel.added_to_pipeline},
+                {label:'Submitted',       val:stats.funnel.submitted},
+                {label:'Won',             val:stats.funnel.won},
+              ].map(function(f,i){
+                var pct = stats.funnel.registered>0 ? Math.round((f.val/stats.funnel.registered)*100) : 0;
+                return (
+                  <div key={f.label} style={{marginBottom:10}}>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:3}}>
+                      <span>{f.label}</span><span style={{fontWeight:600}}>{f.val} ({pct}%)</span>
+                    </div>
+                    <div style={{height:6,background:'#e5e7eb',borderRadius:3}}>
+                      <div style={{height:6,borderRadius:3,width:pct+'%',
+                        background:i===4?'#059669':i===3?'#2563eb':'#1a1a2e'}}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {stats.top_scholarships&&stats.top_scholarships.length>0&&(
+            <div className="card">
+              <div style={{fontWeight:700,marginBottom:'0.75rem'}}>Top scholarships by pipeline adds</div>
+              {stats.top_scholarships.slice(0,10).map(function(s,i){return(
+                <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:i<9?'1px solid #f0f0e8':'none',fontSize:13}}>
+                  <span>{i+1}. {(s.name||'').slice(0,50)}</span>
+                  <span style={{fontWeight:600,color:'#2563eb'}}>{s.pipeline_additions} adds</span>
+                </div>
+              );})}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab==='users'&&(
+        <div className="card" style={{overflowX:'auto'}}>
+          <div style={{fontWeight:700,marginBottom:'1rem'}}>Users ({users.length})</div>
+          <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+            <thead><tr style={{borderBottom:'2px solid #eee',textAlign:'left'}}>
+              {['Name','Email','Plan','Country','Verified','Joined'].map(function(col){return(
+                <th key={col} style={{padding:'6px 8px',fontWeight:700,color:'#555'}}>{col}</th>
+              );})}
+            </tr></thead>
+            <tbody>
+              {users.map(function(u,i){return(
+                <tr key={u.id} style={{borderBottom:'1px solid #f5f5f0',background:i%2===0?'#fff':'#fafafa'}}>
+                  <td style={{padding:'6px 8px'}}>{u.name}</td>
+                  <td style={{padding:'6px 8px',color:'#888',fontSize:11}}>{u.email}</td>
+                  <td style={{padding:'6px 8px'}}>
+                    <span style={{background:u.plan==='pro'?'#dbeafe':u.plan==='enterprise'?'#ede9fe':'#f0f0e8',
+                      color:u.plan==='pro'?'#1d4ed8':u.plan==='enterprise'?'#5b21b6':'#555',
+                      padding:'2px 8px',borderRadius:10,fontSize:11,fontWeight:600}}>{u.plan}</span>
+                  </td>
+                  <td style={{padding:'6px 8px'}}>{u.nationality}</td>
+                  <td style={{padding:'6px 8px'}}>{u.email_verified?'✅':'❌'}</td>
+                  <td style={{padding:'6px 8px',color:'#888'}}>{u.created_at?u.created_at.slice(0,10):'—'}</td>
+                </tr>
+              );})}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab==='infrastructure'&&debug&&(
+        <div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'1rem',marginBottom:'1rem'}}>
+            {[
+              {l:'Database',ok:debug.db_connected,   d:debug.db_error||'Connected'},
+              {l:'Redis',   ok:debug.redis_connected,d:debug.redis_configured?(debug.redis_connected?'Connected':'Unreachable'):'Not configured — in-memory only'},
+              {l:'Stripe',  ok:debug.stripe_configured,d:debug.stripe_configured?'Configured':'STRIPE_SECRET_KEY not set'},
+              {l:'Email',   ok:debug.email_configured,d:debug.email_configured?'Sender.net active':'SENDER_API_KEY not set'},
+              {l:'Sentry',  ok:debug.sentry_configured,d:debug.sentry_configured?'Active':'Not configured'},
+            ].map(function(s){return(
+              <div key={s.l} className="card" style={{padding:'1rem',borderLeft:'4px solid '+(s.ok?'#059669':'#ef4444')}}>
+                <div style={{fontWeight:700,marginBottom:4}}>{s.ok?'✅':'❌'} {s.l}</div>
+                <div style={{fontSize:12,color:'#888'}}>{s.d}</div>
+              </div>
+            );})}
+          </div>
+          <div className="card">
+            <div style={{fontWeight:700,marginBottom:'0.75rem'}}>System details</div>
+            {Object.entries(debug).map(function(entry){
+              var k=entry[0]; var v=entry[1];
+              if(typeof v==='object') return null;
+              return(
+                <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'4px 0',borderBottom:'1px solid #f5f5f0',fontSize:12}}>
+                  <span style={{color:'#888',fontFamily:'monospace'}}>{k}</span>
+                  <span style={{fontWeight:600}}>{String(v)}</span>
+                </div>
+              );
+            })}
+            <button className="btn btn-outline btn-sm" style={{marginTop:'1rem'}}
+              onClick={function(){
+                api('GET','/admin/validate-listings')
+                  .then(function(d){toast('Checked '+d.checked+' links. Broken: '+d.broken.length,'success');})
+                  .catch(function(e){toast(e.message,'error');});
+              }}>🔗 Validate scholarship links</button>
+          </div>
+        </div>
+      )}
+
+      {tab==='experiments'&&stats&&stats.experiments&&(
+        <div>
+          {Object.entries(stats.experiments).map(function(entry){
+            var name=entry[0]; var variants=entry[1];
+            var maxRate=Math.max(...Object.values(variants).map(function(v){return v.conversion_rate_pct;}));
+            return(
+              <div key={name} className="card" style={{marginBottom:'1rem'}}>
+                <div style={{fontWeight:700,marginBottom:'0.75rem',textTransform:'capitalize'}}>A/B: {name.replace(/_/g,' ')}</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:8}}>
+                  {Object.entries(variants).map(function(ve){
+                    var vn=ve[0]; var vd=ve[1]; var winner=vd.conversion_rate_pct===maxRate;
+                    return(
+                      <div key={vn} style={{padding:'0.75rem',background:winner?'#f0fdf4':'#f9f9f7',borderRadius:8,border:winner?'1px solid #86efac':'1px solid #eee'}}>
+                        <div style={{fontWeight:700,marginBottom:4}}>{winner?'🏆 ':''}{vn}</div>
+                        <div style={{fontSize:13,color:'#888'}}>{vd.exposures} users</div>
+                        <div style={{fontSize:18,fontWeight:800,color:winner?'#059669':'#333'}}>{vd.conversion_rate_pct}%</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function App() {
   const auth = useAuth();
   const user = auth.user;
@@ -2946,6 +3139,7 @@ function App() {
     if (page === 'profile' && user) return <ProfilePage user={user} setUser={setUser} logout={logout}/>;
     if (page === 'plans') return <PlansPage go={go}/>;
     if (page === 'analytics' && user) return <AnalyticsPage go={go}/>;
+      {page === 'admin' && <AdminPage go={go} user={user}/>}
     if (page === 'tos') return <TosPage go={go}/>;
     if (page === 'privacy') return <PrivacyPage go={go}/>;
     if (page === 'accessibility') return <AccessibilityPage go={go}/>;
