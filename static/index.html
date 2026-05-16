@@ -612,6 +612,7 @@ function HomePage(props) {
             }}>Submit a scholarship</button>
         </div>
       </div>
+      <p style={{textAlign:'center',fontSize:11,color:'#ccc',marginTop:'2rem'}}>ScholarBot v4.3.0 · <a href="#" style={{color:'#2563eb',textDecoration:'none'}} onClick={function(e){e.preventDefault();go('plans');}}>Upgrade to Pro</a></p>
       {!cookieConsent && (
         <div style={{position:'fixed',bottom:0,left:0,right:0,background:'#1a1a2e',
           color:'#fff',padding:'12px 16px',display:'flex',flexWrap:'wrap',
@@ -1357,7 +1358,13 @@ function ScholarshipsPage(props) {
                           <a href={s.url} target="_blank" rel="noreferrer"
                             className="btn btn-primary btn-sm"
                             style={{background:'#059669'}}
-                            onClick={function(e){e.stopPropagation();}}>
+                            onClick={function(e){
+                              e.stopPropagation();
+                              // Track apply click for conversion analytics
+                              api('POST','/scholarships/'+s.id+'/bookmark',
+                                {event:'apply_click',name:s.name,amount:s.amount_usd})
+                                .catch(function(){});
+                            }}>
                             Apply directly →
                           </a>
                         ) : (
@@ -1766,6 +1773,23 @@ function PackagesPage(props) {
                 </div>
                 <span className={'tag ' + dayClass}>{pkg.days_left || '?'}d</span>
               </div>
+              {job && job.result && job.result.humanisation_score != null && (
+                <div style={{margin:'8px 0',padding:'8px 12px',borderRadius:8,fontSize:12,
+                  background: job.result.humanisation_score>=70?'#f0fdf4':job.result.humanisation_score>=40?'#fef3c7':'#fef2f2',
+                  border:'1px solid '+(job.result.humanisation_score>=70?'#86efac':job.result.humanisation_score>=40?'#fcd34d':'#fca5a5')}}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                    <span style={{fontWeight:700}}>Humanisation score: {job.result.humanisation_score}%</span>
+                    <span style={{color: job.result.humanisation_score>=70?'#059669':job.result.humanisation_score>=40?'#d97706':'#dc2626',fontWeight:700}}>
+                      {job.result.detection_risk==='low'?'✅ Low detection risk':job.result.detection_risk==='medium'?'⚠️ Medium risk':'🚨 High detection risk'}
+                    </span>
+                  </div>
+                  {job.result.ai_flags && job.result.ai_flags.length > 0 && (
+                    <div style={{fontSize:11,color:'#555'}}>
+                      AI phrases detected: {job.result.ai_flags.slice(0,3).join(', ')}
+                    </div>
+                  )}
+                </div>
+              )}
               <div style={{display:'flex',gap:8,marginTop:'1rem',flexWrap:'wrap'}}>
                 <a href={pkg.briefing_url} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
                   Open briefing →
@@ -2412,6 +2436,19 @@ function ProfilePage(props) {
                   .then(function(d){toast(d.message,'success');})
                   .catch(function(e){toast(e.message,'error');});
             }}>Disable 2FA</button>
+        </div>
+      </div>
+      <div className="card" style={{marginTop:'1rem',background:'#f0f9ff',border:'1px solid #bae6fd'}}>
+        <div style={{fontWeight:600,marginBottom:8}}>🎁 Refer a Friend</div>
+        <p style={{fontSize:13,color:'#555',marginBottom:'0.75rem'}}>
+          Share ScholarBot with a classmate. When they sign up and add a scholarship, you both get notified.
+        </p>
+        <div style={{display:'flex',gap:8}}>
+          <input readOnly value={'https://scholarbot-web.onrender.com/?ref='+( user&&user.id?user.id.slice(-6):'')}            style={{flex:1,padding:'6px 10px',borderRadius:6,border:'1px solid #ddd',fontSize:12,background:'#f9f9f7'}}/>
+          <button className="btn btn-outline btn-sm" onClick={function(){
+            var link='https://scholarbot-web.onrender.com/?ref='+(user&&user.id?user.id.slice(-6):'');
+            navigator.clipboard?navigator.clipboard.writeText(link).then(function(){toast('Referral link copied!','success');}):toast(link,'success');
+          }}>Copy</button>
         </div>
       </div>
       <div className="card" style={{marginTop:'1rem'}}>
