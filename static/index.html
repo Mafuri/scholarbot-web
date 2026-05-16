@@ -928,7 +928,6 @@ function DashboardPage(props) {
             </button>
           );})}
         </div>
-        </div>
       )}
       <div className="grid4" style={{marginBottom:'1.25rem'}}>
         {metricCards.map(function(s) {
@@ -2466,71 +2465,72 @@ function AccessibilityPage(props) {
 }
 
 function PlansPage() {
-  const P=[{id:'free',n:'Free',p:'$0',c:'#6b7280',f:['3 essays/day','1 package/day','87+ scholarships']},
-    {id:'pro',n:'Pro',p:'$9/mo',c:'#2563eb',hot:true,f:['20 essays/day','5 packages/day','Expert reviews']},
-    {id:'ent',n:'Enterprise',p:'$49/mo',c:'#7c3aed',f:['Unlimited','University dashboard','API']}];
+  var P = [
+    {id:'free',n:'Free',p:'$0',c:'#6b7280',f:['3 essays/day','1 package/day','196+ scholarships','Interview coaching']},
+    {id:'pro',n:'Pro',p:'$9/mo',c:'#2563eb',hot:true,f:['20 essays/day','5 packages/day','Expert reviews','Analytics']},
+    {id:'ent',n:'Enterprise',p:'$49/mo',c:'#7c3aed',f:['Unlimited everything','University dashboard','API access','Support']},
+  ];
+  var rows = [
+    ['Essays per day','3','20','Unlimited'],
+    ['196+ scholarships','✅','✅','✅'],
+    ['AI match score','✅','✅','✅'],
+    ['Pipeline tracker','✅','✅','✅'],
+    ['Interview coaching','✅','✅','✅'],
+    ['Expert review credits','—','3/month','Unlimited'],
+    ['Advanced analytics','—','✅','✅'],
+    ['University dashboard','—','—','✅'],
+    ['API access','—','—','✅'],
+  ];
   return (
     <div className="page pb-safe">
-    <h2 className="section-title">Plans</h2>
-    <p className="section-sub" style={{marginBottom:'1.5rem'}}>Start free. Upgrade anytime.</p>
-    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'1rem'}}>
-      {P.map(function(p){return <div key={p.id} className="card" style={{border:'2px solid '+(p.hot?p.c:'#e8e8e0'),padding:'1.25rem',position:'relative'}}>
-        {p.hot&&<div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:p.c,color:'#fff',padding:'1px 10px',borderRadius:20,fontSize:10,fontWeight:700}}>POPULAR</div>}
-        <div style={{fontWeight:800,fontSize:18,color:p.c}}>{p.n}</div>
-        <div style={{fontWeight:800,fontSize:22,color:'#1a1a2e',margin:'4px 0 10px'}}>{p.p}</div>
-        {p.f.map(function(f){return <div key={f} style={{display:'flex',gap:6,marginBottom:4,fontSize:12}}><span style={{color:'#059669'}}>✓</span><span>{f}</span></div>;})}
-        <button className="btn btn-primary" style={{width:'100%',marginTop:10,justifyContent:'center',background:p.c}}
-          onClick={function(){
-            if(p.id==='free') return;
-            api('POST','/stripe/create-checkout',{plan:p.id})
-              .then(function(d){if(d.checkout_url) window.location.href=d.checkout_url;})
-              .catch(function(e){toast(e.message||'Payment setup in progress — contact support','error');});
-          }}>{p.id==='free'?'Current plan':'Upgrade to '+p.n+' →'}</button>
-        {p.id==='free'&&<div style={{fontSize:11,color:'#888',textAlign:'center',marginTop:6}}>No credit card needed</div>}
-        {p.id==='pro'&&<div style={{fontSize:11,color:'#059669',textAlign:'center',marginTop:6}}>Most popular · Cancel anytime</div>}
-      </div>;})}
-    </div>
-    <div className="card" style={{marginTop:'1rem',background:'#f5f5f0'}}>
-      <strong>🏛️ University Partnerships</strong>
-      <p style={{fontSize:12,color:'#555',margin:'4px 0'}}>Register your institution for a dashboard and bulk student access.</p>
-      <button className="btn btn-outline btn-sm" onClick={function(){window.open('mailto:partnerships@scholarbot.app','_blank');}}>Contact us</button>
-    </div>
-  </div>
-
-  <div className="card" style={{marginTop:'2rem',overflowX:'auto'}}>
-    <div style={{fontWeight:700,fontSize:15,marginBottom:'1rem'}}>Feature comparison</div>
-    <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
-      <thead><tr style={{borderBottom:'2px solid #eee'}}>
-        {['Feature','Free','Pro ($9/mo)','Enterprise ($49/mo)'].map(function(col){return(
-          <th key={col} style={{padding:'8px 10px',textAlign:col==='Feature'?'left':'center',fontWeight:700}}>{col}</th>
+      <h2 className="section-title">Plans</h2>
+      <p className="section-sub" style={{marginBottom:'1.5rem'}}>Start free. Upgrade anytime.</p>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'1rem',marginBottom:'1.5rem'}}>
+        {P.map(function(p){return (
+          <div key={p.id} className="card" style={{border:'2px solid '+(p.hot?p.c:'#e8e8e0'),padding:'1.25rem',position:'relative'}}>
+            {p.hot && <div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:p.c,color:'#fff',padding:'1px 10px',borderRadius:20,fontSize:10,fontWeight:700}}>POPULAR</div>}
+            <div style={{fontWeight:800,fontSize:18,color:p.c}}>{p.n}</div>
+            <div style={{fontWeight:800,fontSize:22,color:'#1a1a2e',margin:'4px 0 10px'}}>{p.p}</div>
+            {p.f.map(function(f){return <div key={f} style={{display:'flex',gap:6,marginBottom:4,fontSize:12}}><span style={{color:'#059669'}}>✓</span><span>{f}</span></div>;})}
+            <button className="btn btn-primary" style={{width:'100%',marginTop:10,justifyContent:'center',background:p.c}} onClick={function(){
+              if(p.id==='free') return;
+              api('POST','/stripe/create-checkout',{plan:p.id})
+                .then(function(d){if(d.checkout_url)window.location.href=d.checkout_url;})
+                .catch(function(e){toast(e.message||'Contact support','error');});
+            }}>{p.id==='free'?'Current plan':'Upgrade to '+p.n+' →'}</button>
+            {p.id==='free'&&<div style={{fontSize:11,color:'#888',textAlign:'center',marginTop:6}}>No credit card needed</div>}
+            {p.id==='pro'&&<div style={{fontSize:11,color:'#059669',textAlign:'center',marginTop:6}}>Most popular · Cancel anytime</div>}
+          </div>
         );})}
-      </tr></thead>
-      <tbody>
-        {[
-          ['Essays per day','3','20','Unlimited'],
-          ['196+ scholarships','✅','✅','✅'],
-          ['AI match score','✅','✅','✅'],
-          ['Application pipeline','✅','✅','✅'],
-          ['Interview coaching','✅','✅','✅'],
-          ['Expert review credits','—','3/month','Unlimited'],
-          ['Advanced analytics','—','✅','✅'],
-          ['University dashboard','—','—','✅'],
-          ['API access','—','—','✅'],
-        ].map(function(row,i){return(
-          <tr key={i} style={{borderBottom:'1px solid #f0f0f0',background:i%2===0?'#fafafa':'#fff'}}>
-            {row.map(function(cell,j){return(
-              <td key={j} style={{padding:'8px 10px',textAlign:j===0?'left':'center',
-                color:cell==='—'?'#ccc':j===0?'#333':'#059669'}}>{cell}</td>
+      </div>
+      <div className="card" style={{marginBottom:'1rem',background:'#f5f5f0'}}>
+        <strong>🏛️ University Partnerships</strong>
+        <p style={{fontSize:12,color:'#555',margin:'4px 0'}}>Register for a university dashboard and bulk student access.</p>
+        <button className="btn btn-outline btn-sm" onClick={function(){window.open('mailto:partnerships@scholarbot.app','_blank');}}>Contact us</button>
+      </div>
+      <div className="card" style={{overflowX:'auto'}}>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:'1rem'}}>Feature comparison</div>
+        <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+          <thead><tr style={{borderBottom:'2px solid #eee'}}>
+            {['Feature','Free','Pro ($9/mo)','Enterprise ($49/mo)'].map(function(col){return(
+              <th key={col} style={{padding:'8px 10px',textAlign:col==='Feature'?'left':'center',fontWeight:700}}>{col}</th>
             );})}
-          </tr>
-        );})}
-      </tbody>
-    </table>
-  </div>
+          </tr></thead>
+          <tbody>
+            {rows.map(function(row,i){return(
+              <tr key={i} style={{borderBottom:'1px solid #f0f0f0',background:i%2===0?'#fafafa':'#fff'}}>
+                {row.map(function(cell,j){return(
+                  <td key={j} style={{padding:'8px 10px',textAlign:j===0?'left':'center',
+                    color:cell==='—'?'#ccc':j===0?'#333':'#059669'}}>{cell}</td>
+                );})}
+              </tr>
+            );})}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
-
-
 function AnalyticsPage(props) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
