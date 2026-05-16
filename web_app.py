@@ -1116,6 +1116,12 @@ def _match_opps(profile, opp_type=None, field=None, region=None, min_amount=0):
                         o["_behavioral_boost"] = 0.05  # +5% for proven opportunities
         except Exception:
             pass
+    # Sort by deadline ascending (soonest first) then by match score
+    def _deadline_sort_key(o):
+        days = _days_until(o.get("deadline",""))
+        if days is None or days < 0: return 9999
+        return days
+    opps.sort(key=lambda o: (_deadline_sort_key(o), -float(o.get("match_score",0.5))))
     _cache_set(ck, opps); return opps
 
 @app.get("/api/opportunities")
@@ -1996,9 +2002,18 @@ async def debug_info():
 async def health(db: Session = Depends(get_db)):
     try: users=db.query(User).count(); ok=True
     except Exception as e: users=-1; ok=False
-    return {"status":"ok" if ok else "db_error","version":"4.3.0",
-            "db":_DB_URL.split("://")[0],"users":users,
-            "timestamp":datetime.utcnow().isoformat()}
+    # Check pending jobs
+    try: pending_jobs = db.query(Job).filter(Job.status=="pending").count()
+    except: pending_jobs = -1
+    return {
+        "status":        "ok" if ok else "db_error",
+        "version":       "4.3.0",
+        "db":            _DB_URL.split("://")[0],
+        "users":         users,
+        "pending_jobs":  pending_jobs,
+        "opportunities": 87 + len(EXTRA_OPPORTUNITIES),
+        "timestamp":     datetime.utcnow().isoformat(),
+    }
 
 @app.get("/api/stats")
 async def stats(db: Session = Depends(get_db)):
@@ -4199,6 +4214,207 @@ async def reset_password(req: dict, db: Session = Depends(get_db)):
     entry["used"] = True
     db.commit()
     return {"message": "Password reset successfully. Please log in with your new password."}
+
+
+@app.post("/api/auth/change-password")
+async def change_password(req: dict,
+                           user: User = Depends(_get_user),
+                           db:   Session = Depends(get_db)):
+    """Change password — invalidates all existing sessions on success."""
+    current  = req.get("current_password", "")
+    new_pw   = req.get("new_password", "")
+    if not _check_pw(current, user.password_hash):
+        raise HTTPException(401, "Current password is incorrect")
+    if len(new_pw) < 8:
+        raise HTTPException(400, "New password must be at least 8 characters")
+    if _check_pw(new_pw, user.password_hash):
+        raise HTTPException(400, "New password must differ from current password")
+    u = db.query(User).filter(User.id == user.id).first()
+    u.password_hash       = _hash_pw(new_pw)
+    u.password_changed_at = datetime.utcnow()   # Invalidates all existing JWTs
+    db.commit()
+    return {"message": "Password changed. Please log in again on all devices."}
+
+
+@app.post("/api/auth/anonymise")
+async def anonymise_account(req: dict,
+                             user: User = Depends(_get_user),
+                             db:   Session = Depends(get_db)):
+    """GDPR anonymisation — replaces all PII with hashed values."""
+    if req.get("confirm") != "ANONYMISE MY DATA":
+        raise HTTPException(400, "confirm field must be: ANONYMISE MY DATA")
+    import hashlib as _h
+    uid_hash = _h.sha256(user.id.encode()).hexdigest()[:12]
+    u = db.query(User).filter(User.id == user.id).first()
+    u.name             = f"Scholar_{uid_hash}"
+    u.email            = f"anon_{uid_hash}@deleted.scholarbot"
+    u.nationality      = "Anonymised"
+    u.major            = ""
+    u.school           = ""
+    u.personal_statement = ""
+    u.skills           = []
+    u.extracurriculars = []
+    u.password_hash    = _hash_pw(secrets.token_hex(32))
+    db.commit()
+    return {"message": "Account anonymised. Personal data removed.", "uid": uid_hash}
+
+
+@app.get("/api/auth/sessions")
+async def list_sessions(user: User = Depends(_get_user)):
+    """Return session metadata (JWT does not store sessions, so we return profile info)."""
+    return {
+        "current_session": {
+            "user_id":    user.id,
+            "email":      user.email,
+            "plan":       user.plan,
+            "2fa_active": bool(getattr(user, "totp_secret", None)),
+        },
+        "note": "ScholarBot uses stateless JWT. Change your password to invalidate all sessions.",
+    }
+
+
+@app.get("/api/essays/usage")
+async def essay_usage(user: User = Depends(_get_user),
+                       db:   Session = Depends(get_db)):
+    """Return today's essay usage vs plan limit."""
+    from datetime import date
+    plan    = user.plan or "free"
+    limits  = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
+    daily_limit = limits.get("essays_per_day", 3)
+    today_start = datetime.combine(date.today(), datetime.min.time())
+    used = db.query(UserEvent).filter(
+        UserEvent.user_id    == user.id,
+        UserEvent.event_type == "essay_critique",
+        UserEvent.created_at >= today_start,
+    ).count()
+    pkg_used = db.query(Package).filter(
+        Package.user_id    == user.id,
+        Package.created_at >= today_start,
+    ).count()
+    return {
+        "plan":              plan,
+        "essays_today":      used,
+        "packages_today":    pkg_used,
+        "essay_limit":       daily_limit,
+        "package_limit":     limits.get("packages_per_day", 1),
+        "essays_remaining":  max(0, daily_limit - used) if daily_limit > 0 else -1,
+        "reset_at":          (today_start + timedelta(days=1)).isoformat(),
+        "upgrade_url":       "/?page=plans",
+    }
+
+
+def _check_essay_limit(user: User, db) -> bool:
+    """Returns True if user is within their daily essay limit."""
+    from datetime import date
+    plan  = user.plan or "free"
+    limit = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"]).get("essays_per_day", 3)
+    if limit < 0: return True  # unlimited
+    today = datetime.combine(date.today(), datetime.min.time())
+    used  = db.query(UserEvent).filter(
+        UserEvent.user_id    == user.id,
+        UserEvent.event_type == "essay_critique",
+        UserEvent.created_at >= today,
+    ).count()
+    return used < limit
+
+
+@app.get("/api/skills/suggestions")
+async def skills_suggestions(q: str = ""):
+    """Return skill tag suggestions for profile autocomplete."""
+    ALL_SKILLS = [
+        "Python","R","MATLAB","SQL","JavaScript","Java","C++","Go","Rust","STATA","SAS",
+        "Machine Learning","Deep Learning","Computer Vision","NLP","Data Analysis",
+        "Research","Academic Writing","Grant Writing","Policy Analysis","Public Speaking",
+        "Leadership","Project Management","Team Management","Mentoring","Coaching",
+        "GIS","Remote Sensing","Cartography","Field Research","Laboratory Skills",
+        "Clinical Research","Epidemiology","Biostatistics","Public Health","Nursing",
+        "Financial Modelling","Accounting","Auditing","Investment Analysis","Risk Management",
+        "Community Development","Social Work","Advocacy","NGO Management","M&E",
+        "Swahili","French","Mandarin","Arabic","Spanish","Portuguese","Korean","Japanese",
+        "Agriculture","Agronomy","Soil Science","Irrigation","Food Security","Aquaculture",
+        "Environmental Impact Assessment","Sustainability","Climate Modelling","Carbon Markets",
+        "Architecture","Urban Planning","Structural Engineering","AutoCAD","Revit","BIM",
+        "Journalism","Media","Videography","Photography","Podcasting","Content Creation",
+        "Law","Litigation","Legal Research","Human Rights","Constitutional Law",
+        "Teaching","Curriculum Development","Educational Technology","e-Learning",
+    ]
+    q_lower = q.lower()
+    matches = [s for s in ALL_SKILLS if q_lower in s.lower()] if q else ALL_SKILLS
+    return {"suggestions": matches[:20], "total": len(ALL_SKILLS)}
+
+
+@app.get("/api/nationalities")
+async def nationality_list():
+    """Full list of nationalities for registration autocomplete."""
+    countries = [
+        "Afghanistan","Albania","Algeria","Angola","Argentina","Armenia","Australia",
+        "Austria","Azerbaijan","Bangladesh","Belarus","Belgium","Benin","Bhutan","Bolivia",
+        "Bosnia","Botswana","Brazil","Brunei","Burkina Faso","Burundi","Cambodia","Cameroon",
+        "Canada","Chad","Chile","China","Colombia","Comoros","Congo","Costa Rica",
+        "Croatia","Cuba","Czech Republic","Denmark","Djibouti","DRC","Ecuador","Egypt",
+        "El Salvador","Eritrea","Ethiopia","Fiji","Finland","France","Gambia","Georgia",
+        "Germany","Ghana","Greece","Guatemala","Guinea","Guinea-Bissau","Haiti","Honduras",
+        "Hungary","India","Indonesia","Iran","Iraq","Ireland","Italy","Jamaica","Japan",
+        "Jordan","Kazakhstan","Kenya","Kyrgyzstan","Laos","Lebanon","Lesotho","Liberia",
+        "Libya","Madagascar","Malawi","Malaysia","Maldives","Mali","Mauritania","Mauritius",
+        "Mexico","Moldova","Mongolia","Morocco","Mozambique","Myanmar","Namibia","Nepal",
+        "Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Macedonia","Norway",
+        "Oman","Pakistan","Palestine","Panama","Paraguay","Peru","Philippines","Poland",
+        "Portugal","Qatar","Romania","Russia","Rwanda","Saudi Arabia","Senegal",
+        "Sierra Leone","Singapore","Slovakia","Somalia","South Africa","South Korea",
+        "South Sudan","Spain","Sri Lanka","Sudan","Sweden","Switzerland","Syria",
+        "Taiwan","Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Trinidad",
+        "Tunisia","Turkey","Turkmenistan","Uganda","Ukraine","United Arab Emirates",
+        "United Kingdom","United States","Uruguay","Uzbekistan","Venezuela","Vietnam",
+        "Yemen","Zambia","Zimbabwe",
+    ]
+    return {"countries": countries, "total": len(countries)}
+
+
+@app.post("/api/scholarships/{sid}/bookmark")
+async def log_scholarship_event(sid: str, req: dict,
+                                 user: User = Depends(_get_user),
+                                 db:   Session = Depends(get_db)):
+    """Log scholarship interactions for analytics (apply_click, bookmark, share)."""
+    event = req.get("event", "view")
+    valid = {"apply_click","bookmark","share","view","pipeline_add","submitted","won","rejected"}
+    if event not in valid:
+        raise HTTPException(400, f"Invalid event. Must be one of: {', '.join(sorted(valid))}")
+    _log_event(db, user.id, event, sid,
+               req.get("name",""), {"amount": req.get("amount",0)})
+    return {"logged": True, "event": event, "scholarship_id": sid}
+
+
+@app.get("/api/analytics/apply-clicks")
+async def apply_click_analytics(user: User = Depends(_get_user),
+                                 db:   Session = Depends(get_db)):
+    """Return apply-click conversion metrics for the analytics dashboard."""
+    from sqlalchemy import func
+    events = db.query(
+        UserEvent.event_type,
+        func.count(UserEvent.id).label("count"),
+    ).group_by(UserEvent.event_type).all()
+    event_map = {row.event_type: row.count for row in events}
+    views     = event_map.get("view", 0)
+    clicks    = event_map.get("apply_click", 0)
+    adds      = event_map.get("pipeline_add", 0)
+    submitted = event_map.get("submitted", 0)
+    won_count = event_map.get("won", 0)
+    return {
+        "funnel": {
+            "views":       views,
+            "apply_clicks": clicks,
+            "pipeline_adds": adds,
+            "submitted":   submitted,
+            "won":         won_count,
+        },
+        "rates": {
+            "view_to_click_pct":    round(clicks    / max(views, 1) * 100, 1),
+            "click_to_add_pct":     round(adds      / max(clicks, 1) * 100, 1),
+            "add_to_submit_pct":    round(submitted / max(adds, 1) * 100, 1),
+            "submit_to_win_pct":    round(won_count / max(submitted, 1) * 100, 1),
+        },
+    }
 
 @app.get("/", response_class=HTMLResponse)
 async def spa():
