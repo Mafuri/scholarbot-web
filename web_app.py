@@ -344,15 +344,17 @@ def _make_token(uid):
                        _SECRET, algorithm=_ALG)
 
 def _decode_token(tok):
-    try: return _jwt.decode(tok, _SECRET, algorithms=[_ALG]).get("sub")
-    except JWTError: return None
+    try:
+        return _jwt.decode(tok, _SECRET, algorithms=[_JWT_ALGORITHM]).get("sub")
+    except JWTError:
+        return None
 
 
 def _validate_token_session(tok, db):
     """Phase 6: Checks password_changed_at to invalidate old tokens."""
     from jose import JWTError as _JWTError
     try:
-        payload = _jwt.decode(tok, _SECRET, algorithms=[_ALG])
+        payload = _jwt.decode(tok, _SECRET, algorithms=[_JWT_ALGORITHM])
         uid = payload.get("sub")
         iat = payload.get("iat", 0)
         if not uid: raise HTTPException(401, "Invalid token")
@@ -369,8 +371,21 @@ def _validate_token_session(tok, db):
 _INJECTION = [
     r"ignore\s+(?:all\s+)?(?:previous|above|prior)",
     r"disregard\s+(?:all\s+)?(?:previous|above)",
-    r"new\s+instructions?:", r"system\s*prompt", r"you\s+are\s+now",
+    r"new\s+instructions?:",
+    r"system\s*prompt",
+    r"you\s+are\s+now",
+    r"forget\s+(?:all\s+)?(?:previous|your)",
+    r"act\s+as\s+(?:a\s+)?(?:DAN|jailbreak|uncensored)",
+    r"<\s*/?(?:system|user|assistant)\s*>",
 ]
+
+def _normalise_unicode(text: str) -> str:
+    """Normalise unicode homoglyphs used in prompt injection attacks."""
+    import unicodedata
+    text = unicodedata.normalize("NFKC", text)
+    for ch in ["\u200b","\u200c","\u200d","\ufeff","\u2060"]:
+        text = text.replace(ch, "")
+    return text
 def _similarity_score(text_a: str, text_b: str) -> float:
     """T2: Trigram similarity (0-1). >0.65 = flag for review."""
     def ngrams(text, n=3):
@@ -423,7 +438,8 @@ def _log_event(db, user_id: str, event_type: str,
 
 def _sanitise(text, max_len=8000):
     if not text: return ""
-    text = "".join(ch for ch in str(text) if ord(ch)>=32 or ch in "\n\r\t")
+    text = _normalise_unicode(str(text))
+    text = "".join(ch for ch in text if ord(ch)>=32 or ch in "\n\r\t")
     for p in _INJECTION:
         text = re.sub(p, "[REMOVED]", text, flags=re.IGNORECASE)
     return text[:max_len]
@@ -4270,8 +4286,24 @@ def _essay_job(jid, opp, profile):
             db.add(pkg); db.commit()
         finally:
             db.close()
+        _ai_clichés = ["delve into","testament to","tapestry","fostering",
+                        "it is important","in conclusion,","i am passionate",
+                        "i am confident","aligns with my","i believe that"]
+        flags = [p for p in _ai_clichés if p in essay.lower()]
+        h_score = max(0, 100 - len(flags)*10)
         _update_job(jid, "done", result={
-            "essay": essay, "word_count": word_count, "version": version
+            "essay":              essay,
+            "word_count":         word_count,
+            "version":            version,
+            "humanisation_score": h_score,
+            "ai_flags":           flags,
+            "detection_risk":     "high" if len(flags)>=3 else "medium" if flags else "low",
+            "humanisation_tips": [
+                "Replace opening with a specific personal memory",
+                "Add your university name or a named research project",
+                "Change passive constructions to active first-person",
+                "Insert one specific date, statistic, or measurable outcome",
+            ] if flags else ["Essay looks good — personalise further before submitting"],
         })
     except Exception as e:
         _update_job(jid, "failed", error=str(e)[:500])
