@@ -1609,6 +1609,19 @@ function PipelinePage() {
                       </div>
                       <div style={{color:'#888',fontSize:11,marginTop:2}}>{app.deadline}</div>
                         <div style={{marginTop:6}}>
+                        <div style={{display:'flex',gap:4,marginBottom:4}}>
+                          <button onClick={function(){move(app.id,'won');}}
+                            style={{flex:1,background:'#059669',color:'#fff',border:'none',
+                              borderRadius:4,fontSize:10,padding:'3px 0',cursor:'pointer'}}>
+                            🏆 Won
+                          </button>
+                          <button onClick={function(){move(app.id,'rejected');}}
+                            style={{flex:1,background:'#f3f4f6',color:'#888',
+                              border:'1px solid #ddd',borderRadius:4,fontSize:10,
+                              padding:'3px 0',cursor:'pointer'}}>
+                            ✗ Rejected
+                          </button>
+                        </div>
                         <select value={stage.id}
                           disabled={moving === app.id}
                           onChange={function(e) { move(app.id, e.target.value); }}
@@ -2450,6 +2463,28 @@ function ProfilePage(props) {
             navigator.clipboard?navigator.clipboard.writeText(link).then(function(){toast('Referral link copied!','success');}):toast(link,'success');
           }}>Copy</button>
         </div>
+      </div>
+      <div className="card" style={{marginTop:'1rem'}}>
+        <div style={{fontWeight:600,marginBottom:8}}>🔑 Change password</div>
+        {function(){
+          var [cpw,setCpw]=useState(''); var [npw,setNpw]=useState('');
+          var [saving,setSaving]=useState(false);
+          return <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            <input type="password" placeholder="Current password" value={cpw}
+              onChange={function(e){setCpw(e.target.value);}}
+              style={{padding:'8px 10px',borderRadius:6,border:'1px solid #ddd',fontSize:13}}/>
+            <input type="password" placeholder="New password (min 8 chars)" value={npw}
+              onChange={function(e){setNpw(e.target.value);}}
+              style={{padding:'8px 10px',borderRadius:6,border:'1px solid #ddd',fontSize:13}}/>
+            <button className="btn btn-primary btn-sm" disabled={saving||!cpw||npw.length<8}
+              onClick={function(){
+                setSaving(true);
+                api('POST','/auth/change-password',{current_password:cpw,new_password:npw})
+                  .then(function(d){toast(d.message,'success');setCpw('');setNpw('');setSaving(false);})
+                  .catch(function(e){toast(e.message,'error');setSaving(false);});
+              }}>{saving?'Saving…':'Update password'}</button>
+          </div>;
+        }()}
       </div>
       <div className="card" style={{marginTop:'1rem'}}>
         <div style={{fontWeight:600,marginBottom:8}}>Your data rights (GDPR)</div>
