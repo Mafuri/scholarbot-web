@@ -484,6 +484,7 @@ def _days_until(d):
 
 # ── FastAPI App ───────────────────────────────────────────────
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, BackgroundTasks, Request
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -4791,6 +4792,19 @@ async def pitch_deck_data(db: Session = Depends(get_db)):
         ],
     }
 
+# Serve Vite build assets (/assets/index-xxx.js, /assets/index-xxx.css)
+@app.get("/assets/{path:path}")
+async def serve_assets(path: str):
+    """Serve Vite-bundled static assets."""
+    from fastapi.responses import FileResponse as _FR
+    p = Path(f"static/assets/{path}")
+    if p.exists():
+        # Set correct content type
+        ct = "application/javascript" if path.endswith(".js") else              "text/css" if path.endswith(".css") else              "image/svg+xml" if path.endswith(".svg") else              "image/png" if path.endswith(".png") else              "application/octet-stream"
+        return _FR(str(p), media_type=ct)
+    raise HTTPException(404)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def spa():
     p = Path("static/index.html")
@@ -5005,3 +5019,4 @@ def _packages_job(jid, profile, top_n):
     # ── Australia & New Zealand (Pacific region) ──────────────
     {"id":"australia_awards","name":"Australia Awards Scholarship","type":"scholarship","amount_usd":45000,"deadline":"2025-04-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Mozambique","Zambia","Zimbabwe","Senegal","Bangladesh","India","Pakistan","Vietnam","Indonesia","Philippines","Myanmar","Cambodia","Laos","Nepal","Sri Lanka","Bhutan","Timor-Leste","Papua New Guinea","Solomon Islands","Vanuatu","Fiji","Samoa","Tonga"],"degree_levels":["Graduate"],"field":"All fields — priority on development, agriculture, health, education","gpa_min":3.0,"tags":["australia","awards","development","fully-funded","prestigious","africa","asia","pacific"],"url":"https://www.dfat.gov.au/people-to-people/australia-awards","description":"Australian government fully-funded scholarships for emerging leaders from developing Asia, Africa, and Pacific regions","competitiveness":{"label":"Competitive","acceptance_rate":0.12}},
     {"id":"nzaid_scholarship","name":"New Zealand Pacific Scholarships","type":"scholarship","amount_usd":28000,"deadline":"2025-04-30","eligible_countries":["Fiji","Papua New Guinea","Solomon Islands","Vanuatu","Samoa","Tonga","Kiribati","Tuvalu","Niue","Cook Islands","Tokelau","Nauru","Marshall Islands","Federated States of Micronesia","Palau"],"degree_levels":["Undergraduate","Graduate"],"field":"All fields","gpa_min":2.8,"tags":["new zealand","pacific","government","development","island nations","fully-funded"],"url":"https://www.mfat.govt.nz/en/aid-and-development/new-zealand-scholarships/","description":"New Zealand government scholarships for Pacific Island nations students to study in New Zealand or their own region","competitiveness":{"label":"Moderate","acceptance_rate":0.20}}
+
