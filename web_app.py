@@ -2120,6 +2120,8 @@ async def debug_info():
         "email_configured": bool(os.environ.get("SENDER_API_KEY","")),
         "sentry_configured": bool(os.environ.get("SENTRY_DSN","")),
         "processed_stripe_events": len(_processed_stripe_events),
+        "r2_configured": bool(os.environ.get("CLOUDFLARE_R2_ACCOUNT_ID","")),
+        "r2_bucket": os.environ.get("CLOUDFLARE_R2_BUCKET","not set"),
         "status": "ok" if db_ok else "db_error",
     }
 
