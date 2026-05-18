@@ -65,6 +65,21 @@ def SessionLocal(): return _get_sf()()
 
 Base = declarative_base()
 
+# ── Performance indexes on hot query columns ──────────────────
+# Applied at startup via _safe_migrations()
+_HOT_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_applications_user_id   ON applications(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_applications_stage      ON applications(stage)",
+    "CREATE INDEX IF NOT EXISTS idx_user_events_user_id     ON user_events(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_user_events_event_type  ON user_events(event_type)",
+    "CREATE INDEX IF NOT EXISTS idx_user_events_created_at  ON user_events(created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_packages_user_id        ON packages(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_jobs_status             ON jobs(status)",
+    "CREATE INDEX IF NOT EXISTS idx_jobs_user_id            ON jobs(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_users_plan              ON users(plan)",
+    "CREATE INDEX IF NOT EXISTS idx_users_email             ON users(email)",
+]
+
 class User(Base):
     __tablename__ = "users"
     id                      = Column(String(32), primary_key=True)
@@ -323,6 +338,14 @@ def _init_db():
     # Idempotent migrations — safe to run every startup
     if "postgres" in db_type:
         _safe_migrations(engine)
+    # Apply performance indexes
+    try:
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            for idx_sql in _HOT_INDEXES:
+                try: conn.execute(text(idx_sql))
+                except Exception: pass
+    except Exception as _ie:
+        logger.debug("Index creation (non-critical): %s", _ie)
 
 
 def _safe_migrations(engine):
@@ -641,6 +664,14 @@ async def security_middleware(request: Request, call_next):
                 return JSONResponse({"detail":f"Rate limit: {limit}/hr"}, status_code=429)
             _rate_store[key].append(now)
             break
+    if os.environ.get("SENTRY_DSN",""):
+        try:
+            import sentry_sdk as _sentry
+            _auth = request.headers.get("authorization","")
+            if _auth.startswith("Bearer "):
+                _uid = _decode_token(_auth[7:])
+                if _uid: _sentry.set_user({"id": _uid})
+        except Exception: pass
     response = await call_next(request)
     response.headers["X-Content-Type-Options"]   = "nosniff"
     response.headers["X-Frame-Options"]          = "DENY"
@@ -661,6 +692,7 @@ async def security_middleware(request: Request, call_next):
         "base-uri 'self'; "
         "object-src 'none'"
     )
+    response.headers["X-API-Version"] = "4.3.0"
     return response
 
 @app.on_event("shutdown")
@@ -686,6 +718,7 @@ async def startup():
     Path("static").mkdir(parents=True, exist_ok=True)
     _init_db()
     logger.info("ScholarBot v4.3.0 started")
+    _startup_time = time.time()  # Track uptime
     # T4: Sentry error tracking
     sentry_dsn = os.environ.get("SENTRY_DSN","")
     if sentry_dsn:
@@ -866,8 +899,15 @@ async def startup():
     _aio3.create_task(_trial_checker())
     logger.info("Trial expiry checker started")
 
+# In-memory JWT revocation list — tokens added here are rejected on logout
+_revoked_tokens: set = set()
+
+
 def _get_user(creds: HTTPAuthorizationCredentials = Depends(security),
               db: Session = Depends(get_db)):
+    # Check revocation list first
+    if creds and creds.credentials in _revoked_tokens:
+        raise HTTPException(401, "Token has been revoked — please log in again")
     if not creds: raise HTTPException(401, "Not authenticated")
     uid = _decode_token(creds.credentials)
     if not uid: raise HTTPException(401, "Invalid or expired token")
@@ -875,12 +915,24 @@ def _get_user(creds: HTTPAuthorizationCredentials = Depends(security),
     if not u: raise HTTPException(401, "User not found")
     return u
 
-def _require_admin(user: User = Depends(_get_user)) -> User:
-    """FastAPI dependency — raises 403 if user is not admin or enterprise."""
+def _require_admin(user: User = Depends(_get_user),
+                   request: Request = None) -> User:
+    """FastAPI dependency — raises 403 if not admin. Logs all admin access."""
     admin_emails = [e.strip() for e in
                     os.environ.get("ADMIN_EMAILS","").split(",") if e.strip()]
     if user.plan not in ("enterprise","partner") and user.email not in admin_emails:
         raise HTTPException(403, "Admin access required")
+    # Audit log: record every admin action
+    try:
+        path = request.url.path if request else "unknown"
+        method = request.method if request else "unknown"
+        db = SessionLocal()
+        _log_event(db, user.id, "admin_action", None,
+                   f"{method} {path}", {"ip": request.client.host
+                   if request and request.client else "unknown"})
+        db.commit(); db.close()
+    except Exception:
+        pass
     return user
 
 
@@ -1046,10 +1098,30 @@ async def login(req: LoginReq, request: Request, db: Session = Depends(get_db)):
 async def me(user: User = Depends(_get_user)): return user.to_dict()
 
 @app.post("/api/auth/logout")
-async def logout():
-    resp = JSONResponse({"message":"Logged out"})
+async def logout(request: Request, user: User = Depends(_get_user)):
+    """Logout — revokes current JWT token immediately."""
+    auth = request.headers.get("authorization","")
+    if auth.startswith("Bearer "):
+        tok = auth[7:]
+        _revoked_tokens.add(tok)
+        if len(_revoked_tokens) > 10000:
+            try: _revoked_tokens.discard(next(iter(_revoked_tokens)))
+            except StopIteration: pass
+    resp = JSONResponse({"message":"Logged out successfully"})
     resp.delete_cookie(key="sb_token", path="/api")
     return resp
+
+
+@app.post("/api/auth/logout-all")
+async def logout_all(user: User = Depends(_get_user),
+                     db: Session = Depends(get_db)):
+    """Invalidate all sessions by stamping password_changed_at."""
+    u = db.query(User).filter(User.id == user.id).first()
+    if u:
+        u.password_changed_at = datetime.utcnow()
+        db.commit()
+    _log_event(db, user.id, "logout_all", None, user.email, {})
+    return {"message": "All sessions invalidated. Please log in again."}
 
 # ── Profile ───────────────────────────────────────────────────
 @app.get("/api/auth/verify-email")
@@ -1595,7 +1667,10 @@ async def search_scholarships(
     Supports filters: degree_level, country, min_amount, opp_type.
     """
     from engine.opportunity_db import load_all_opportunities
-    all_opps = load_all_opportunities()
+    from datetime import date as _dm2
+    _ts = str(_dm2.today())
+    all_opps = [o for o in load_all_opportunities()
+                if not o.get("deadline") or o["deadline"] >= _ts]
 
     if not q and not degree_level and not country and not opp_type and min_amount == 0:
         return {"results": all_opps[:20], "total": len(all_opps),
@@ -1962,7 +2037,10 @@ async def bookmark_scholarship(sid: str, user: User = Depends(_get_user),
                                 db: Session = Depends(get_db)):
     """Quick save a scholarship without adding to pipeline."""
     from engine.opportunity_db import load_all_opportunities
-    all_opps = load_all_opportunities() + EXTRA_OPPORTUNITIES
+    from datetime import date as _date_m
+    today_str = str(_date_m.today())
+    all_opps  = [o for o in load_all_opportunities() + EXTRA_OPPORTUNITIES
+                 if not o.get("deadline") or o["deadline"] >= today_str]
     opp = next((o for o in all_opps if o.get("id") == sid), None)
     if not opp:
         raise HTTPException(404, "Scholarship not found")
@@ -1999,6 +2077,37 @@ async def get_pipeline(user: User = Depends(_get_user), db: Session = Depends(ge
         stages[a.stage if a.stage in VALID_STAGES else "researching"].append(a.to_dict())
     return {"stages":stages,"counts":{k:len(v) for k,v in stages.items()},
             "total":len(apps),"won_total_usd":sum(a.amount_usd for a in apps if a.stage=="won")}
+
+
+@app.patch("/api/pipeline/bulk-move")
+async def bulk_move_pipeline(req: dict,
+                               user: User = Depends(_get_user),
+                               db:   Session = Depends(get_db)):
+    """
+    Move multiple pipeline applications to a new stage in one request.
+    Useful for batch operations: bulk-archive rejected, bulk-submit ready essays.
+    """
+    app_ids = req.get("ids", [])
+    stage   = req.get("stage","")
+    valid   = {"researching","essay_ready","submitted","awaiting","won","rejected"}
+    if not app_ids or len(app_ids) > 50:
+        raise HTTPException(400, "Provide 1-50 application IDs")
+    if stage not in valid:
+        raise HTTPException(400, f"Invalid stage. Must be one of: {', '.join(sorted(valid))}")
+    updated = 0
+    for app_id in app_ids:
+        app = db.query(Application).filter(
+            Application.id == app_id,
+            Application.user_id == user.id  # BOLA: own apps only
+        ).first()
+        if app:
+            app.stage = stage
+            updated += 1
+    db.commit()
+    if stage in ("won","rejected"):
+        _log_event(db, user.id, f"bulk_{stage}", None,
+                   f"{updated} applications", {"count": updated})
+    return {"updated": updated, "stage": stage, "requested": len(app_ids)}
 
 @app.post("/api/pipeline/add")
 async def add_pipeline(data: dict, user: User = Depends(_get_user),
@@ -2499,6 +2608,7 @@ async def health(db: Session = Depends(get_db)):
         "opportunities": 87 + len(EXTRA_OPPORTUNITIES),
         "circuit_open":  not _check_api_circuit(),
         "timestamp":     datetime.utcnow().isoformat(),
+        "uptime_seconds": int(time.time() - _startup_time) if "_startup_time" in dir() else 0,
     }
 
 @app.get("/api/stats")
@@ -4282,6 +4392,16 @@ async def stripe_webhook(request: Request):
                     logger.info("User %s upgraded to %s via Stripe", user_id, plan)
             finally:
                 db.close()
+    # Log subscription cancellations
+    evt_type = event.get("type","")
+    if evt_type == "customer.subscription.deleted":
+        cus = event.get("data",{}).get("object",{}).get("customer","")
+        _dbc = SessionLocal()
+        try:
+            _log_event(_dbc,"system","subscription_cancelled",None,
+                       f"stripe:{cus}",{"customer":cus})
+            _dbc.commit()
+        finally: _dbc.close()
     return {"status": "ok"}
 
 
@@ -5534,6 +5654,45 @@ async def confirm_email_change(token: str, db: Session = Depends(get_db)):
     db.commit()
     logger.info("Email changed: %s → %s", old_email, u.email)
     return {"message": "Email updated successfully. Please log in again.", "email": u.email}
+
+
+@app.get("/api/analytics/win-rates")
+async def win_rate_analytics(user: User = Depends(_get_user),
+                               db:   Session = Depends(get_db)):
+    """
+    Win rate breakdown by nationality, degree level, and field.
+    Powers matching weight improvements and shows users what works.
+    """
+    from sqlalchemy import func
+    # Total applications vs wins per nationality
+    events = db.query(UserEvent).filter(
+        UserEvent.event_type.in_(["submitted","won"])
+    ).all()
+    by_nationality: dict = {}
+    by_degree: dict      = {}
+    by_field: dict       = {}
+    for ev in events:
+        u = db.query(User).filter(User.id == ev.user_id).first()
+        if not u: continue
+        nat = u.nationality or "Unknown"
+        deg = u.degree_level or "Unknown"
+        fld = (u.major or "Unknown")[:30]
+        for bucket, key in [(by_nationality, nat),(by_degree, deg),(by_field, fld)]:
+            if key not in bucket:
+                bucket[key] = {"submitted": 0, "won": 0}
+            bucket[key][ev.event_type] = bucket[key].get(ev.event_type, 0) + 1
+    def _rate(d):
+        return [{
+            "key":        k,
+            "submitted":  v["submitted"],
+            "won":        v["won"],
+            "win_rate_pct": round(v["won"] / max(v["submitted"],1) * 100, 1)
+        } for k,v in sorted(d.items(), key=lambda x:-x[1]["won"])[:15]]
+    return {
+        "by_nationality": _rate(by_nationality),
+        "by_degree":      _rate(by_degree),
+        "by_field":       _rate(by_field),
+    }
 
 @app.get("/terms", response_class=HTMLResponse)
 async def terms_of_service():
