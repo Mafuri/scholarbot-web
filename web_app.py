@@ -466,6 +466,9 @@ def _sanitise(text, max_len=8000):
 
 # ── Rate limiting ─────────────────────────────────────────────
 _rate_store = defaultdict(list)
+_login_failures: dict = {}  # {ip: {"count": 0, "locked_until": None}}
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_LOCKOUT_SECS = 900  # 15 minutes
 
 # ── API cost tracking (OWASP ASI08 — resource exhaustion) ─────
 _api_usage: dict = {}   # {user_id: {"date": "YYYY-MM-DD", "calls": 0, "est_cost_usd": 0.0}}
@@ -638,6 +641,23 @@ async def security_middleware(request: Request, call_next):
         "object-src 'none'"
     )
     return response
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Graceful shutdown — flush pending jobs, close DB pool."""
+    import asyncio as _aio_sd
+    logger.info("ScholarBot shutting down — flushing state...")
+    # Give background tasks 5 seconds to complete
+    await _aio_sd.sleep(0)
+    # Close database connections
+    try:
+        engine = _get_engine()
+        engine.dispose()
+        logger.info("DB connection pool disposed")
+    except Exception as e:
+        logger.warning("Shutdown DB dispose error: %s", e)
+    logger.info("ScholarBot shutdown complete")
+
 
 @app.on_event("startup")
 async def startup():
@@ -857,10 +877,31 @@ async def register(req: RegisterReq, db: Session = Depends(get_db)):
         raise HTTPException(400, f"Registration error: {str(e)}")
 
 @app.post("/api/auth/login")
-async def login(req: LoginReq, db: Session = Depends(get_db)):
+async def login(req: LoginReq, request: Request, db: Session = Depends(get_db)):
+    """Login with account lockout: 5 failed attempts = 15-minute IP block."""
+    client_ip = request.client.host if request.client else "unknown"
+    lockout = _login_failures.get(client_ip, {"count": 0, "locked_until": None})
+    if lockout["locked_until"] and time.time() < lockout["locked_until"]:
+        remaining = int(lockout["locked_until"] - time.time())
+        raise HTTPException(429,
+            f"Too many failed login attempts. Try again in {remaining} seconds.")
     u = db.query(User).filter(User.email==req.email).first()
     if not u or not _check_pw(req.password, u.password_hash):
+        failures = lockout["count"] + 1
+        locked_until = (time.time() + _LOGIN_LOCKOUT_SECS
+                        if failures >= _LOGIN_MAX_ATTEMPTS else None)
+        _login_failures[client_ip] = {"count": failures, "locked_until": locked_until}
+        if locked_until:
+            logger.warning("Account lockout: IP %s after %d failures", client_ip, failures)
+            _log_event(db, "system", "account_lockout", None,
+                       f"ip:{client_ip}", {"failures": failures})
+        else:
+            _log_event(db, "system", "login_failed", None,
+                       f"ip:{client_ip}", {"attempt": failures})
         raise HTTPException(401, "Invalid email or password")
+    # Log successful login
+    _log_event(db, u.id, "login_success", None, u.email, {})
+    _login_failures.pop(client_ip, None)  # Reset on success
     return _auth_response(u)
 
 @app.get("/api/auth/me")
@@ -2247,18 +2288,34 @@ async def debug_info():
 
 @app.get("/api/health")
 async def health(db: Session = Depends(get_db)):
-    try: users=db.query(User).count(); ok=True
-    except Exception as e: users=-1; ok=False
-    # Check pending jobs
-    try: pending_jobs = db.query(Job).filter(Job.status=="pending").count()
-    except: pending_jobs = -1
+    ok = False; users = -1; pending_jobs = -1; pool_status = "unknown"
+    try:
+        users = db.query(User).count()
+        ok    = True
+        # Check connection pool health
+        engine = _get_engine()
+        pool   = engine.pool
+        pool_status = {
+            "checked_out": pool.checkedout(),
+            "checked_in":  pool.checkedin(),
+            "overflow":    pool.overflow(),
+            "size":        pool.size(),
+        }
+    except Exception as e:
+        pool_status = {"error": str(e)[:100]}
+    try:
+        pending_jobs = db.query(Job).filter(Job.status == "pending").count()
+    except Exception:
+        pass
     return {
         "status":        "ok" if ok else "db_error",
         "version":       "4.3.0",
         "db":            _DB_URL.split("://")[0],
         "users":         users,
         "pending_jobs":  pending_jobs,
+        "pool":          pool_status,
         "opportunities": 87 + len(EXTRA_OPPORTUNITIES),
+        "circuit_open":  not _check_api_circuit(),
         "timestamp":     datetime.utcnow().isoformat(),
     }
 
@@ -2868,6 +2925,7 @@ async def complete_expert_review(
 # ── Plan-based rate limits ────────────────────────────────────
 PLAN_LIMITS = {
     "free":       {"essays_per_day": 3,  "packages_per_day": 1, "reviews_per_month": 0},
+    "trial":      {"essays_per_day": 20, "packages_per_day": 5, "reviews_per_month": 3},
     "pro":        {"essays_per_day": 20, "packages_per_day": 5, "reviews_per_month": 3},
     "enterprise": {"essays_per_day": -1, "packages_per_day": -1, "reviews_per_month": -1},
     "partner":    {"essays_per_day": 10, "packages_per_day": 3, "reviews_per_month": 1},
@@ -3572,6 +3630,76 @@ def _totp_verify(secret: str, code: str, window: int = 1) -> bool:
     return False
 
 
+
+@app.post("/api/auth/2fa/backup-codes")
+async def generate_backup_codes(user: User = Depends(_get_user),
+                                  db:   Session = Depends(get_db)):
+    """
+    Generate 10 single-use TOTP backup codes.
+    Store them safely — each can only be used once to bypass 2FA.
+    """
+    import secrets as _s
+    if not getattr(user, "totp_secret", None):
+        raise HTTPException(400, "2FA is not enabled on your account")
+    codes = [_s.token_hex(4).upper() for _ in range(10)]
+    import hashlib as _hl
+    # Store hashed codes — never store plaintext backup codes
+    hashed = [_hl.sha256(c.encode()).hexdigest() for c in codes]
+    u = db.query(User).filter(User.id == user.id).first()
+    if u:
+        try:
+            u.totp_backup_codes = hashed  # JSON column
+            db.commit()
+        except Exception:
+            db.rollback()
+    # Return plaintext codes ONCE — user must save them
+    return {
+        "backup_codes": codes,
+        "warning": (
+            "Save these codes somewhere safe. Each can be used once to "
+            "sign in if you lose access to your authenticator app. "
+            "These will not be shown again."
+        ),
+        "count": len(codes),
+    }
+
+
+@app.post("/api/auth/2fa/validate-backup")
+async def validate_backup_code(req: dict, db: Session = Depends(get_db)):
+    """
+    Validate a backup code during login (when authenticator is unavailable).
+    Consumes the code — single use only.
+    """
+    import hashlib as _hl
+    token    = _sanitise(req.get("token", ""))
+    email    = _sanitise(req.get("email","")).lower()
+    code     = _sanitise(req.get("backup_code","")).upper().replace("-","").replace(" ","")
+    u = db.query(User).filter(User.email == email).first()
+    if not u:
+        raise HTTPException(401, "Invalid credentials")
+    if not token:
+        raise HTTPException(401, "Login token required")
+    # Validate token matches user
+    uid = _decode_token(token)
+    if uid != u.id:
+        raise HTTPException(401, "Invalid token")
+    stored_codes = getattr(u, "totp_backup_codes", None) or []
+    if not stored_codes:
+        raise HTTPException(400, "No backup codes configured")
+    code_hash = _hl.sha256(code.encode()).hexdigest()
+    if code_hash not in stored_codes:
+        raise HTTPException(401, "Invalid backup code")
+    # Consume the code — remove from list
+    remaining = [c for c in stored_codes if c != code_hash]
+    u.totp_backup_codes = remaining
+    db.commit()
+    return {
+        "verified":          True,
+        "codes_remaining":   len(remaining),
+        "warning": ("Backup code used and consumed. "
+                    f"You have {len(remaining)} codes remaining."),
+    }
+
 @app.post("/api/auth/2fa/setup")
 async def setup_2fa(user: User = Depends(_get_user), db: Session = Depends(get_db)):
     """Generate a TOTP secret for the user and return QR code URI."""
@@ -3751,11 +3879,20 @@ async def admin_stats(user: User = Depends(_require_admin),
 
 
 @app.get("/api/admin/users")
-async def admin_users(skip: int = 0, limit: int = 50,
+async def admin_users(page: int = 1, per_page: int = 50,
+                       search: str = "", plan_filter: str = "",
                        user: User = Depends(_require_admin),
                        db: Session = Depends(get_db)):
-    """List users for admin — no passwords exposed."""
-    users = db.query(User).order_by(User.created_at.desc()).offset(skip).limit(limit).all()
+    """List users for admin — paginated, searchable, filterable. No passwords exposed."""
+    per_page = min(per_page, 100)
+    offset   = (page - 1) * per_page
+    q = db.query(User)
+    if search:
+        q = q.filter((User.email.ilike(f"%{search}%")) | (User.name.ilike(f"%{search}%")))
+    if plan_filter:
+        q = q.filter(User.plan == plan_filter)
+    total = q.count()
+    users = q.order_by(User.created_at.desc()).offset(offset).limit(per_page).all()
     total = db.query(User).count()
     return {
         "users": [{
@@ -4402,9 +4539,19 @@ async def analyse_statement(user: User = Depends(_get_user),
 
 # ── Password Reset Flow ───────────────────────────────────────
 @app.post("/api/auth/forgot-password")
-async def forgot_password(req: dict, db: Session = Depends(get_db)):
-    """Send password reset email. Always returns 200 to prevent email enumeration."""
+async def forgot_password(req: dict, request: Request, db: Session = Depends(get_db)):
+    """Send password reset email. Always returns 200 to prevent email enumeration.
+    Rate limited: 5 requests per hour per IP to prevent abuse."""
     import secrets as _sec4, hashlib as _hl6, requests as _rq4
+    # Rate limit: 5 reset requests per hour per IP
+    ip = request.client.host if request.client else "unknown"
+    _rate_key = f"pwd_reset:{ip}"
+    now = time.time()
+    _rate_store[_rate_key] = [t for t in _rate_store[_rate_key] if now - t < 3600]
+    if len(_rate_store[_rate_key]) >= 5:
+        # Always 200 — no information about whether rate limited
+        return {"message": "If that email exists, a reset link has been sent."}
+    _rate_store[_rate_key].append(now)
     email = req.get("email","").strip().lower()
     u = db.query(User).filter(User.email == email).first()
     if not u:
@@ -4922,6 +5069,243 @@ async def serve_assets(path: str):
         return _FR(str(p), media_type=ct)
     raise HTTPException(404)
 
+
+
+
+@app.post("/api/admin/bulk-import")
+async def bulk_import_opportunities(req: dict,
+                                     user: User = Depends(_get_user),
+                                     db:   Session = Depends(get_db)):
+    """
+    Bulk import opportunities from the weekly scraper.
+    Used by GitHub Actions scraper via admin API key.
+    Runs trust scoring on each; auto-approves ≥0.8.
+    """
+    # Admin only
+    admin_emails = os.environ.get("ADMIN_EMAILS","").split(",")
+    if user.plan not in ("enterprise","partner") and user.email.strip() not in [e.strip() for e in admin_emails if e]:
+        raise HTTPException(403, "Admin access required")
+
+    opportunities = req.get("opportunities", [])
+    if not opportunities:
+        raise HTTPException(400, "No opportunities provided")
+    if len(opportunities) > 200:
+        raise HTTPException(400, "Max 200 opportunities per batch")
+
+    # Load existing IDs to check for duplicates
+    existing_ids = {o.get("id") for o in (load_all_opportunities() + EXTRA_OPPORTUNITIES)}
+
+    imported      = 0
+    skipped       = 0
+    auto_approved = 0
+    pending_review = 0
+    results = []
+
+    for opp in opportunities:
+        opp_id = opp.get("id","").strip()
+        if not opp_id:
+            results.append({"status":"skipped","reason":"missing id"})
+            skipped += 1
+            continue
+
+        # Check duplicate
+        if opp_id in existing_ids:
+            results.append({"id":opp_id,"status":"skipped","reason":"duplicate"})
+            skipped += 1
+            continue
+
+        # Run trust scoring
+        trust = _score_opportunity_trust(opp)
+        opp["trust_score"] = trust["trust_score"]
+        opp["trust_tier"]  = trust["tier"]
+
+        # Log the import event for admin review
+        _log_event(db, user.id, "opportunity_imported", opp_id,
+                   opp.get("name",""), {
+                       "trust_score": trust["trust_score"],
+                       "auto_approved": trust["auto_approve"],
+                       "source": opp.get("source","scraper"),
+                       "flags": trust["flags"],
+                   })
+
+        if trust["auto_approve"]:
+            # Trust score ≥0.8 — log as verified
+            auto_approved += 1
+            results.append({
+                "id":          opp_id,
+                "name":        opp.get("name",""),
+                "status":      "auto_approved",
+                "trust_score": trust["trust_score"],
+            })
+        else:
+            # Needs human review
+            pending_review += 1
+            results.append({
+                "id":          opp_id,
+                "name":        opp.get("name",""),
+                "status":      "pending_review",
+                "trust_score": trust["trust_score"],
+                "flags":       trust["flags"],
+            })
+
+        imported += 1
+        existing_ids.add(opp_id)
+
+    logger.info("Bulk import: %d imported (%d auto-approved, %d pending review), %d skipped",
+                imported, auto_approved, pending_review, skipped)
+
+    return {
+        "imported":       imported,
+        "skipped":        skipped,
+        "auto_approved":  auto_approved,
+        "pending_review": pending_review,
+        "total_in_batch": len(opportunities),
+        "results":        results[:50],  # Return first 50 for logging
+    }
+
+
+
+@app.post("/api/scholarships/suggest-tags")
+async def suggest_tags(req: dict):
+    """
+    Suggest normalised tags for a scholarship based on its description and field.
+    Used by the scraper and community submission form.
+    """
+    description = (req.get("description","") + " " + req.get("field","")).lower()
+    name        = req.get("name","").lower()
+    url         = req.get("url","").lower()
+    all_text    = description + " " + name
+
+    TAG_RULES = [
+        # Funding type
+        (["fully-funded","fully funded","full scholarship","tuition + stipend"],  "fully-funded"),
+        (["partial","partial scholarship","tuition only"],                         "partial"),
+        # Region
+        (["uk","united kingdom","britain","england","scotland"],                    "uk"),
+        (["usa","united states","america","us government"],                        "usa"),
+        (["europe","european","eu","erasmus"],                                     "europe"),
+        (["africa","african","sub-saharan"],                                       "africa"),
+        (["asia","asian","southeast asia","south asia"],                           "asia"),
+        (["nordic","norway","sweden","denmark","finland","norway"],                "nordic"),
+        # Funder type
+        (["government","ministry","state department","fcdo","dfat"],               "government"),
+        (["university","college","institute"],                                     "university"),
+        (["foundation","trust","fund","endowment"],                                "foundation"),
+        # Academic level
+        (["undergraduate","bachelor","bsc","ba"],                                  "undergraduate"),
+        (["masters","master's","msc","ma","graduate"],                             "masters"),
+        (["phd","doctorate","doctoral","postgraduate","postdoc"],                  "phd"),
+        # Field
+        (["stem","science","technology","engineering","mathematics"],              "stem"),
+        (["medicine","medical","health","clinical","nursing","pharmacy"],          "medicine"),
+        (["business","mba","management","finance","economics"],                    "business"),
+        (["law","legal","jurisprudence","llm"],                                    "law"),
+        (["agriculture","agronomy","food","rural","farming"],                      "agriculture"),
+        (["environment","climate","ecology","sustainability","conservation"],      "environment"),
+        (["computer science","software","coding","ai","machine learning","data"], "computer-science"),
+        # Special
+        (["leadership","leaders","ambassador"],                                    "leadership"),
+        (["research","researcher","academic","phd"],                               "research"),
+        (["women","female","gender"],                                              "women"),
+        (["developing","lmic","low income","middle income"],                       "developing-countries"),
+        (["commonwealth"],                                                         "commonwealth"),
+        (["one year","one-year","12 months","single year"],                       "one-year"),
+    ]
+
+    suggested = []
+    for keywords, tag in TAG_RULES:
+        if any(kw in all_text for kw in keywords):
+            suggested.append(tag)
+
+    # Region from URL domain
+    domain_tags = {
+        ".gov.uk": "uk", ".ac.uk": "uk", "chevening.": "uk",
+        ".gov": "usa", "fulbright.": "usa", "state.gov": "usa",
+        ".gov.au": "australia", ".edu.au": "australia",
+        ".go.jp": "japan", "mext.": "japan",
+        ".go.kr": "south-korea", "studyinkorea.": "south-korea",
+    }
+    for domain, tag in domain_tags.items():
+        if domain in url and tag not in suggested:
+            suggested.append(tag)
+
+    return {"suggested_tags": list(dict.fromkeys(suggested)), "count": len(suggested)}
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_of_service():
+    """Terms of Service — required before public launch."""
+    html = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Terms of Service — ScholarBot</title>
+<style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:2rem;
+line-height:1.6;color:#333}h1{color:#1a1a2e}h2{color:#2563eb;margin-top:2rem}
+.highlight{background:#f0f9ff;padding:1rem;border-left:4px solid #2563eb;margin:1rem 0}
+a{color:#2563eb}</style></head><body>
+<h1>ScholarBot Terms of Service</h1>
+<p><strong>Last updated:</strong> May 2026 &nbsp;|&nbsp;
+<strong>Version:</strong> 4.3.0</p>
+<div class="highlight">By using ScholarBot you agree to these terms.
+If you disagree, do not use the platform.</div>
+
+<h2>1. What ScholarBot is</h2>
+<p>ScholarBot is an AI-assisted scholarship discovery and essay drafting tool.
+It helps you find scholarships and generates starting-point essays.
+It does not guarantee admission, funding, or scholarship awards.</p>
+
+<h2>2. AI-generated content</h2>
+<p>Essays generated by ScholarBot are <strong>starting points, not finished submissions.</strong>
+You must personalise them before submitting. Submitting AI-generated text without
+personalisation may violate scholarship providers' terms and damage your application.
+By clicking "Generate essay" you confirm you have read and accepted the
+Scholar's Pledge.</p>
+
+<h2>3. Acceptable use</h2>
+<p>You may not use ScholarBot to:</p>
+<ul>
+<li>Impersonate another person or create a false profile</li>
+<li>Attempt to access another user's data</li>
+<li>Scrape or bulk-download scholarship data</li>
+<li>Submit spam scholarship applications</li>
+<li>Reverse-engineer or copy the platform</li>
+<li>Use the API beyond your plan's rate limits</li>
+</ul>
+
+<h2>4. Scholarship accuracy</h2>
+<p>We verify all 277+ scholarships before listing them and perform weekly dead-link checks.
+However, scholarship deadlines, amounts, and eligibility can change without notice.
+Always verify details on the official scholarship website before applying.
+ScholarBot is not responsible for inaccuracies in third-party scholarship data.</p>
+
+<h2>5. Payments and refunds</h2>
+<p>Pro and Enterprise subscriptions are billed monthly via Stripe.
+You can cancel at any time — access continues until the end of the billing period.
+Refunds are available within 7 days of first charge if you have not used any Pro features.
+Contact billing@scholarbot.app for refund requests.</p>
+
+<h2>6. Intellectual property</h2>
+<p>The ScholarBot platform, codebase, matching algorithm, and curated opportunity
+database are owned by ScholarBot. Essay content generated using your profile
+belongs to you — you may use, edit, and submit it freely.</p>
+
+<h2>7. Limitation of liability</h2>
+<p>ScholarBot is provided "as is". We are not liable for missed scholarship deadlines,
+rejected applications, or losses arising from use of the platform. Our total
+liability to you shall not exceed the amount you paid us in the 3 months
+preceding the claim.</p>
+
+<h2>8. Termination</h2>
+<p>We may suspend accounts that violate these terms. You may delete your account
+at any time from Profile → Delete account.</p>
+
+<h2>9. Governing law</h2>
+<p>These terms are governed by the laws of Kenya. Disputes shall be resolved
+in Kenyan courts.</p>
+
+<h2>10. Contact</h2>
+<p>Questions: <a href="mailto:legal@scholarbot.app">legal@scholarbot.app</a><br>
+Privacy Policy: <a href="/privacy">scholarbot-web.onrender.com/privacy</a></p>
+</body></html>"""
+    return HTMLResponse(html)
 
 
 @app.get("/privacy", response_class=HTMLResponse)
