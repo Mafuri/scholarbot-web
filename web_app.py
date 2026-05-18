@@ -810,6 +810,17 @@ def _get_user(creds: HTTPAuthorizationCredentials = Depends(security),
     if not u: raise HTTPException(401, "User not found")
     return u
 
+def _require_admin(user: User = Depends(_get_user)) -> User:
+    """FastAPI dependency — raises 403 if user is not admin or enterprise."""
+    admin_emails = [e.strip() for e in
+                    os.environ.get("ADMIN_EMAILS","").split(",") if e.strip()]
+    if user.plan not in ("enterprise","partner") and user.email not in admin_emails:
+        raise HTTPException(403, "Admin access required")
+    return user
+
+
+
+
 def _opt_user(creds: HTTPAuthorizationCredentials = Depends(security),
               db: Session = Depends(get_db)):
     if not creds: return None
