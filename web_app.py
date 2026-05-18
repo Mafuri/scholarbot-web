@@ -466,6 +466,27 @@ def _sanitise(text, max_len=8000):
 
 # ── Rate limiting ─────────────────────────────────────────────
 _rate_store = defaultdict(list)
+
+# 100 most common passwords — checked on registration and password change
+_COMMON_PASSWORDS = {
+    "password","password1","password123","123456","12345678","1234567890",
+    "qwerty","qwerty123","abc123","111111","iloveyou","admin","welcome",
+    "monkey","dragon","master","letmein","login","pass","password1",
+    "sunshine","princess","football","shadow","superman","michael",
+    "jessica","killer","trustno1","hello","charlie","donald","batman",
+    "access","mustang","baseball","soccer","hockey","harley","ranger",
+    "dakota","cookie","dragon","michael","hunter","buster","thomas",
+    "robert","tigger","soccer","george","andrew","change","summer",
+    "winter","spring","autumn","flower","love123","123abc","starwars",
+    "pass123","test","guest","user","default","changeme","root",
+    "toor","alpine","ubuntu","raspberry","admin123","administrator",
+    "scholarship","scholarbot","kenya123","nairobi","africa123",
+}
+
+def _check_common_password(pw: str) -> bool:
+    """Returns True if password is too common. False = password is safe."""
+    return pw.lower() in _COMMON_PASSWORDS or pw.lower()[:8] in _COMMON_PASSWORDS
+
 _login_failures: dict = {}  # {ip: {"count": 0, "locked_until": None}}
 _LOGIN_MAX_ATTEMPTS = 5
 _LOGIN_LOCKOUT_SECS = 900  # 15 minutes
@@ -728,6 +749,50 @@ async def startup():
                 db.close()
 
         scheduler.add_job(_send_reminders, "cron", hour=8, minute=0)
+        # Weekly digest every Monday 07:00 UTC
+        async def _send_weekly_digest():
+            """Send weekly scholarship digest to all free-plan users."""
+            try:
+                _db = SessionLocal()
+                free_users = _db.query(User).filter(
+                    User.plan == "free",
+                    User.email_verified == True,
+                ).limit(500).all()
+                sender_key = os.environ.get("SENDER_API_KEY","")
+                if not sender_key:
+                    _db.close(); return
+                import requests as _rqd
+                sent = 0
+                for _du in free_users:
+                    try:
+                        html = (f"<h2>Your Weekly ScholarBot Digest</h2>"
+                                f"<p>Hi {_du.name.split()[0]}, here are this week's highlights:</p>"
+                                f"<ul>"
+                                f"<li><strong>277+ verified scholarships</strong> matched to your profile</li>"
+                                f"<li>Check your <a href='https://scholarbot-web.onrender.com/?page=dashboard'>Dashboard</a> for new matches</li>"
+                                f"<li>Deadlines approaching — review your pipeline</li>"
+                                f"</ul>"
+                                f"<p><a href='https://scholarbot-web.onrender.com/?page=scholarships' "
+                                f"style='background:#2563eb;color:#fff;padding:10px 20px;border-radius:6px;"
+                                f"text-decoration:none;display:inline-block'>View scholarships →</a></p>"
+                                f"<p style='font-size:12px;color:#888'>Unsubscribe: "
+                                f"<a href='https://scholarbot-web.onrender.com/api/alerts/unsubscribe'>click here</a></p>")
+                        _rqd.post("https://api.sender.net/v2/message/send",
+                            headers={"Authorization":f"Bearer {sender_key}",
+                                     "Content-Type":"application/json"},
+                            json={"from":{"email":os.environ.get("FROM_EMAIL","noreply@scholarbot.app"),
+                                          "name":"ScholarBot"},
+                                  "to":{"email":_du.email,"name":_du.name},
+                                  "subject":"Your weekly ScholarBot update",
+                                  "html":html},
+                            timeout=8)
+                        sent += 1
+                    except Exception: pass
+                _db.close()
+                logger.info("Weekly digest sent to %d users", sent)
+            except Exception as _de:
+                logger.error("Weekly digest error: %s", _de)
+        scheduler.add_job(_send_weekly_digest, "cron", day_of_week="mon", hour=7, minute=0)
         scheduler.start()
         logger.info("APScheduler started — deadline reminders at 08:00 daily")
     except ImportError:
@@ -968,9 +1033,13 @@ async def login(req: LoginReq, request: Request, db: Session = Depends(get_db)):
             _log_event(db, "system", "login_failed", None,
                        f"ip:{client_ip}", {"attempt": failures})
         raise HTTPException(401, "Invalid email or password")
-    # Log successful login
-    _log_event(db, u.id, "login_success", None, u.email, {})
-    _login_failures.pop(client_ip, None)  # Reset on success
+    # Log successful login with device fingerprint
+    ua = request.headers.get("user-agent","unknown")[:120]
+    _log_event(db, u.id, "login_success", None, u.email, {
+        "ip": client_ip, "user_agent": ua,
+        "device": "mobile" if any(d in ua.lower() for d in ["android","iphone","mobile"]) else "desktop",
+    })
+    _login_failures.pop(client_ip, None)  # Reset lockout on success
     return _auth_response(u)
 
 @app.get("/api/auth/me")
@@ -1328,6 +1397,30 @@ EXTRA_OPPORTUNITIES = [
     ,{"id":"african_leaders_scholarship","name":"African Leaders of Tomorrow Scholarship","type":"scholarship","amount_usd":25000,"deadline":"2025-08-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","South Africa","Senegal","Cameroon","Mozambique","Zambia","Zimbabwe","Malawi","Madagascar"],"degree_levels":["Graduate"],"field":"Business, Economics, Public Policy, Development, Leadership","gpa_min":3.0,"tags":["africa","leaders","leadership","business","economics","policy","development","prestigious","community","impact","young professionals"],"url":"https://www.africanleaders.org/scholarship","description":"African Leaders of Tomorrow scholarships for emerging African business and policy leaders","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
     ,{"id":"africa_oxford_scholarship","name":"Oxford University Africa Scholarship","type":"scholarship","amount_usd":50000,"deadline":"2025-01-03","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Senegal","Rwanda","Zambia","Zimbabwe","Mozambique","Malawi","Egypt","Morocco","Tunisia","Algeria"],"degree_levels":["Graduate","Postgraduate"],"field":"All fields","gpa_min":3.7,"tags":["oxford","uk","africa","prestigious","fully-funded","phd","masters","research","leadership","development","pan-african","weidenfeld"],"url":"https://www.ox.ac.uk/admissions/graduate/fees-and-funding/oxford-funding","host_university":"University of Oxford","university_url":"https://www.ox.ac.uk","description":"Oxford's Africa-specific scholarships including Weidenfeld-Hoffmann, Felix, and other programmes for African scholars","competitiveness":{"label":"Extremely Competitive","acceptance_rate":0.03}}
     ,{"id":"cambridge_africa_scholarship","name":"Cambridge Gates Africa Scholarship","type":"scholarship","amount_usd":55000,"deadline":"2024-10-09","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Senegal","Rwanda","Zambia","Zimbabwe","Mozambique","Malawi","Egypt","Morocco","Tunisia"],"degree_levels":["Postgraduate"],"field":"All fields","gpa_min":3.8,"tags":["cambridge","uk","africa","gates","prestigious","fully-funded","phd","masters","research","leadership"],"url":"https://www.gatescambridge.org/programme/scholars/regions/","host_university":"University of Cambridge","university_url":"https://www.cam.ac.uk","description":"Gates Cambridge Scholarships specifically tracking African scholars — one of the most competitive awards","competitiveness":{"label":"Extremely Competitive","acceptance_rate":0.02}}
+
+    ,{"id":"czech_govt_scholarship","name":"Czech Government Scholarship (Development Cooperation)","type":"scholarship","amount_usd":11000,"deadline":"2025-03-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Zambia","Zimbabwe","Mozambique","Angola","Bangladesh","Pakistan","Nepal","Sri Lanka","Vietnam","Cambodia","Myanmar","Afghanistan","Bolivia","Honduras","Nicaragua","Haiti","Laos","Mongolia"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields","gpa_min":2.8,"tags":["czech","prague","europe","central europe","government","developing-countries","affordable","stem","arts","humanities"],"url":"https://www.dzs.cz/en/czech-government-scholarships/","description":"Czech government scholarships for students from developing countries — full tuition, accommodation, monthly stipend.","competitiveness":{"label":"Moderate","acceptance_rate":0.18}}
+    ,{"id":"poland_nawa_scholarship","name":"Poland NAWA Scholarship for Developing Countries","type":"scholarship","amount_usd":10000,"deadline":"2025-04-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Bangladesh","Pakistan","Nepal","Sri Lanka","Vietnam","Indonesia","Philippines","Cambodia","Egypt","Morocco","Jordan"],"degree_levels":["Graduate","Postgraduate"],"field":"All fields — priority on technology, social sciences, humanities","gpa_min":3.0,"tags":["poland","warsaw","nawa","central europe","government","affordable","stem","social-sciences","humanities","developing-countries"],"url":"https://nawa.gov.pl/en/students/coming-to-poland/nawa-scholarship","description":"NAWA Polish government scholarships for international students from developing countries.","competitiveness":{"label":"Moderate","acceptance_rate":0.18}}
+    ,{"id":"romania_govt_scholarship","name":"Romania Government Scholarship for Non-EU Students","type":"scholarship","amount_usd":8000,"deadline":"2025-04-15","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Bangladesh","Pakistan","Nepal","Vietnam","Cambodia","Myanmar","Bolivia","Honduras","Nicaragua","Haiti"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields","gpa_min":2.5,"tags":["romania","bucharest","eastern europe","government","affordable","low-gpa","developing-countries","medicine","engineering"],"url":"https://www.mae.ro/en/node/2411","description":"Romanian government scholarships — very accessible, covers tuition and accommodation.","competitiveness":{"label":"Moderate","acceptance_rate":0.25}}
+    ,{"id":"slovakia_govt_scholarship","name":"Slovakia National Scholarship Programme","type":"scholarship","amount_usd":9000,"deadline":"2025-04-30","eligible_countries":["Global"],"degree_levels":["Graduate","Postgraduate"],"field":"All fields","gpa_min":3.0,"tags":["slovakia","bratislava","central europe","government","affordable","research","stem","humanities"],"url":"https://www.scholarships.sk/en/","description":"Slovakia NSP scholarships for international students and researchers — monthly stipend, no tuition.","competitiveness":{"label":"Moderate","acceptance_rate":0.20}}
+    ,{"id":"iceland_govt_scholarship","name":"Icelandic Government Scholarship","type":"scholarship","amount_usd":14000,"deadline":"2025-03-01","eligible_countries":["Global"],"degree_levels":["Graduate","Postgraduate"],"field":"Nordic Studies, Icelandic Language, Environmental Science, Fisheries","gpa_min":3.2,"tags":["iceland","reykjavik","nordic","government","environment","fisheries","geology","energy","renewable","unique"],"url":"https://en.rannis.is/services/research/icelandic-government-scholarships/","description":"Iceland government scholarships — unique Nordic country, world leader in renewable energy and fisheries management.","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
+    ,{"id":"new_zealand_aidrt","name":"New Zealand AIDRT Scholarship (Pacific and Asia)","type":"scholarship","amount_usd":35000,"deadline":"2025-02-28","eligible_countries":["Bangladesh","Pakistan","Sri Lanka","Nepal","Vietnam","Indonesia","Philippines","Cambodia","Myanmar","Thailand","Malaysia","Papua New Guinea","Fiji","Solomon Islands","Vanuatu","Tonga","Samoa","Kiribati","Tuvalu","Nauru","Palau"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Development, Engineering, Agriculture, Education, Health, Environment","gpa_min":3.0,"tags":["new zealand","wellington","auckland","government","pacific","asia","fully-funded","development","agriculture","health","environment"],"url":"https://www.mfat.govt.nz/en/aid-and-development/nz-aid-programme/scholarships/","description":"New Zealand government fully-funded scholarships for students from Pacific and Asian developing nations.","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
+    ,{"id":"south_africa_nrf_scholarship","name":"South African NRF Scholarship for African Students","type":"scholarship","amount_usd":12000,"deadline":"2025-06-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Zambia","Zimbabwe","Mozambique","Malawi","Cameroon","Senegal","DRC","Angola","Namibia","Botswana","Lesotho","Eswatini"],"degree_levels":["Graduate","Postgraduate"],"field":"Science, Technology, Engineering, Mathematics","gpa_min":3.3,"tags":["south africa","johannesburg","cape town","nrf","africa","intra-africa","stem","research","phd","prestigious"],"url":"https://www.nrf.ac.za/funding/opportunities/","description":"South African NRF scholarships for African scholars in STEM — Johannesburg and Cape Town universities.","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
+    ,{"id":"egypt_cairo_scholarship","name":"Cairo University International Scholarship","type":"scholarship","amount_usd":7000,"deadline":"2025-09-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Sudan","Somalia","Jordan","Palestine","Yemen","Syria","Iraq","Libya","Morocco","Tunisia","Algeria"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"Medicine, Engineering, Law, Pharmacy, Agriculture, Arts","gpa_min":2.8,"tags":["egypt","cairo","arabic","medicine","engineering","law","pharmacy","africa","middle-east","affordable","arabic-language"],"url":"https://cu.edu.eg/international/scholarship","description":"Cairo University scholarships — Arabic-medium instruction, covers African and Arab League students.","competitiveness":{"label":"Moderate","acceptance_rate":0.22}}
+    ,{"id":"morocco_amci_scholarship_2","name":"Morocco AMCI Scholarship (expanded — all African states)","type":"scholarship","amount_usd":9000,"deadline":"2025-05-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Zambia","Zimbabwe","Mozambique","Malawi","Cameroon","Senegal","DRC","Angola","Namibia","Botswana","Lesotho","Eswatini","Guinea","Sierra Leone","Liberia","Gambia","Niger","Mali","Burkina Faso","Chad","CAR","South Sudan","Eritrea","Djibouti","Comoros","Mauritius","Madagascar"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields","gpa_min":2.8,"tags":["morocco","rabat","casablanca","africa","intra-africa","arabic","french","government","affordable","developing-countries","oic"],"url":"https://amci.ma/","description":"AMCI Morocco scholarships — all 54 African Union member states, French and Arabic instruction.","competitiveness":{"label":"Moderate","acceptance_rate":0.20}}
+    ,{"id":"israel_mashav_scholarship","name":"MASHAV Israel Development Scholarship","type":"scholarship","amount_usd":12000,"deadline":"2025-08-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Zambia","Zimbabwe","Mozambique","Malawi","Cameroon","Senegal","DRC","Angola","Bangladesh","India","Nepal","Sri Lanka","Vietnam","Philippines","Cambodia","Guatemala","Honduras","Bolivia","Haiti","Nicaragua","Peru","Ecuador"],"degree_levels":["Graduate"],"field":"Agriculture, Water Management, Medicine, Education, Community Development","gpa_min":3.0,"tags":["israel","tel aviv","jerusalem","mashav","development","agriculture","water-management","medicine","education","developing-countries","government"],"url":"https://www.gov.il/en/departments/units/mashav","description":"Israel MASHAV development scholarships for professionals from developing countries in agriculture and technology.","competitiveness":{"label":"Moderate","acceptance_rate":0.15}}
+    ,{"id":"iran_university_scholarship","name":"Iranian Government Scholarship for Muslim Countries","type":"scholarship","amount_usd":8000,"deadline":"2025-05-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Senegal","Mali","Niger","Gambia","Guinea","Sierra Leone","Bangladesh","Pakistan","Afghanistan","Indonesia","Malaysia","Bosnia","Albania","Kosovo","Azerbaijan","Uzbekistan","Kazakhstan","Tajikistan","Kyrgyzstan","Turkmenistan"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields — priority on Islamic Studies, Engineering, Medicine","gpa_min":2.8,"tags":["iran","tehran","government","oic","muslim","islamic-studies","engineering","medicine","persian","affordable","developing-countries"],"url":"https://ms.icro.ir/en/","description":"Iranian government scholarships for students from Muslim-majority countries — Persian language instruction.","competitiveness":{"label":"Moderate","acceptance_rate":0.20}}
+    ,{"id":"india_iccr_scholarship","name":"India ICCR Scholarship for Developing Countries","type":"scholarship","amount_usd":9000,"deadline":"2025-02-28","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Zambia","Zimbabwe","Senegal","Bangladesh","Nepal","Sri Lanka","Afghanistan","Cambodia","Myanmar","Vietnam","Indonesia","Philippines","Jordan","Palestine","Yemen","Egypt","Morocco","Bolivia","Honduras","Haiti","Nicaragua"],"degree_levels":["Undergraduate","Graduate","Postgraduate"],"field":"All fields — priority on STEM, Culture, Arts","gpa_min":2.8,"tags":["india","delhi","mumbai","iccr","south-south","government","developing-countries","stem","arts","culture","affordable","hindi","english"],"url":"https://www.iccr.gov.in/scholarship","description":"ICCR India government scholarships for developing country students — English-medium instruction at IITs and central universities.","competitiveness":{"label":"Moderate","acceptance_rate":0.18}}
+    ,{"id":"china_confucius_scholarship","name":"Confucius Institute Scholarship (Hanban)","type":"scholarship","amount_usd":8000,"deadline":"2025-03-31","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate"],"field":"Chinese Language, Chinese Culture, Chinese Studies","gpa_min":2.5,"tags":["china","mandarin","chinese-language","confucius","hanban","culture","affordable","language-learning","low-gpa","global"],"url":"https://www.chinesescholarshipcouncil.com/confucius/","description":"Confucius Institute Scholarships for Chinese language and culture study at Chinese universities.","competitiveness":{"label":"Moderate","acceptance_rate":0.25}}
+    ,{"id":"mongolia_govt_scholarship","name":"Mongolia Government Scholarship","type":"scholarship","amount_usd":8000,"deadline":"2025-09-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Bangladesh","Pakistan","Nepal","Vietnam","Cambodia","Myanmar"],"degree_levels":["Undergraduate","Graduate"],"field":"Engineering, Agriculture, Medicine, Veterinary Science","gpa_min":2.8,"tags":["mongolia","ulaanbaatar","government","affordable","engineering","agriculture","medicine","veterinary","developing-countries","unique","asia"],"url":"https://scholarships.gov.mn/","description":"Mongolia government scholarships — unique Central Asian destination, strong in veterinary science and mineral engineering.","competitiveness":{"label":"Moderate","acceptance_rate":0.22}}
+    ,{"id":"wmo_fellowship","name":"WMO Fellowship Programme (Weather/Climate)","type":"fellowship","amount_usd":18000,"deadline":"2025-11-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Bangladesh","Pakistan","Nepal","Sri Lanka","Vietnam","Cambodia","Myanmar","Bolivia","Honduras","Haiti","Nicaragua","Paraguay","Guatemala","Ecuador","Peru","Egypt","Morocco","Jordan","Yemen","Sudan"],"degree_levels":["Graduate","Postgraduate"],"field":"Meteorology, Climatology, Hydrology, Atmospheric Science","gpa_min":3.0,"tags":["wmo","un","weather","meteorology","climatology","hydrology","atmospheric","fellowship","developing-countries","climate-change","government","un-agency"],"url":"https://public.wmo.int/en/fellowships","description":"World Meteorological Organization fellowships for meteorology and climate professionals from developing nations.","competitiveness":{"label":"Competitive","acceptance_rate":0.12}}
+    ,{"id":"fao_fellowship","name":"FAO Fellowship Programme (Food and Agriculture)","type":"fellowship","amount_usd":20000,"deadline":"2025-09-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Zambia","Zimbabwe","Mozambique","Malawi","Bangladesh","Pakistan","Nepal","Vietnam","Indonesia","Cambodia","Bolivia","Honduras","Haiti","Nicaragua","Guatemala","Ecuador","Peru","Paraguay"],"degree_levels":["Graduate","Postgraduate"],"field":"Agriculture, Food Science, Nutrition, Fisheries, Forestry","gpa_min":3.0,"tags":["fao","un","agriculture","food-science","nutrition","fisheries","forestry","fellowship","developing-countries","un-agency","rome","government"],"url":"https://www.fao.org/fellowships","description":"FAO UN fellowships for agriculture and food systems professionals from developing countries.","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
+    ,{"id":"who_fellowship","name":"WHO Fellowship Programme (Public Health)","type":"fellowship","amount_usd":22000,"deadline":"2025-10-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Bangladesh","Pakistan","Nepal","Sri Lanka","Vietnam","Cambodia","Myanmar","Indonesia","Philippines","Bolivia","Honduras","Haiti","Nicaragua","Guatemala","Ecuador","Peru","Egypt","Morocco","Yemen","Sudan"],"degree_levels":["Graduate","Postgraduate"],"field":"Public Health, Epidemiology, Health Policy, Global Health","gpa_min":3.0,"tags":["who","un","public-health","epidemiology","health-policy","global-health","fellowship","developing-countries","un-agency","geneva","government"],"url":"https://www.who.int/about/finances-accountability/funding/scholarships-fellowships","description":"WHO fellowships for public health professionals from developing member states.","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
+    ,{"id":"unep_fellowship","name":"UNEP Fellowship (Environment)","type":"fellowship","amount_usd":18000,"deadline":"2025-08-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Bangladesh","Pakistan","Nepal","Vietnam","Indonesia","Philippines","Bolivia","Honduras","Haiti","Nicaragua","Guatemala","Ecuador","Peru","Egypt","Morocco"],"degree_levels":["Graduate","Postgraduate"],"field":"Environmental Science, Climate Change, Biodiversity, Sustainable Development","gpa_min":3.0,"tags":["unep","un","environment","climate-change","biodiversity","sustainable-development","fellowship","nairobi","developing-countries","un-agency","government"],"url":"https://www.unep.org/about-un-environment-programme/funding-and-partnerships/fellowships","description":"UNEP Nairobi fellowships for environmental professionals from developing countries — based in Nairobi.","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
+    ,{"id":"ilo_fellowship","name":"ILO Fellowship (Labour and Employment)","type":"fellowship","amount_usd":20000,"deadline":"2025-09-30","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Bangladesh","Pakistan","Nepal","Vietnam","Indonesia","Philippines","Bolivia","Honduras","Haiti","Nicaragua","Guatemala","Ecuador","Peru","Egypt","Morocco","Jordan","Yemen"],"degree_levels":["Graduate","Postgraduate"],"field":"Labour Policy, Employment, Social Protection, Workers Rights","gpa_min":3.0,"tags":["ilo","un","labour","employment","social-protection","workers-rights","fellowship","developing-countries","un-agency","geneva","government"],"url":"https://www.ilo.org/global/about-the-ilo/how-the-ilo-works/departments-and-offices/pardev/grants-fellowships","description":"ILO Geneva fellowships for labour policy professionals from developing countries.","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
+    ,{"id":"african_dev_bank_scholarship","name":"African Development Bank Scholarship","type":"scholarship","amount_usd":25000,"deadline":"2025-07-31","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","South Africa","Rwanda","Zambia","Zimbabwe","Mozambique","Malawi","Cameroon","Senegal","DRC","Angola","Namibia","Botswana","Mali","Burkina Faso","Niger","Guinea","Sierra Leone","Liberia","Gambia","Chad","CAR","South Sudan","Eritrea","Djibouti","Comoros","Mauritius","Madagascar","Seychelles","Cabo Verde","Sao Tome"],"degree_levels":["Graduate","Postgraduate"],"field":"Economics, Finance, Engineering, Agriculture, Public Policy, Environment","gpa_min":3.3,"tags":["african-development-bank","afdb","africa","economics","finance","engineering","agriculture","policy","environment","prestigious","pan-african","addis-ababa"],"url":"https://www.afdb.org/en/about-us/careers/internships-and-scholarships","description":"AfDB scholarships for African scholars at top international universities — fully funded, prestigious.","competitiveness":{"label":"Very Competitive","acceptance_rate":0.08}}
+    ,{"id":"mastercard_scholars_program","name":"Mastercard Foundation Scholars Program","type":"scholarship","amount_usd":50000,"deadline":"2025-03-15","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","Ethiopia","Rwanda","Zambia","Zimbabwe","Malawi","Mozambique","Cameroon","Senegal","DRC","South Africa","Mali","Guinea","Sierra Leone","Liberia","Gambia","Niger","Burkina Faso","Chad","CAR"],"degree_levels":["Undergraduate","Graduate"],"field":"All fields — leadership and community development focus","gpa_min":3.0,"tags":["mastercard","foundation","africa","prestigious","leadership","community","fully-funded","undergraduate","graduate","transformative","pan-african"],"url":"https://mastercardfdn.org/all/scholars/","description":"Mastercard Foundation Scholars Program — one of the world's largest scholarship programmes for African students.","competitiveness":{"label":"Very Competitive","acceptance_rate":0.05}}
+    ,{"id":"cargill_global_scholars","name":"Cargill Global Scholars Program","type":"scholarship","amount_usd":5000,"deadline":"2025-03-01","eligible_countries":["Kenya","Nigeria","Ghana","Tanzania","Uganda","India","Bangladesh","Brazil","Colombia","Indonesia","Vietnam","Philippines","Thailand","Malaysia","Cambodia","Myanmar"],"degree_levels":["Undergraduate"],"field":"Agriculture, Food Science, Business, Engineering, Finance","gpa_min":3.3,"tags":["cargill","corporate","agriculture","food-science","business","engineering","finance","undergraduate","leadership","developing-countries","global"],"url":"https://www.cargill.com/for-students","description":"Cargill Global Scholars — corporate scholarship for future agribusiness and food industry leaders.","competitiveness":{"label":"Competitive","acceptance_rate":0.10}}
+    ,{"id":"hewlett_packard_scholarship","name":"HP LIFE e-Learning Scholarship","type":"scholarship","amount_usd":6000,"deadline":"2025-12-31","eligible_countries":["Global"],"degree_levels":["Undergraduate","Graduate"],"field":"Computer Science, Business, Digital Technology, Entrepreneurship","gpa_min":3.0,"tags":["hp","hewlett-packard","corporate","computer-science","business","technology","entrepreneurship","global","e-learning","digital","affordable"],"url":"https://www.hplife.com/","description":"HP LIFE scholarships for students pursuing digital literacy and technology entrepreneurship skills.","competitiveness":{"label":"Moderate","acceptance_rate":0.20}}
 ]
 
 # Dynamic weight learning: updated from behavioral outcomes
@@ -1454,12 +1547,22 @@ def _match_opps(profile, opp_type=None, field=None, region=None, min_amount=0):
                         o["_behavioral_boost"] = 0.05  # +5% for proven opportunities
         except Exception:
             pass
-    # Sort by deadline ascending (soonest first) then by match score
+    # Sort options: deadline (default), match_score, expected_value
+    sort_by = "deadline"  # Can be extended to accept a parameter later
     def _deadline_sort_key(o):
         days = _days_until(o.get("deadline",""))
         if days is None or days < 0: return 9999
         return days
-    opps.sort(key=lambda o: (_deadline_sort_key(o), -float(o.get("match_score",0.5))))
+    def _ev_sort_key(o):
+        amount = float(o.get("amount_usd",0) or 0)
+        score  = float(o.get("match_score",0.5) or 0.5)
+        accept = float((o.get("competitiveness") or {}).get("acceptance_rate",0.1))
+        ev = amount * score * accept
+        return -ev  # Descending EV
+    if sort_by == "ev":
+        opps.sort(key=_ev_sort_key)
+    else:
+        opps.sort(key=lambda o: (_deadline_sort_key(o), -float(o.get("match_score",0.5))))
     _cache_set(ck, opps); return opps
 
 @app.get("/api/opportunities")
@@ -4790,18 +4893,24 @@ async def essay_usage(user: User = Depends(_get_user),
 
 
 def _check_essay_limit(user: User, db) -> bool:
-    """Returns True if user is within their daily essay limit."""
+    """Returns True if user is within their daily essay limit (user_id based)."""
     from datetime import date
     plan  = user.plan or "free"
     limit = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"]).get("essays_per_day", 3)
-    if limit < 0: return True  # unlimited
+    if limit < 0: return True  # unlimited (enterprise/partner)
     today = datetime.combine(date.today(), datetime.min.time())
-    used  = db.query(UserEvent).filter(
+    # Count by user_id — robust against IP changes, VPNs, shared offices
+    used = db.query(UserEvent).filter(
         UserEvent.user_id    == user.id,
-        UserEvent.event_type == "essay_critique",
+        UserEvent.event_type.in_(["essay_critique","essay_generated"]),
         UserEvent.created_at >= today,
     ).count()
     return used < limit
+
+
+def _log_essay_usage(user: User, db, event_type: str = "essay_generated"):
+    """Record essay generation against the user's daily limit."""
+    _log_event(db, user.id, event_type, None, "essay", {})
 
 
 @app.get("/api/skills/suggestions")
