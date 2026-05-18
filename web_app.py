@@ -3484,6 +3484,7 @@ async def create_checkout(req: dict, user: User = Depends(_get_user)):
             client_reference_id=user.id,
             customer_email=user.email,
             metadata={"user_id": user.id, "plan": plan},
+            allow_promotion_codes=True,  # Users can enter promo codes at checkout
         )
         return {"checkout_url": session.url, "session_id": session.id}
     except Exception as e:
@@ -4390,6 +4391,33 @@ async def stripe_webhook(request: Request):
                     u.plan = plan
                     db.commit()
                     logger.info("User %s upgraded to %s via Stripe", user_id, plan)
+                    # Referral reward: if user was referred, extend referrer's Pro
+                    try:
+                        ref_ev = db.query(UserEvent).filter(
+                            UserEvent.user_id    == user_id,
+                            UserEvent.event_type == "referral_signup"
+                        ).first()
+                        if ref_ev:
+                            import json as _jref
+                            ref_meta = ref_ev.metadata_ or {}
+                            if isinstance(ref_meta, str):
+                                try: ref_meta = _jref.loads(ref_meta)
+                                except: ref_meta = {}
+                            ref_code = ref_meta.get("referral_code","")
+                            # Find referrer by their user ID embedded in ref_code
+                            if ref_code:
+                                referrer = db.query(User).filter(
+                                    User.id == ref_code
+                                ).first()
+                                if referrer and referrer.plan == "free":
+                                    referrer.plan = "trial"
+                                    _log_event(db, referrer.id, "referral_reward",
+                                               None, f"referred:{user_id}",
+                                               {"reward": "7-day Pro trial extension"})
+                                    db.commit()
+                                    logger.info("Referral reward: %s → trial", referrer.email)
+                    except Exception as _re:
+                        logger.debug("Referral reward error (non-critical): %s", _re)
             finally:
                 db.close()
     # Log subscription cancellations
@@ -4400,6 +4428,16 @@ async def stripe_webhook(request: Request):
         try:
             _log_event(_dbc,"system","subscription_cancelled",None,
                        f"stripe:{cus}",{"customer":cus})
+            # Auto-downgrade to free plan on cancellation
+            recent_upgrade = _dbc.query(UserEvent).filter(
+                UserEvent.event_type=="stripe_checkout_completed"
+            ).order_by(UserEvent.created_at.desc()).first()
+            if recent_upgrade:
+                _uc = _dbc.query(User).filter(
+                    User.id==recent_upgrade.user_id).first()
+                if _uc and _uc.plan in ("pro","enterprise"):
+                    _uc.plan = "free"
+                    logger.info("Downgraded %s to free on cancel",_uc.email)
             _dbc.commit()
         finally: _dbc.close()
     return {"status": "ok"}
