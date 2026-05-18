@@ -1,134 +1,127 @@
 """
-ScholarBot — FastAPI application factory (Phase 2 modular architecture).
-
-web_app.py is now a thin entry point: `from app.main import app`
-All logic lives in routers/ and services/.
+ScholarBot FastAPI application factory.
+Imports all routers and configures middleware, startup, and static file serving.
 """
-import time
+import os
 import logging
-from collections import defaultdict
 from pathlib import Path
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
-from app.config import ALLOWED_ORIGINS, APP_VERSION, APP_TITLE, RATE_LIMITS
-from app.database import init_db
+from app.config import BASE_URL, SENTRY_DSN
+from app.database import get_engine, Base
+from app.routers import auth, scholarships, pipeline, essays
+from app.routers import recommendations, analytics, payments, admin, misc
 
-# ── Logger ────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+logger = logging.getLogger("scholarbot")
+logging.basicConfig(level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s")
+
+app = FastAPI(
+    title="ScholarBot API",
+    version="4.3.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
 )
-logger = logging.getLogger(__name__)
 
-# ── App ───────────────────────────────────────────────────────
-app = FastAPI(title=APP_TITLE, version=APP_VERSION)
-
-# ── CORS — restricted to known origins (Phase 1 T1) ──────────
+# ── CORS ──────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=[BASE_URL, "http://localhost:3000", "http://localhost:5173"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# ── Rate limiting middleware (Phase 1 T2/T3) ─────────────────
-_rate_store: dict = defaultdict(list)
-
-
+# ── Security headers middleware ────────────────────────────────
 @app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
-    path = request.url.path
-    ip = request.client.host if request.client else "unknown"
-    now = time.time()
-    for prefix, (limit, window) in RATE_LIMITS.items():
-        if path.startswith(prefix):
-            key = f"{ip}:{prefix}"
-            _rate_store[key] = [t for t in _rate_store[key] if now - t < window]
-            if len(_rate_store[key]) >= limit:
-                from fastapi.responses import JSONResponse
-                return JSONResponse(
-                    {"detail": f"Rate limit: max {limit} requests/hour"},
-                    status_code=429,
-                )
-            _rate_store[key].append(now)
-            break
-    return await call_next(request)
-
-
-# ── Routers ───────────────────────────────────────────────────
-from app.routers import (
-    auth, profile, scholarships, pipeline,
-    packages, interview, recommendations, system, account,
-)
-
-app.include_router(auth.router)
-app.include_router(profile.router)
-app.include_router(scholarships.router)
-app.include_router(pipeline.router)
-app.include_router(packages.router)
-app.include_router(interview.router)
-app.include_router(recommendations.router)
-app.include_router(system.router)
-app.include_router(account.router)
-
-# ── Startup ───────────────────────────────────────────────────
-@app.middleware("http")
-async def security_headers_middleware(request, call_next):
-    """Phase 4 T6: Security headers on all responses."""
+async def security_headers(request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    # CSP: allow CDN for React/Babel, own origin for API
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
-        "https://cdnjs.cloudflare.com; "
-        "style-src 'self' 'unsafe-inline'; "
-        "connect-src 'self' https://api.anthropic.com; "
-        "img-src 'self' data:; "
-        "font-src 'self';"
-    )
+    response.headers["X-Frame-Options"]        = "DENY"
+    response.headers["X-XSS-Protection"]       = "1; mode=block"
     return response
 
+# ── Routers ───────────────────────────────────────────────────
+app.include_router(auth.router,            prefix="/api")
+app.include_router(scholarships.router,    prefix="/api")
+app.include_router(pipeline.router,        prefix="/api")
+app.include_router(essays.router,          prefix="/api")
+app.include_router(recommendations.router, prefix="/api")
+app.include_router(analytics.router,       prefix="/api")
+app.include_router(payments.router,        prefix="/api")
+app.include_router(admin.router,           prefix="/api")
+app.include_router(misc.router)
 
+# ── Startup ───────────────────────────────────────────────────
 @app.on_event("startup")
 async def startup():
+    import asyncio
     Path("data/uploads").mkdir(parents=True, exist_ok=True)
     Path("data/packages").mkdir(parents=True, exist_ok=True)
     Path("static").mkdir(parents=True, exist_ok=True)
-    init_db()
-    logger.info(
-        "ScholarBot %s started — Phase 2 modular architecture active", APP_VERSION
-    )
-    logger.info(
-        "Security: CORS restricted | Rate limiting: ON | "
-        "Cache: TTL %ds | SHA256: removed",
-        300,
-    )
 
-# ── SPA fallback ──────────────────────────────────────────────
+    # Sentry
+    if SENTRY_DSN:
+        try:
+            import sentry_sdk
+            from sentry_sdk.integrations.fastapi import FastApiIntegration
+            sentry_sdk.init(dsn=SENTRY_DSN, integrations=[FastApiIntegration()])
+        except ImportError:
+            pass
+
+    # Database init
+    from app.database import init_db
+    init_db()
+
+    # APScheduler
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from app.tasks import send_deadline_reminders
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(send_deadline_reminders, "cron", hour=8, minute=0)
+        scheduler.start()
+        logger.info("APScheduler started")
+    except ImportError:
+        pass
+
+    # Persistent job worker
+    from app.tasks import job_worker
+    asyncio.create_task(job_worker())
+    logger.info("ScholarBot v4.3.0 started")
+
+
+# ── Static file serving ───────────────────────────────────────
+@app.get("/assets/{path:path}")
+async def serve_assets(path: str):
+    from fastapi.responses import FileResponse
+    p = Path(f"static/assets/{path}")
+    if p.exists():
+        ct = ("application/javascript" if path.endswith(".js") else
+              "text/css"               if path.endswith(".css") else
+              "image/svg+xml"          if path.endswith(".svg") else
+              "image/png"              if path.endswith(".png") else
+              "application/octet-stream")
+        return FileResponse(str(p), media_type=ct)
+    from fastapi import HTTPException
+    raise HTTPException(404)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def spa():
     p = Path("static/index.html")
     if p.exists():
         return HTMLResponse(p.read_text(encoding="utf-8"))
-    return HTMLResponse(
-        f"<h1>ScholarBot API {APP_VERSION}</h1>"
-        "<p>Frontend not found in static/index.html</p>"
-    )
+    return HTMLResponse("<h1>ScholarBot API v4.3.0</h1>")
 
 
 @app.get("/{path:path}", response_class=HTMLResponse)
 async def spa_fallback(path: str):
     if path.startswith("api/"):
         from fastapi import HTTPException
-        raise HTTPException(404, "API route not found")
+        raise HTTPException(404)
     p = Path("static/index.html")
     if p.exists():
         return HTMLResponse(p.read_text(encoding="utf-8"))

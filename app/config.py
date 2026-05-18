@@ -1,55 +1,51 @@
 """
-ScholarBot — Centralised configuration
-All env vars and constants in one place.
+ScholarBot configuration — all environment variables and constants.
 """
 import os
-import secrets
 
-# ── Database ──────────────────────────────────────────────────
-DATABASE_URL: str = os.environ.get(
-    "DATABASE_URL", "sqlite:///data/scholarbot.db"
-)
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+# Database
+DB_URL = os.environ.get("DATABASE_URL", "sqlite:///data/scholarbot.db")
+if DB_URL.startswith("postgres://"):
+    DB_URL = DB_URL.replace("postgres://", "postgresql://", 1)
 
-# ── Auth ──────────────────────────────────────────────────────
-SECRET_KEY: str = os.environ.get("SECRET_KEY", secrets.token_hex(32))
-JWT_ALGORITHM: str = "HS256"
-JWT_EXPIRE_DAYS: int = 7
-COOKIE_NAME: str = "sb_token"
+# Auth
+SECRET_KEY      = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+JWT_ALGORITHM   = os.environ.get("JWT_ALGORITHM", "HS256")
+JWT_EXPIRE_DAYS = 7
 
-# ── AI ────────────────────────────────────────────────────────
-ANTHROPIC_API_KEY: str = os.environ.get("ANTHROPIC_API_KEY", "")
-CLAUDE_MODEL: str = "claude-haiku-4-5-20251001"
-CLAUDE_MAX_TOKENS: int = 1000
+# Email
+SENDER_API_KEY = os.environ.get("SENDER_API_KEY", "")
+FROM_EMAIL     = os.environ.get("FROM_EMAIL", "noreply@scholarbot.app")
+FROM_NAME      = os.environ.get("FROM_NAME", "ScholarBot")
+BASE_URL       = os.environ.get("BASE_URL", "https://scholarbot-web.onrender.com")
 
-# ── CORS ─────────────────────────────────────────────────────
-ALLOWED_ORIGINS: list = [
-    "https://scholarbot-web.onrender.com",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
+# Stripe
+STRIPE_SECRET_KEY     = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_PRO_PRICE_ID   = os.environ.get("STRIPE_PRO_PRICE_ID", "")
+STRIPE_ENT_PRICE_ID   = os.environ.get("STRIPE_ENT_PRICE_ID", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 
-# ── Rate limits (requests, window_seconds) ────────────────────
-RATE_LIMITS: dict = {
-    "/api/auth/register": (10, 3600),
-    "/api/auth/login":    (20, 3600),
-    "/api/essays":        (10, 3600),
-    "/api/packages":      (5,  3600),
+# Cloudflare R2
+R2_ACCOUNT_ID  = os.environ.get("CLOUDFLARE_R2_ACCOUNT_ID", "")
+R2_ACCESS_KEY  = os.environ.get("CLOUDFLARE_R2_ACCESS_KEY", "")
+R2_SECRET_KEY  = os.environ.get("CLOUDFLARE_R2_SECRET_KEY", "")
+R2_BUCKET      = os.environ.get("CLOUDFLARE_R2_BUCKET", "")
+
+# Redis
+REDIS_URL = os.environ.get("REDIS_URL", "")
+
+# AI
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
+# Admin
+ADMIN_EMAILS = [e.strip() for e in
+                os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()]
+SENTRY_DSN   = os.environ.get("SENTRY_DSN", "")
+
+# Plan limits
+PLAN_LIMITS = {
+    "free":       {"essays_per_day": 3,   "packages_per_day": 1},
+    "pro":        {"essays_per_day": 20,  "packages_per_day": 5},
+    "enterprise": {"essays_per_day": -1,  "packages_per_day": -1},
+    "partner":    {"essays_per_day": -1,  "packages_per_day": -1},
 }
-
-# ── Cache TTL (seconds) ───────────────────────────────────────
-MATCH_CACHE_TTL: int = 300   # 5 minutes
-
-# ── File upload ───────────────────────────────────────────────
-UPLOAD_DIR: str = "data/uploads"
-ALLOWED_EXTENSIONS: set = {
-    ".pdf", ".docx", ".doc",
-    ".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp", ".webp"
-}
-MAX_FILE_SIZE_MB: int = 10
-
-# ── App metadata ──────────────────────────────────────────────
-APP_VERSION: str = "4.1.0"
-APP_TITLE: str = "ScholarBot API"
