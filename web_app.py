@@ -907,6 +907,37 @@ async def register(req: RegisterReq, db: Session = Depends(get_db)):
                     timeout=8)
             except Exception as _ve:
                 logger.debug("Verification email (non-critical): %s", _ve)
+        # Log trial start + send welcome email
+        from datetime import date as _dtrial
+        _trial_end = str(_dtrial.today().replace(day=min(_dtrial.today().day+7,28)))
+        _log_event(db, u.id, "trial_started", None, "Pro trial",
+                   {"trial_days":7,"trial_until":_trial_end,"auto_downgrade":True})
+        if _sender_key:
+            try:
+                import requests as _rq6
+                _whtml = (f"<h2>Welcome to ScholarBot, {u.name.split()[0]}!</h2>"
+                          f"<p>Your <strong>7-day Pro trial</strong> is now active. You have:</p>"
+                          f"<ul><li>20 essays/day</li><li>277+ matched scholarships</li>"
+                          f"<li>Interview coaching (Chevening, Fulbright, Gates Cambridge)</li></ul>"
+                          f"<p>Trial ends <strong>{_trial_end}</strong>. "
+                          f"<a href='https://scholarbot-web.onrender.com/?page=plans'>"
+                          f"Upgrade to keep Pro →</a></p>")
+                _rq6.post("https://api.sender.net/v2/message/send",
+                    headers={"Authorization":f"Bearer {_sender_key}",
+                             "Content-Type":"application/json"},
+                    json={"from":{"email":os.environ.get("FROM_EMAIL","noreply@scholarbot.app"),
+                                  "name":"ScholarBot"},
+                          "to":{"email":u.email,"name":u.name},
+                          "subject":f"Welcome to ScholarBot — your 7-day Pro trial starts now",
+                          "html":_whtml},
+                    timeout=8)
+            except Exception as _we:
+                logger.debug("Welcome email (non-critical): %s", _we)
+        # Track referral code if provided
+        _ref = _sanitise(getattr(req, "ref_code","") or "", 20)
+        if _ref:
+            _log_event(db, u.id, "referral_signup", None, f"ref:{_ref}",
+                       {"referral_code":_ref})
         return _auth_response(u)
     except HTTPException: raise
     except Exception as e:
@@ -2236,12 +2267,20 @@ async def critique_essay(req: dict, user: User = Depends(_get_user),
     # Log essay critique event
     _log_event(db, user.id, "essay_critique", scholarship_id, scholarship_name)
 
+    # Before/after edit suggestions for top improvements
+    improvements = result.get("improvements",[])
+    before_after = [{"issue":imp,
+                     "action":"Add a specific example, date, or measurable outcome"}
+                    for imp in improvements[:3] if isinstance(imp,str) and len(imp)>10]
     return {
         **result,
-        "rubric": rubric_name,
+        "rubric":            rubric_name,
         "rubric_dimensions": rubric_dims,
-        "similarity_check": similarity,
-        "scholarship_id": scholarship_id,
+        "similarity_check":  similarity,
+        "scholarship_id":    scholarship_id,
+        "before_after":      before_after,
+        "next_step":         ("Revise the top improvement above, then critique again "
+                              "— aim for Grade A before submitting."),
     }
 
 
@@ -4334,9 +4373,15 @@ async def validate_listings(admin: User = Depends(_require_admin)):
         except Exception as e:
             results["broken"].append({"id": opp["id"], "name": opp["name"][:50],
                                        "url": url, "error": str(e)[:60]})
+    broken_items = results.get("broken",[])
     return {**results,
-            "checked": checked, "total": len(all_opps),
-            "note": f"Sampled 30/{len(all_opps)} — run periodically for full scan"}
+            "checked":     checked,
+            "total":       len(all_opps),
+            "suggestions": [{"id":b.get("id"),"name":b.get("name"),
+                              "broken_url":b.get("url"),
+                              "action":"Find official URL on Google and update EXTRA_OPPORTUNITIES"}
+                             for b in broken_items],
+            "note":        f"Sampled 30/{len(all_opps)} — run periodically for full scan"}
 
 
 @app.post("/api/push/subscribe")
@@ -5299,6 +5344,87 @@ async def admin_locked_ips(user: User = Depends(_require_admin)):
               if d.get("locked_until") and d["locked_until"] > now]
     return {"locked_ips":locked,"total":len(locked)}
 
+
+
+@app.post("/api/auth/change-email")
+async def change_email(req: dict,
+                        user: User = Depends(_get_user),
+                        db:   Session = Depends(get_db)):
+    """
+    Change email address — requires password confirmation and triggers
+    re-verification. New email is not active until verified.
+    """
+    new_email = req.get("new_email","").strip().lower()
+    password  = req.get("password","")
+    if not new_email or "@" not in new_email:
+        raise HTTPException(400, "Valid email address required")
+    if not _check_pw(password, user.password_hash):
+        raise HTTPException(401, "Password is incorrect")
+    # Check new email not already taken
+    if db.query(User).filter(User.email == new_email).first():
+        raise HTTPException(400, "Email address already in use")
+    import secrets as _sec5, hashlib as _hl8
+    # Store pending email change — verified via token
+    raw_tok   = _sec5.token_urlsafe(32)
+    tok_hash  = _hl8.sha256(raw_tok.encode()).hexdigest()
+    _reset_tokens[f"email_{tok_hash}"] = {
+        "user_id":   user.id,
+        "new_email": new_email,
+        "used":      False,
+        "expires_at": datetime.utcnow() + timedelta(hours=24),
+    }
+    # Send verification email to the NEW address
+    base = os.environ.get("BASE_URL","https://scholarbot-web.onrender.com")
+    link = f"{base}/?verify_email_change={raw_tok}"
+    sender_key = os.environ.get("SENDER_API_KEY","")
+    if sender_key:
+        try:
+            import requests as _rq5
+            html = (f"<p>Hi {user.name},</p>"
+                    f"<p>Click below to confirm your new ScholarBot email address.</p>"
+                    f"<p><a href='{link}' style='background:#2563eb;color:#fff;"
+                    f"padding:12px 24px;border-radius:6px;text-decoration:none;"
+                    f"display:inline-block'>Confirm new email</a></p>"
+                    f"<p>This link expires in 24 hours.</p>"
+                    f"<p style='font-size:12px;color:#888'>If you didn't request this, ignore this email.</p>")
+            _rq5.post("https://api.sender.net/v2/message/send",
+                headers={"Authorization": f"Bearer {sender_key}",
+                         "Content-Type": "application/json"},
+                json={"from": {"email": os.environ.get("FROM_EMAIL","noreply@scholarbot.app"),
+                               "name": os.environ.get("FROM_NAME","ScholarBot")},
+                      "to": {"email": new_email, "name": user.name},
+                      "subject": "Confirm your new ScholarBot email address",
+                      "html": html},
+                timeout=10)
+        except Exception as e:
+            logger.debug("Email change send error (non-critical): %s", e)
+    return {
+        "message": "Verification email sent to your new address. Check your inbox.",
+        "new_email": new_email,
+        "expires_in_hours": 24,
+        "dev_token": raw_tok if not sender_key else None,
+    }
+
+
+@app.get("/api/auth/confirm-email-change")
+async def confirm_email_change(token: str, db: Session = Depends(get_db)):
+    """Confirm email change via token from verification email."""
+    import hashlib as _hl9
+    tok_hash = _hl9.sha256(token.encode()).hexdigest()
+    entry = _reset_tokens.get(f"email_{tok_hash}")
+    if not entry or entry.get("used") or entry["expires_at"] < datetime.utcnow():
+        raise HTTPException(400, "Invalid or expired link — request a new email change")
+    u = db.query(User).filter(User.id == entry["user_id"]).first()
+    if not u:
+        raise HTTPException(404, "User not found")
+    old_email      = u.email
+    u.email        = entry["new_email"]
+    u.email_verified = True
+    u.password_changed_at = datetime.utcnow()  # Invalidate all sessions
+    entry["used"]  = True
+    db.commit()
+    logger.info("Email changed: %s → %s", old_email, u.email)
+    return {"message": "Email updated successfully. Please log in again.", "email": u.email}
 
 @app.get("/terms", response_class=HTMLResponse)
 async def terms_of_service():
