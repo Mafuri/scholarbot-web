@@ -774,6 +774,33 @@ async def startup():
     _aio3.create_task(_job_worker())
     logger.info("Persistent job worker task created")
 
+    # Trial expiry: downgrade trial → free after 7 days
+    async def _trial_checker():
+        while True:
+            await _aio3.sleep(86400)
+            try:
+                from datetime import date as _dtt
+                today = str(_dtt.today())
+                _db4 = SessionLocal()
+                for _u4 in _db4.query(User).filter(User.plan=="trial").all():
+                    ev4 = _db4.query(UserEvent).filter(
+                        UserEvent.user_id==_u4.id,
+                        UserEvent.event_type=="trial_started"
+                    ).first()
+                    if ev4:
+                        import json as _jt4
+                        mt4 = ev4.metadata_ or {}
+                        if isinstance(mt4,str):
+                            try: mt4=_jt4.loads(mt4)
+                            except: mt4={}
+                        if mt4.get("trial_until","") < today:
+                            _u4.plan="free"
+                _db4.commit(); _db4.close()
+            except Exception as _et4:
+                logger.debug("Trial expiry check: %s",_et4)
+    _aio3.create_task(_trial_checker())
+    logger.info("Trial expiry checker started")
+
 def _get_user(creds: HTTPAuthorizationCredentials = Depends(security),
               db: Session = Depends(get_db)):
     if not creds: raise HTTPException(401, "Not authenticated")
@@ -2282,6 +2309,8 @@ async def debug_info():
         "r2_bucket_configured": bool(os.environ.get("CLOUDFLARE_R2_BUCKET","")),
         "anthropic_configured": bool(os.environ.get("ANTHROPIC_API_KEY","")),
         "status": "ok" if db_ok else "db_error",
+        "locked_ips_count": len([d for d in _login_failures.values()
+                                if d.get("locked_until") and time.time()<d["locked_until"]]),
         # NEVER add raw key values, SECRET_KEY, or passwords here
     }
 
@@ -3808,31 +3837,39 @@ async def export_pipeline_csv(user: User = Depends(_get_user),
 @app.get("/api/account/export.json")
 async def export_account_json(user: User = Depends(_get_user),
                                db: Session = Depends(get_db)):
-    """Full GDPR-compliant data export as JSON."""
-    apps  = db.query(Application).filter(Application.user_id == user.id).all()
-    pkgs  = db.query(Package).filter(Package.user_id == user.id).all()
-    evts  = db.query(UserEvent).filter(UserEvent.user_id == user.id).all()
-    return {
-        "exported_at": datetime.utcnow().isoformat(),
-        "profile":     user.to_dict(),
-        "applications": [a.to_dict() for a in apps],
-        "packages":    [p.to_dict() for p in pkgs],
-        "events":      [{"type": e.event_type, "opp": e.opp_name,
-                         "at": e.created_at.isoformat() if e.created_at else None}
-                        for e in evts],
-    }
-
-
-# ── Admin Panel ───────────────────────────────────────────────
-def _require_admin(user: User = Depends(_get_user)):
-    """Require admin role — currently checks for special email domain."""
-    admin_emails = os.environ.get("ADMIN_EMAILS", "").split(",")
-    is_admin = (user.email in admin_emails or
-                user.email.endswith("@scholarbot.app") or
-                user.plan == "enterprise")
-    if not is_admin:
-        raise HTTPException(403, "Admin access required")
-    return user
+    """Full GDPR Article 20 portability export — includes essays, events, recs."""
+    apps   = db.query(Application).filter(Application.user_id == user.id).all()
+    pkgs   = db.query(Package).filter(Package.user_id == user.id).all()
+    events = db.query(UserEvent).filter(UserEvent.user_id == user.id).all()
+    recs   = db.query(RecRequest).filter(RecRequest.user_id == user.id).all()
+    return JSONResponse({
+        "exported_at":    datetime.utcnow().isoformat(),
+        "gdpr_article":   "20 — Right to data portability",
+        "user":           user.to_dict(),
+        "applications":   [a.to_dict() for a in apps],
+        "packages": [{
+            "id":           p.id,
+            "opportunity":  p.opportunity_name,
+            "essay_text":   p.essay_text or "",
+            "created_at":   str(p.created_at),
+        } for p in pkgs],
+        "events": [{
+            "type":        e.event_type,
+            "scholarship": e.opp_name,
+            "created_at":  str(e.created_at),
+        } for e in events],
+        "recommendation_requests": [{
+            "recommender": r.recommender_name,
+            "scholarship": r.scholarship_name,
+            "status":      r.status,
+            "created_at":  str(r.created_at),
+        } for r in recs],
+        "total_records": {
+            "applications": len(apps),
+            "essays":       len(pkgs),
+            "events":       len(events),
+        },
+    })
 
 
 @app.get("/api/admin/stats")
@@ -4197,22 +4234,21 @@ async def create_api_key(req: dict, user: User = Depends(_get_user),
 # ── SEO Infrastructure ────────────────────────────────────────
 @app.get("/sitemap.xml", response_class=__import__("fastapi").responses.PlainTextResponse)
 async def sitemap():
-    """XML sitemap for search engine indexing."""
-    base = "https://scholarbot-web.onrender.com"
-    urls = [
-        base + "/",
-        base + "/?page=scholarships",
-        base + "/?page=register",
-        base + "/?page=login",
-        base + "/?page=plans",
-        base + "/?page=interview",
-    ]
-    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-    for url in urls:
-        xml += f"  <url><loc>{url}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>\n"
-    xml += "</urlset>"
-    return __import__("fastapi").responses.PlainTextResponse(xml, media_type="application/xml")
+    """XML sitemap including all scholarship pages for SEO."""
+    from engine.opportunity_db import load_all_opportunities
+    base = os.environ.get("BASE_URL","https://scholarbot-web.onrender.com")
+    all_ops = load_all_opportunities() + EXTRA_OPPORTUNITIES
+    static = [base+"/", base+"/?page=scholarships", base+"/?page=plans",
+              base+"/privacy", base+"/terms"]
+    opp_pages = [base+"/?page=scholarships&id="+op["id"]
+                 for op in all_ops if op.get("id")]
+    rows = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    rows += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for url in static + opp_pages:
+        rows += "  <url><loc>" + url + "</loc></url>\n"
+    rows += "</urlset>"
+    return __import__("fastapi").responses.PlainTextResponse(
+        rows, media_type="application/xml")
 
 
 @app.get("/robots.txt", response_class=__import__("fastapi").responses.PlainTextResponse)
@@ -5230,6 +5266,28 @@ async def suggest_tags(req: dict):
             suggested.append(tag)
 
     return {"suggested_tags": list(dict.fromkeys(suggested)), "count": len(suggested)}
+
+
+
+@app.post("/api/admin/unlock-ip")
+async def admin_unlock_ip(req: dict, user: User = Depends(_require_admin)):
+    """Admin: unlock a locked-out IP address."""
+    ip = req.get("ip","").strip()
+    if not ip: raise HTTPException(400, "ip required")
+    removed = _login_failures.pop(ip, None)
+    return {"unlocked":True,"ip":ip,"was_locked":removed is not None}
+
+
+@app.get("/api/admin/locked-ips")
+async def admin_locked_ips(user: User = Depends(_require_admin)):
+    """Admin: list all currently locked IP addresses."""
+    now = time.time()
+    locked = [{"ip":ip,"failures":d["count"],"seconds_remaining":
+               max(0,int(d["locked_until"]-now)) if d.get("locked_until") else 0}
+              for ip,d in _login_failures.items()
+              if d.get("locked_until") and d["locked_until"] > now]
+    return {"locked_ips":locked,"total":len(locked)}
+
 
 @app.get("/terms", response_class=HTMLResponse)
 async def terms_of_service():
